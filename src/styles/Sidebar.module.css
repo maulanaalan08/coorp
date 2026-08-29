@@ -1,0 +1,263 @@
+/* ===========================================
+  Sidebar.css — retheme dark & gold
+  Palette & type shared with ViewDetail.css / Dashboard.css
+=========================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* Variabel tema dibatasi ke .sidebar biar gak bentrok sama file CSS lain */
+:root {
+  --sidebar-width: 250px; /* Ubah angka ini sesuai lebar sidebar asli Anda */
+}
+.sidebar {
+  --bg-sidebar: #0c0b09;
+  --bg-surface: #17140f;
+  --bg-hover: #1d1810;
+  --border-soft: #221e15;
+  --text-gray: #a89c85;
+  --text-light: #f2ead9;
+  --accent-gold: #c9a24b;
+  --accent-gold-bright: #e8c874;
+  --accent-gold-dim: #7d6733;
+  --active-bg: rgba(201, 162, 75, 0.08);
+  --active-border: rgba(201, 162, 75, 0.4);
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Manrope', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* --- TAMBAHAN UNTUK FIXED SIDEBAR --- */
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000; /* Memastikan sidebar selalu di atas konten lain */
+  overflow-y: auto; /* Memungkinkan scroll di dalam sidebar jika menu terlalu panjang */
+  /* ------------------------------------ */
+  
+  width: 260px;
+  height: 100vh;
+  background-color: var(--bg-sidebar);
+  display: flex;
+  flex-direction: column;
+  padding: 30px 20px;
+  box-sizing: border-box;
+  font-family: var(--font-body);
+  border-right: 1px solid var(--border-soft);
+}
+
+/* Bagian Header / Logo */
+.sidebar-header {
+  margin-bottom: 40px;
+  padding-left: 12px;
+}
+
+.logo-title {
+  font-family: var(--font-display);
+  color: var(--accent-gold);
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin: 0 0 4px 0;
+  letter-spacing: .5px;
+}
+
+.logo-subtitle {
+  font-family: var(--font-mono);
+  color: var(--accent-gold-dim);
+  font-size: 0.62rem;
+  margin: 0;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Navigasi Utama */
+.sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nav-item {
+  position: relative;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  color: var(--text-gray);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.nav-link:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-light);
+}
+
+.nav-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 14px;
+  opacity: 0.8;
+}
+
+/* Styling Menu Aktif (Menu Utama) */
+.nav-item.active {
+  background-color: var(--active-bg);
+  border: 1px solid var(--active-border);
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -21px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background-color: var(--accent-gold);
+  border-radius: 2px;
+}
+
+.nav-item.active .nav-link {
+  color: var(--accent-gold-bright);
+}
+
+.nav-item.active .nav-icon {
+  color: var(--accent-gold-bright);
+  opacity: 1;
+}
+
+/* ====================================================
+   DROPDOWN & SUB-MENU STYLES (BARU)
+==================================================== */
+.has-dropdown {
+  flex-direction: column;
+}
+
+/* Tombol Toggle Dropdown */
+.dropdown-toggle {
+  background: transparent;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  color: var(--text-gray);
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.dropdown-toggle:hover,
+.dropdown-toggle.dropdown-open {
+  background-color: var(--bg-hover);
+  color: var(--text-light);
+}
+
+.dropdown-toggle.dropdown-open {
+  color: var(--accent-gold-bright);
+}
+
+.dropdown-toggle .chevron {
+  transition: transform 0.2s ease;
+  opacity: 0.7;
+}
+
+/* Container Sub-Menu */
+.sub-nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sub-nav-list.open {
+  max-height: 400px; /* Sesuaikan ukuran maksimal agar animasi halus */
+}
+
+/* Item Sub-Menu */
+.sub-nav-item {
+  margin: 4px 0;
+}
+
+.sub-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 42px; /* Indentasi: Padding kiri 42px */
+  color: var(--text-gray);
+  text-decoration: none;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.sub-nav-link:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-light);
+}
+
+/* Menu Sub-Menu Aktif */
+.sub-nav-item.active .sub-nav-link {
+  background-color: var(--active-bg);
+  color: var(--accent-gold-bright);
+  border: 1px solid var(--active-border);
+}
+
+/* Tombol + Create Project */
+.create-btn {
+  margin-top: 35px;
+  background: linear-gradient(135deg, var(--accent-gold-dim), var(--accent-gold-bright));
+  color: #17140f;
+  border: none;
+  border-radius: 4px;
+  padding: 14px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.create-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -10px rgba(201, 162, 75, 0.5);
+}
+
+.btn-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+}
+
+/* Footer Sidebar */
+.sidebar-footer {
+  margin-top: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-item, .create-btn, .sub-nav-list, .dropdown-toggle {
+    transition: none !important;
+  }
+}

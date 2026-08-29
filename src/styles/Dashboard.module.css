@@ -1,0 +1,240 @@
+/* ===========================================
+   Dashboard.module.css — Clean CSS Module
+=========================================== */
+
+.dashboardWrapper {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #0c0b09;
+  color: #f2ead9;
+  padding: 32px 40px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* Navbar Header */
+.topNavbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.navbarGreeting h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.8rem;
+  margin: 0 0 6px 0;
+  color: #f2ead9;
+}
+
+.navbarGreeting p {
+  color: #a89c85;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.navbarActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  background-color: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 20px;
+  padding: 8px 16px;
+  gap: 10px;
+}
+
+.searchBar input {
+  background: transparent;
+  border: none;
+  color: #f2ead9;
+  outline: none;
+  font-size: 0.85rem;
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  color: #a89c85;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: color 0.2s;
+}
+
+.iconBtn:hover {
+  color: #e8c874;
+}
+
+.userAvatar img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #7d6733;
+}
+
+/* Stats Section Grid */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  width: 100%;
+}
+
+.statCard {
+  background-color: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 6px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.statHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.statIconWrapper {
+  padding: 8px;
+  background-color: #221e15;
+  border-radius: 4px;
+  display: flex;
+}
+
+.statLabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: #a89c85;
+  letter-spacing: 0.1em;
+}
+
+.statValue {
+  font-family: 'Fraunces', serif;
+  font-size: 2.2rem;
+  font-weight: 600;
+  color: #f2ead9;
+}
+
+.statDesc {
+  font-size: 0.8rem;
+  color: #a89c85;
+}
+
+.dangerCard {
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+.dangerText {
+  color: #ef4444 !important;
+}
+
+.dangerIcon {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* Projects Table Section */
+.projectsSection {
+  background-color: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 6px;
+  padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.projectsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.projectsTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.titleAccent {
+  width: 3px;
+  height: 18px;
+  background-color: #c9a24b;
+}
+
+.projectsTitle h3 {
+  font-family: 'Fraunces', serif;
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.projectsActions {
+  display: flex;
+  gap: 12px;
+}
+
+.newProjectBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #7d6733, #c9a24b);
+  color: #17140f;
+  font-weight: 700;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.projectsTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.projectsTable th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: #7d6733;
+  padding: 14px;
+  border-bottom: 1px solid #221e15;
+}
+
+.projectsTable td {
+  padding: 16px 14px;
+  border-bottom: 1px solid #221e15;
+  font-size: 0.9rem;
+}
+
+.projectsFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  color: #a89c85;
+  font-size: 0.85rem;
+}
+
+.textCenter { text-align: center; }
+.textGray { color: #a89c85; }
+.textDanger { color: #ef4444; }
+.textYellow { color: #e8c874; }

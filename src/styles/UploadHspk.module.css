@@ -1,0 +1,261 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+.uploadWrapper {
+  --bg: #0c0b09;
+  --surface: #141311;
+  --surface-card: #191816;
+  --border: #2e281e;
+  --border-dashed: #3a3326;
+  --gold: #e8c874;
+  --gold-button: #e2be52;
+  --gold-dim: #947e45;
+  --text: #f2ead9;
+  --text-muted: #8c8273;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Manrope", -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  width: 100%;
+  min-height: 100vh;
+  padding: 32px 40px;
+  box-sizing: border-box;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* Container Utama Membentang Penuh (Full Width) */
+.cardContainer {
+  width: 100%;
+  max-width: none; /* Hilangkan pembatasan lebar */
+  margin: 0;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 36px;
+  box-sizing: border-box;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+/* Header Section (Judul & Sub-note Inline) */
+.headerTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.hspkTitle {
+  font-family: var(--font-body);
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #ffffff;
+  margin: 0;
+}
+
+.hspkNote {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background-color: #1e1c19;
+  border: 1px solid #28241e;
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+.hspkField {
+  margin-top: 22px;
+  width: 100%;
+}
+
+.hspkLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--gold-dim);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* Drag & Drop Area Full Width */
+.dropZone {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed var(--border-dashed);
+  border-radius: 6px;
+  padding: 40px 20px;
+  background-color: #11100e;
+  text-align: center;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+  cursor: pointer;
+}
+
+.dropZone:hover,
+.dropZone.dragActive {
+  border-color: var(--gold);
+  background-color: #171512;
+}
+
+.uploadIconBox {
+  width: 48px;
+  height: 48px;
+  background-color: #1c1a16;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.dragText {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e5dfd3;
+  margin: 0 0 6px 0;
+}
+
+.orText {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.chooseBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #1c1a16;
+  border: 1px solid #332d22;
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chooseBtn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.supportedFormat {
+  margin-top: 16px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+
+.fileNameDisplay {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--gold);
+  font-family: var(--font-mono);
+}
+
+/* Form Input & Select */
+.hspkInput,
+.hspkSelect {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #0e0d0b;
+  border: 1px solid #26221a;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 0.88rem;
+  color: #ffffff;
+  font-family: var(--font-body);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.hspkInput:focus,
+.hspkSelect:focus {
+  border-color: var(--gold-dim);
+}
+
+.hspkSelect {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238c8273' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px;
+  cursor: pointer;
+}
+
+.hspkSelect option {
+  background-color: #141311;
+  color: #ffffff;
+}
+
+/* Grid 2 Kolom untuk Disiplin & Grade */
+.formRowGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+}
+
+/* Tombol Upload Gold */
+.hspkUploadBtn {
+  margin-top: 32px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: var(--gold-button);
+  color: #12100b;
+  border: none;
+  border-radius: 4px;
+  padding: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.hspkUploadBtn:hover:not(:disabled) {
+  background-color: #ebd068;
+}
+
+.hspkUploadBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hspkError {
+  margin-top: 20px;
+  padding: 12px;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  color: #ef4444;
+  font-size: 0.85rem;
+}
+
+.hspkResult {
+  margin-top: 24px;
+  background-color: #0e0d0b;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--gold);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
