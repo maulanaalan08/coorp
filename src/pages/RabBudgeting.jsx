@@ -1,426 +1,724 @@
-import React, { useState, useEffect } from 'react';
-import styles from '../styles/RabBudgeting.module.css';
-import Header from '../components/Header';
+import { useEffect, useMemo, useState } from "react";
 import {
-  RefreshCw, Trash2, Edit2, Zap, DollarSign, Calculator, Layers, FileSpreadsheet
-} from 'lucide-react';
-import { useProjects } from '../hooks/useProjects';
-import { useRabItems } from '../hooks/useRabItems';
-import { hspkService } from '../services/hspkService';
+  Wallet,
+  ClipboardList,
+  Scale,
+  TrendingUp,
+  Search,
+  ChevronDown,
+  ChevronLeft,
+  RefreshCw,
+} from "lucide-react";
+import styles from "../styles/RabBudgeting.module.css";
+import Header from "../components/Header";
+import { useProjects } from "../hooks/useProjects";
+import { useRabGroups } from "../hooks/useRabGroups";
+import { useRabItems } from "../hooks/useRabItems";
 
-// ================================================================
-// MODAL SUNTIK AHSP MASTER / EDIT RAB ITEM
-// ================================================================
-function EditRabModal({ isOpen, onClose, item, onSuccess }) {
-  const [rapUnitPrice, setRapUnitPrice] = useState('');
-  const [overheadPercent, setOverheadPercent] = useState('10');
-  const [sourceJobTypeId, setSourceJobTypeId] = useState('');
-  const [jobTypes, setJobTypes] = useState([]);
-  const [loadingMaster, setLoadingMaster] = useState(false);
-  const [mode, setMode] = useState('manual'); // 'manual' or 'ahsp'
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : "http://localhost:4000/api";
+
+const fmtRp = (n) =>
+  "Rp " +
+  Number(n || 0).toLocaleString("id-ID", {
+    maximumFractionDigits: 0,
+  });
+
+const RabBudgeting = ({ initialProjectId = null, onBack }) => {
+  const [projectId, setProjectId] = useState(initialProjectId);
+  const [search, setSearch] = useState("");
+  
+  // ==========================================================
+  // CUSTOM HOOKS
+  // ==========================================================
+  const { projects: projectList, loading: loadingProjects } = useProjects();
+  const { rabGroups: groups, loadingGroups: loading, errorGroups: fetchError, refreshGroups, createGroup, deleteGroup } = useRabGroups(projectId);
+  const { deleteRabItem, updateRabItem, deleteBulk, bulkPrice, bulkSwitchJob } = useRabItems(projectId);
+
+  const project = useMemo(() => projectList.find(p => p.id === projectId), [projectList, projectId]);
+
+  // State untuk Tambah Group
+  const [groupModal, setGroupModal] = useState(null);
+
+  // State untuk Edit Individual
+  const [editModal, setEditModal] = useState(null);
+
+  // State untuk Hapus Massal & Checkbox
+  const [selectedItemIds, setSelectedItemIds] = useState([]);
+  
+  // State untuk 3 Modal Bulk (Sapu Jagat) yang sesuai Backend
+  const [bulkPriceModal, setBulkPriceModal] = useState(null);
+  const [bulkSwitchModal, setBulkSwitchModal] = useState(null);
+  const [bulkNameModal, setBulkNameModal] = useState(null);
 
   useEffect(() => {
-    if (isOpen && item) {
-      setRapUnitPrice(item.rapUnitPrice != null ? String(item.rapUnitPrice) : '');
-      setOverheadPercent(item.overheadPercent != null ? String(item.overheadPercent) : '10');
-      setSourceJobTypeId(item.sourceJobTypeId || '');
-      setMode(item.sourceJobTypeId ? 'ahsp' : 'manual');
-      setError(null);
-
-      setLoadingMaster(true);
-      hspkService.getJobTypes({ limit: 100 })
-        .then(res => setJobTypes(Array.isArray(res) ? res : res?.data || []))
-        .catch(() => {})
-        .finally(() => setLoadingMaster(false));
+    if (initialProjectId !== null) {
+      setProjectId(initialProjectId);
     }
-  }, [isOpen, item]);
+  }, [initialProjectId]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!item) return;
-    setSaving(true);
-    setError(null);
+  // ==========================================================
+  // FLATTEN ITEM & SUBTOTAL
+  // ==========================================================
+  const flattenItems = (groupList) =>
+    (groupList || []).flatMap((group) => [
+      ...(group.items || []),
+      ...flattenItems(group.children),
+    ]);
 
+  const allItems = useMemo(() => flattenItems(groups), [groups]);
+
+  const sumGroupRecursive = (group) => {
+    let total = (group.items || []).reduce((sum, item) => sum + Number(item.rabTotalPrice || 0), 0);
+    for (const child of group.children || []) {
+      total += sumGroupRecursive(child);
+    }
+    return total;
+  };
+
+  const totalRab = allItems.reduce((sum, item) => sum + Number(item.rabTotalPrice || 0), 0);
+  const totalRap = allItems.reduce((sum, item) => sum + Number(item.rapTotalPrice || 0), 0);
+  const selisih = totalRap - totalRab;
+
+  // ==========================================================
+  // SEARCH & FILTER
+  // ==========================================================
+  const matchesQuery = (item, query) =>
+    item.name?.toLowerCase().includes(query) ||
+    item.category?.toLowerCase().includes(query) ||
+    item.reference?.toLowerCase().includes(query);
+
+  const filterGroups = (groupList, query) => {
+    if (!query) return groupList;
+    return (groupList || []).map((group) => {
+      const filteredItems = (group.items || []).filter((item) => matchesQuery(item, query));
+      const filteredChildren = filterGroups(group.children, query);
+      if (filteredItems.length === 0 && filteredChildren.length === 0) return null;
+      return { ...group, items: filteredItems, children: filteredChildren };
+    }).filter(Boolean);
+  };
+
+  const visibleGroups = useMemo(() => filterGroups(groups, search.trim().toLowerCase()), [groups, search]);
+
+  // ==========================================================
+  // ADD GROUP & SUB-GROUP
+  // ==========================================================
+  const openGroupForm = (parentId = null) => {
+    setGroupModal({ parentId, name: "", reference: "" });
+  };
+
+  const handleSaveGroup = async () => {
+    if (!groupModal.name.trim()) return alert("Nama wajib diisi.");
     try {
-      const { rabService } = await import('../services/rabService');
-      if (mode === 'ahsp' && sourceJobTypeId) {
-        // Suntik harga master AHSP
-        await rabService.switchJob(item.id, sourceJobTypeId, overheadPercent ? parseFloat(overheadPercent) : undefined);
-      } else {
-        // Update manual harga modal RAP & Overhead
-        await rabService.update(item.id, {
-          rapUnitPrice: parseFloat(rapUnitPrice || 0),
-          overheadPercent: parseFloat(overheadPercent || 0),
-        });
-      }
-      onSuccess();
-      onClose();
-    } catch (err) {
-      setError(err.message || 'Gagal memperbarui harga RAB');
-    } finally {
-      setSaving(false);
+      await createGroup({
+        name: groupModal.name.trim(),
+        reference: groupModal.reference.trim() || null,
+        parentId: groupModal.parentId,
+      });
+      setGroupModal(null);
+    } catch (error) {
+      alert(error.message);
     }
   };
 
-  if (!isOpen || !item) return null;
-
-  const currentVol = Number(item.volume || 0);
-  const currentRap = parseFloat(rapUnitPrice || 0);
-  const currentOverhead = parseFloat(overheadPercent || 0);
-  const calculatedRabUnit = currentRap + (currentRap * (currentOverhead / 100));
-  const calculatedRabTotal = calculatedRabUnit * currentVol;
-
-  return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalBox}>
-        <div className={styles.modalHeader}>
-          <h3>Set / Suntik Harga RAB — {item.name}</h3>
-          <button type="button" className={styles.closeBtn} onClick={onClose}>✕</button>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className={styles.modalBody}>
-            {error && <div style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: 10, borderRadius: 4 }}>{error}</div>}
-
-            <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-              <button
-                type="button"
-                className={mode === 'manual' ? styles.btnGold : styles.btnOutline}
-                onClick={() => setMode('manual')}
-                style={{ flex: 1, padding: 8 }}
-              >
-                Input Manual Harga Modal
-              </button>
-              <button
-                type="button"
-                className={mode === 'ahsp' ? styles.btnGold : styles.btnOutline}
-                onClick={() => setMode('ahsp')}
-                style={{ flex: 1, padding: 8 }}
-              >
-                Suntik AHSP Master HSPK
-              </button>
-            </div>
-
-            {mode === 'ahsp' ? (
-              <div className={styles.formGroup}>
-                <label>PILIH MASTER PEKERJAAN AHSP</label>
-                <select
-                  value={sourceJobTypeId}
-                  onChange={(e) => setSourceJobTypeId(e.target.value)}
-                  style={{ padding: 12, background: '#1d1810', color: '#f2ead9', border: '1px solid #322b1e', borderRadius: 4 }}
-                >
-                  <option value="">— Pilih AHSP Master —</option>
-                  {jobTypes.map(j => (
-                    <option key={j.id} value={j.id}>
-                      [{j.code || 'AHSP'}] {j.name} — Rp {Number(j.unitPrice || 0).toLocaleString('id-ID')}/{j.paymentUnit}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className={styles.formGroup}>
-                <label>HARGA SATUAN RAP (MODAL/HPP PER {item.paymentUnit})</label>
-                <input
-                  type="number"
-                  placeholder="Contoh: 150000"
-                  value={rapUnitPrice}
-                  onChange={(e) => setRapUnitPrice(e.target.value)}
-                />
-              </div>
-            )}
-
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label>OVERHEAD & PROFIT (%)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  placeholder="10"
-                  value={overheadPercent}
-                  onChange={(e) => setOverheadPercent(e.target.value)}
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label>VOLUME TERLINK</label>
-                <input
-                  type="text"
-                  disabled
-                  value={`${currentVol.toLocaleString('id-ID')} ${item.paymentUnit || ''}`}
-                  style={{ background: '#221e15' }}
-                />
-              </div>
-            </div>
-
-            {/* PREVIEW HARGA */}
-            <div style={{ background: '#1d1810', border: '1px solid #322b1e', padding: 14, borderRadius: 4 }}>
-              <span style={{ fontSize: '0.72rem', color: '#7d6733', fontFamily: 'JetBrains Mono, monospace' }}>KALKULASI HARGA JUAL (RAB)</span>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: '#a89c85' }}>Harga Satuan RAB:</span>
-                  <p style={{ margin: 0, fontWeight: 700, color: '#e8c874' }}>
-                    Rp {calculatedRabUnit.toLocaleString('id-ID', { maximumFractionDigits: 0 })} / {item.paymentUnit || 'unit'}
-                  </p>
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: '#a89c85' }}>Total Harga RAB:</span>
-                  <p style={{ margin: 0, fontWeight: 700, color: '#e8c874' }}>
-                    Rp {calculatedRabTotal.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* RINCIAN KOMPONEN BAHAN JIKA ADA */}
-            {item.components?.length > 0 && (
-              <div>
-                <span style={{ fontSize: '0.75rem', color: '#7d6733', fontWeight: 600 }}>RINCIAN KOMPONEN AHSP TERLINK ({item.components.length} KOMPONEN)</span>
-                <table className={styles.compTable}>
-                  <thead>
-                    <tr>
-                      <th>Komponen</th>
-                      <th>Kategori</th>
-                      <th>Koef.</th>
-                      <th>Harga Satuan</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {item.components.map((c, ci) => (
-                      <tr key={ci}>
-                        <td>{c.name}</td>
-                        <td style={{ textTransform: 'uppercase', color: '#a89c85' }}>{c.section}</td>
-                        <td>{c.coefficient}</td>
-                        <td>Rp {Number(c.unitPrice || 0).toLocaleString('id-ID')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          <div className={styles.modalFooter}>
-            <button type="button" className={styles.btnOutline} onClick={onClose} disabled={saving}>Batal</button>
-            <button type="submit" className={styles.btnGold} disabled={saving}>
-              {saving ? 'Menyimpan...' : 'Simpan Harga RAB'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ================================================================
-// KOMPONEN UTAMA — RAB BUDGETING PAGE
-// ================================================================
-export default function RabBudgeting() {
-  const { projects, loading: loadingProjects } = useProjects();
-  const [selectedProjectId, setSelectedProjectId] = useState('');
-
-  const { rabItems, loading: loadingRab, error: rabError, refresh, deleteRabItem } = useRabItems(selectedProjectId);
-
-  const [editItem, setEditItem] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const selectedProject = projects.find(p => p.id === selectedProjectId);
-
-  const handleOpenEdit = (item) => {
-    setEditItem(item);
-    setIsModalOpen(true);
+  // ==========================================================
+  // DELETE ACTIONS & SELECTION
+  // ==========================================================
+  const handleDeleteGroup = async (id) => {
+    if (!window.confirm("Hapus group ini? Semua sub-group dan baris pekerjaan di dalamnya akan ikut terhapus.")) return;
+    try {
+      await deleteGroup(id);
+    } catch (error) { alert(error.message); }
   };
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Hapus item RAB "${name}"?`)) return;
+  const deleteItem = async (id) => {
+    if (!window.confirm("Hapus baris pekerjaan ini?")) return;
     try {
       await deleteRabItem(id);
-    } catch (err) {
-      alert(err.message);
+      await refreshGroups();
+    } catch (error) { alert(error.message); }
+  };
+
+  const toggleSelection = (id) => {
+    setSelectedItemIds((prev) => prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]);
+  };
+
+  const toggleAllCheckboxes = () => {
+    if (selectedItemIds.length > 0) {
+      setSelectedItemIds([]);
+    } else {
+      setSelectedItemIds(allItems.map(item => item.id));
     }
   };
 
-  // Kalkulasi total RAP & RAB
-  const totalRapSum = rabItems.reduce((acc, i) => acc + Number(i.rapTotalPrice || 0), 0);
-  const totalRabSum = rabItems.reduce((acc, i) => acc + Number(i.rabTotalPrice || 0), 0);
-  const totalProfitSum = totalRabSum - totalRapSum;
+  const handleBulkDelete = async () => {
+    if (selectedItemIds.length === 0) return;
+    if (!window.confirm(`Yakin ingin menghapus ${selectedItemIds.length} item terpilih?`)) return;
 
+    try {
+      await deleteBulk(selectedItemIds);
+      setSelectedItemIds([]); 
+      await refreshGroups();
+    } catch (error) { alert(error.message); }
+  };
+
+  // ==========================================================
+  // EDIT ITEM INDIVIDUAL
+  // ==========================================================
+  const openEdit = (item) => {
+    setEditModal({
+      item,
+      pricingMode: "manual",
+      rapUnitPrice: item.rapUnitPrice ?? 0,
+      overheadPercent: item.overheadPercent ?? item.overhead ?? 0,
+      isByOwner: !!item.isByOwner,
+      isStip: !!item.isStip,
+      sourceJobId: "",
+      switchQuery: "",
+      switchResults: [],
+    });
+  };
+
+  const toggleByOwner = () => {
+    setEditModal((prev) => {
+      const next = !prev.isByOwner;
+      return { ...prev, isByOwner: next, rapUnitPrice: next ? 0 : prev.rapUnitPrice };
+    });
+  };
+
+  const toggleStip = () => {
+    setEditModal((prev) => {
+      const next = !prev.isStip;
+      return { ...prev, isStip: next, rapUnitPrice: next ? 0 : prev.rapUnitPrice };
+    });
+  };
+
+  const searchSwitchJobs = async (query) => {
+    setEditModal((prev) => ({ ...prev, switchQuery: query }));
+    if (query.trim().length < 2) {
+      setEditModal((prev) => ({ ...prev, switchResults: [] }));
+      return;
+    }
+    try {
+      const params = new URLSearchParams({ q: query.trim() });
+      const response = await fetch(`${API_BASE}/jobs?${params.toString()}`);
+      if (response.ok) {
+        const results = await response.json();
+        setEditModal((prev) => ({
+          ...prev,
+          switchResults: Array.isArray(results) ? results : [],
+        }));
+      }
+    } catch {}
+  };
+
+  const handleSaveEdit = async () => {
+    const { item, pricingMode, isByOwner, isStip, overheadPercent, rapUnitPrice, sourceJobId } = editModal;
+    if (pricingMode === "manual") {
+      try {
+        await updateRabItem(item.id, {
+            rapUnitPrice: isByOwner || isStip ? 0 : Number(rapUnitPrice),
+            overheadPercent: Number(overheadPercent),
+            isByOwner,
+            isStip,
+        });
+        setEditModal(null);
+        await refreshGroups();
+      } catch (err) { alert("Gagal menyimpan harga manual: " + err.message); }
+    } else if (pricingMode === "ahsp") {
+      if (!sourceJobId) return alert("Pilih Master Pekerjaan (AHSP) dari daftar!");
+      try {
+        const payload = { newJobTypeId: sourceJobId };
+        if (overheadPercent !== "") payload.customOverhead = Number(overheadPercent);
+
+        const res = await fetch(`${API_BASE}/rab-items/${item.id}/switch-job`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error("Gagal menghubungkan data AHSP.");
+        setEditModal(null);
+        await refreshGroups();
+      } catch (err) { alert("Gagal menarik data Master AHSP: " + err.message); }
+    }
+  };
+
+  // ==========================================================
+  // BULK ACTIONS
+  // ==========================================================
+  const handleSaveBulkPrice = async () => {
+    if (!bulkPriceModal.rapUnitPrice && !bulkPriceModal.overheadPercent) return alert("Isi salah satu nilai!");
+    try {
+      await bulkPrice(
+          selectedItemIds,
+          bulkPriceModal.rapUnitPrice !== "" ? Number(bulkPriceModal.rapUnitPrice) : undefined,
+          bulkPriceModal.overheadPercent !== "" ? Number(bulkPriceModal.overheadPercent) : undefined
+      );
+      setBulkPriceModal(null);
+      setSelectedItemIds([]);
+      await refreshGroups();
+    } catch (e) { alert(e.message); }
+  };
+
+  const searchBulkSwitchJobs = async (query) => {
+    setBulkSwitchModal((prev) => ({ ...prev, switchQuery: query }));
+    if (query.trim().length < 2) return setBulkSwitchModal((prev) => ({ ...prev, switchResults: [] }));
+    try {
+      const res = await fetch(`${API_BASE}/jobs?q=${encodeURIComponent(query.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        setBulkSwitchModal((prev) => ({ ...prev, switchResults: Array.isArray(data) ? data : [] }));
+      }
+    } catch {}
+  };
+
+  const handleSaveBulkSwitch = async () => {
+    if (!bulkSwitchModal.sourceJobId) return alert("ID Master Pekerjaan wajib dipilih!");
+    try {
+      await bulkSwitchJob(
+          selectedItemIds,
+          bulkSwitchModal.sourceJobId,
+          bulkSwitchModal.overheadPercent !== "" ? Number(bulkSwitchModal.overheadPercent) : undefined
+      );
+      setBulkSwitchModal(null);
+      setSelectedItemIds([]);
+      await refreshGroups();
+    } catch (e) { alert(e.message); }
+  };
+
+  const handleSaveBulkName = async () => {
+    if (!bulkNameModal.name || !bulkNameModal.rapUnitPrice) return alert("Nama item dan harga baru wajib diisi!");
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/rab-items/bulk-price-by-name`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: bulkNameModal.name, newUnitPrice: Number(bulkNameModal.rapUnitPrice) })
+      });
+      if (!res.ok) throw new Error("Gagal Sapu Jagat.");
+      setBulkNameModal(null);
+      await refreshGroups();
+    } catch (e) { alert(e.message); }
+  };
+
+  // ==========================================================
+  // EXPORT & VIEW
+  // ==========================================================
+  const exportRabExcel = () => projectId && window.open(`${API_BASE}/projects/${projectId}/rab-items/export`, "_blank");
+  const exportBvExcel = () => projectId && window.open(`${API_BASE}/projects/${projectId}/bv-items/export`, "_blank");
+  const exportFullExcel = () => projectId && window.open(`${API_BASE}/projects/${projectId}/export-full`, "_blank");
+  const scheduleExport = () => projectId && window.open(`${API_BASE}/projects/${projectId}/time-schedule/export`, "_blank");
+  const viewRab = () => projectId && window.open(`${API_BASE}/projects/${projectId}/rab-items/view`, "_blank");
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
   return (
-    <div className={styles.wrapper}>
+    <div className={styles["rab-wrapper"]}>
       <Header />
-
-      {/* HEADER PAGE */}
-      <div className={styles.pageHeader}>
-        <div className={styles.titleBlock}>
-          <h2>RAB & BUDGETING</h2>
-          <p>Kelola Rencana Anggaran Biaya (RAB) dan Rencana Anggaran Pelaksanaan (RAP) project.</p>
+      <header className={styles["rab-header"]}>
+        {onBack && (
+          <button className={styles["rab-back-btn"]} onClick={onBack} type="button">
+            <ChevronLeft size={18} /> Kembali
+          </button>
+        )}
+        <div className={styles["rab-header-main"]}>
+          <p className={styles["rab-eyebrow"]}>{project?.name ? `Project: ${project.name}` : "Financial Control"}</p>
+          <h2 className={styles["rab-title"]}>RAB &amp; Budgeting</h2>
+          <p className={styles["rab-subtitle"]}>Rencana Anggaran Biaya (RAB) vs Rencana Anggaran Pelaksanaan (RAP)</p>
         </div>
-      </div>
+        <div className={styles["rab-project-picker"]}>
+          <select
+            className={styles["rab-project-select"]}
+            value={projectId || ""}
+            onChange={(event) => setProjectId(event.target.value || null)}
+            disabled={loadingProjects}
+          >
+            <option value="">{loadingProjects ? "Memuat project..." : "-- pilih project --"}</option>
+            {projectList.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
+          </select>
+          <ChevronDown size={15} className={styles["rab-project-select-icon"]} />
+        </div>
+      </header>
 
-      {/* PROJECT SELECTOR */}
-      <div className={styles.projectSelector}>
-        <div className={styles.selectorLabel}>PILIH PROJECT</div>
-        <select
-          className={styles.selectProject}
-          value={selectedProjectId}
-          onChange={(e) => setSelectedProjectId(e.target.value)}
-        >
-          <option value="">— Pilih Project —</option>
-          {loadingProjects ? (
-            <option disabled>Memuat projects...</option>
-          ) : (
-            projects.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.name} — {p.client?.name || '-'} ({p.discipline} {p.hspkPeriod})
-              </option>
-            ))
-          )}
-        </select>
-      </div>
+      <main className={styles["rab-content"]}>
+        {!projectId ? (
+          <div className={styles["rab-empty-state"]}>
+            <ClipboardList size={42} className={styles["rab-empty-icon"]} />
+            <h3>Belum ada project yang dipilih</h3>
+            <p>Pilih project yang sudah memiliki laporan Survey dari dropdown di atas untuk melihat RAB.</p>
+          </div>
+        ) : (
+          <>
+            <div className={styles["rab-toolbar"]}>
+              {/* TOMBOL EXPORT DLL */}
+              <button className={styles["rab-btn"]} onClick={exportRabExcel}>⬇ Export RAB</button>
+              <button className={styles["rab-btn"]} onClick={exportBvExcel}>⬇ Export BV</button>
+              <button className={styles["rab-btn"]} onClick={scheduleExport}>⬇ Export Schedule</button>
+              <button className={styles["rab-btn"]} onClick={exportFullExcel}>⬇ Export Lengkap</button>
+              <button className={styles["rab-btn"]} onClick={viewRab}>👁 View RAB</button>
 
-      {/* STATS SUMMARY */}
-      {selectedProjectId && (
-        <div className={styles.statsRow}>
-          <div className={styles.statBox}>
-            <p className={styles.statNum}>{rabItems.length}</p>
-            <p className={styles.statLbl}>Total Item Pekerjaan</p>
-          </div>
-          <div className={styles.statBox}>
-            <p className={styles.statNum}>Rp {totalRapSum.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</p>
-            <p className={styles.statLbl}>Total RAP (Modal / HPP)</p>
-          </div>
-          <div className={styles.statBox}>
-            <p className={styles.statNum}>Rp {totalRabSum.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</p>
-            <p className={styles.statLbl}>Total RAB (Harga Jual)</p>
-          </div>
-          <div className={styles.statBox}>
-            <p className={styles.statNum} style={{ color: totalProfitSum >= 0 ? '#10b981' : '#ef4444' }}>
-              Rp {totalProfitSum.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
-            </p>
-            <p className={styles.statLbl}>Estimasi Margin / Profit</p>
+              <button className={[styles["rab-btn"], styles["rab-refresh-btn"]].join(" ")} onClick={refreshGroups} type="button">
+                <RefreshCw size={15} /> Refresh
+              </button>
+            </div>
+
+            {/* TOOLBAR BULK ACTIONS (Sapu Jagat) */}
+            <div className={styles["rab-toolbar-bulk"]}>
+              <strong>Bulk Actions:</strong>
+              
+              <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={toggleAllCheckboxes}>
+                ☑ Pilih/Batal Semua
+              </button>
+              
+              <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} onClick={handleBulkDelete}>
+                Hapus Terpilih
+              </button>
+              
+              <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => selectedItemIds.length ? setBulkPriceModal({ rapUnitPrice: "", overheadPercent: "" }) : alert("Pilih baris yang akan diedit harganya terlebih dahulu!")}>
+                Edit Harga Terpilih
+              </button>
+              
+              <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-success"]].join(" ")} onClick={() => selectedItemIds.length ? setBulkSwitchModal({ sourceJobId: "", switchQuery: "", switchResults: [], overheadPercent: "" }) : alert("Pilih baris yang akan disuntik AHSP terlebih dahulu!")}>
+                Suntik AHSP Terpilih
+              </button>
+              
+              <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-primary"]].join(" ")} onClick={() => projectId ? setBulkNameModal({ name: "", rapUnitPrice: "" }) : alert("Pilih project terlebih dahulu!")}>
+                Sapu Jagat (By Nama)
+              </button>
+            </div>
+
+            <div className={styles["rab-stats-grid"]}>
+              <div className={[styles["rab-plate"], selisih > 0 ? styles["is-danger"] : ""].join(" ")}>
+                <div className={styles["rab-stat-header"]}><Wallet size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Total RAB</span></div>
+                <div className={[styles["rab-stat-value"], styles["is-mono"]].join(" ")}>{fmtRp(totalRab)}</div>
+                <div className={styles["rab-stat-desc"]}>Harga Jual / Kontrak</div>
+              </div>
+              <div className={styles["rab-plate"]}>
+                <div className={styles["rab-stat-header"]}><ClipboardList size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Total RAP</span></div>
+                <div className={[styles["rab-stat-value"], styles["is-mono"]].join(" ")}>{fmtRp(totalRap)}</div>
+                <div className={styles["rab-stat-desc"]}>Modal Pelaksanaan Murni</div>
+              </div>
+              <div className={[styles["rab-plate"], selisih > 0 ? styles["is-danger"] : ""].join(" ")}>
+                <div className={styles["rab-stat-header"]}><Scale size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Selisih</span></div>
+                <div className={[styles["rab-stat-value"], styles["is-mono"]].join(" ")}>{selisih > 0 ? "+" : ""}{fmtRp(selisih)}</div>
+                <div className={styles["rab-stat-desc"]}>RAP dikurangi RAB</div>
+              </div>
+              <div className={styles["rab-plate"]}>
+                <div className={styles["rab-stat-header"]}><TrendingUp size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Item</span></div>
+                <div className={[styles["rab-stat-value"], styles["is-mono"]].join(" ")}>{allItems.length}</div>
+                <div className={styles["rab-stat-desc"]}>Jumlah item pekerjaan</div>
+              </div>
+            </div>
+
+            <div className={[styles["rab-plate"], styles["rab-search-plate"]].join(" ")}>
+              <div className={styles["rab-search-box"]}>
+                <Search size={15} className={styles["rab-search-icon"]} />
+                <input type="text" placeholder="Cari nama, kategori, atau reference..." value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+            </div>
+
+            <div className={[styles["rab-plate"], styles["rab-tree-plate"]].join(" ")}>
+              {loading ? (
+                <p className={styles["rab-state-message"]}>Memuat data RAB...</p>
+              ) : fetchError ? (
+                <p className={[styles["rab-state-message"], styles["rab-state-error"]].join(" ")}>{fetchError}</p>
+              ) : visibleGroups.length === 0 ? (
+                <p className={styles["rab-state-message"]}>Belum ada Group Pekerjaan. Buat dari tombol di atas.</p>
+              ) : (
+                visibleGroups.map((group) => (
+                  <RabGroupNode
+                    key={group.id} group={group} depth={0}
+                    sumGroupRecursive={sumGroupRecursive}
+                    onDeleteGroup={handleDeleteGroup}
+                    onAddSubGroup={openGroupForm}
+                    onEditItem={openEdit}
+                    onDeleteItem={deleteItem}
+                    selectedItemIds={selectedItemIds}
+                    onToggleSelect={toggleSelection}
+                  />
+                ))
+              )}
+            </div>
+          </>
+        )}
+      </main>
+
+      {/* ================= MODAL TAMBAH GROUP ================= */}
+      {groupModal && (
+        <div className={styles["rab-modal-overlay"]}>
+          <div className={styles["rab-modal"]}>
+            <h3>{groupModal.parentId ? "Tambah Sub-Group Pekerjaan" : "Tambah Group Pekerjaan"}</h3>
+            <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>
+              Nama
+              <input type="text" className={styles["rab-form-input"]} placeholder="mis. PEKERJAAN PERSIAPAN" value={groupModal.name} onChange={(e) => setGroupModal({ ...groupModal, name: e.target.value })} />
+            </label>
+            <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>
+              Referensi (opsional)
+              <input type="text" className={styles["rab-form-input"]} placeholder="mis. 1 atau 1.1" value={groupModal.reference} onChange={(e) => setGroupModal({ ...groupModal, reference: e.target.value })} />
+            </label>
+            <div className={styles["rab-modal-actions"]} style={{ marginTop: '24px' }}>
+              <button className={styles["rab-btn"]} onClick={() => setGroupModal(null)} type="button">Batal</button>
+              <button className={[styles["rab-btn"], styles["rab-btn-primary"]].join(" ")} onClick={handleSaveGroup} type="button">Simpan Group</button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* RAB TABLE */}
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <div className={styles.sectionTitle}>
-            <div className={styles.titleAccent} />
-            <h3>Rincian Anggaran — {selectedProject?.name || 'Project'}</h3>
+      {/* ================= EDIT MODAL INDIVIDUAL ================= */}
+      {editModal && (
+        <div className={styles["rab-modal-overlay"]}>
+          <div className={styles["rab-modal"]}>
+            <h3>Edit Baris Pekerjaan</h3>
+            <p className={styles["rab-edit-label"]}>{editModal.item.name} — {editModal.item.paymentUnit} — Vol: {Number(editModal.item.volume).toFixed(2)}</p>
+
+            <div className={styles["rab-toggle-row"]}>
+              <button type="button" className={[styles["rab-btn"], styles["rab-btn-small"], editModal.isByOwner ? styles["rab-btn-active"] : ""].join(" ")} onClick={toggleByOwner}>
+                {editModal.isByOwner ? "✓ By Owner" : "Set By Owner"}
+              </button>
+              <button type="button" className={[styles["rab-btn"], styles["rab-btn-small"], editModal.isStip ? styles["rab-btn-active"] : ""].join(" ")} onClick={toggleStip}>
+                {editModal.isStip ? "Batal Set Stip" : "Set Harga Stip (-)"}
+              </button>
+            </div>
+
+            <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>
+              Persentase Overhead / Profit (%)
+              <input type="number" step="0.01" className={styles["rab-form-input"]} value={editModal.isByOwner || editModal.isStip ? "" : editModal.overheadPercent} disabled={editModal.isByOwner || editModal.isStip} onChange={(e) => setEditModal({ ...editModal, overheadPercent: e.target.value })} />
+            </label>
+
+            <p className={styles["rab-form-hint"]} style={{ marginBottom: '24px' }}>Profit ini akan digunakan di Mode Manual maupun Tarik AHSP.</p>
+
+            <div className={styles["rab-tab-container"]}>
+              <button type="button" className={[styles["rab-tab-btn"], editModal.pricingMode === "manual" ? styles["active"] : ""].join(" ")} onClick={() => setEditModal({ ...editModal, pricingMode: "manual" })}>
+                📝 Input Manual
+              </button>
+              <button type="button" className={[styles["rab-tab-btn"], editModal.pricingMode === "ahsp" ? styles["active"] : ""].join(" ")} onClick={() => setEditModal({ ...editModal, pricingMode: "ahsp" })}>
+                🔄 Tarik Master AHSP
+              </button>
+            </div>
+
+            {editModal.pricingMode === "manual" && (
+              <div style={{ padding: '12px', background: '#1a1a1a', borderRadius: '6px', border: '1px solid #333' }}>
+                <label className={styles["rab-form-label"]}>
+                  Harga Modal / RAP (Satuan)
+                  <input type="number" className={styles["rab-form-input"]} value={editModal.isByOwner || editModal.isStip ? "" : editModal.rapUnitPrice} disabled={editModal.isByOwner || editModal.isStip} onChange={(e) => setEditModal({ ...editModal, rapUnitPrice: e.target.value })} />
+                </label>
+              </div>
+            )}
+
+            {editModal.pricingMode === "ahsp" && (
+              <div style={{ padding: '12px', background: '#1a1a1a', borderRadius: '6px', border: '1px solid #333' }}>
+                <label className={styles["rab-form-label"]}>
+                  Cari Jenis Pekerjaan Master
+                  <input className={styles["rab-form-input"]} placeholder="Ketik nama pekerjaan dari AHSP..." value={editModal.switchQuery} onChange={(e) => searchSwitchJobs(e.target.value)} />
+                </label>
+                {editModal.switchResults.length > 0 && (
+                  <label className={styles["rab-form-label"]} style={{ marginTop: '12px' }}>
+                    Pilih Hasil Pencarian:
+                    <select className={styles["rab-form-input"]} size={4} value={editModal.sourceJobId || ""} onChange={(e) => setEditModal({ ...editModal, sourceJobId: e.target.value })}>
+                      <option value="" disabled>-- Klik salah satu Master AHSP di bawah ini --</option>
+                      {editModal.switchResults.map((job) => (
+                        <option key={job.id} value={job.id}>{job.reference ? `${job.reference} — ` : ""}{job.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+            )}
+
+            <div className={styles["rab-modal-actions"]} style={{ marginTop: '24px' }}>
+              <button className={styles["rab-btn"]} onClick={() => setEditModal(null)} type="button">Batal</button>
+              <button className={[styles["rab-btn"], styles["rab-btn-primary"]].join(" ")} onClick={handleSaveEdit} type="button">Simpan Perubahan</button>
+            </div>
           </div>
-          {selectedProjectId && (
-            <button className={styles.btnOutline} onClick={refresh}>
-              <RefreshCw size={14} /> Refresh Data
-            </button>
-          )}
         </div>
+      )}
 
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>NO</th>
-                <th>ITEM PEKERJAAN</th>
-                <th>VOLUME</th>
-                <th>SATUAN</th>
-                <th>RAP SATUAN</th>
-                <th>OVERHEAD %</th>
-                <th>RAB SATUAN</th>
-                <th>TOTAL RAB (RP)</th>
-                <th>AKSI</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!selectedProjectId ? (
-                <tr>
-                  <td colSpan={9} className={styles.noData}>
-                    Pilih project untuk menampilkan rincian RAB & Budgeting.
-                  </td>
-                </tr>
-              ) : loadingRab ? (
-                <tr>
-                  <td colSpan={9} className={styles.noData}>
-                    <RefreshCw size={18} style={{ display: 'inline', marginRight: 8 }} /> Memuat data RAB...
-                  </td>
-                </tr>
-              ) : rabError ? (
-                <tr>
-                  <td colSpan={9} className={styles.noData} style={{ color: '#ef4444' }}>
-                    {rabError}
-                  </td>
-                </tr>
-              ) : rabItems.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className={styles.noData}>
-                    Belum ada item RAB untuk project ini. Buka halaman <strong>BackUp Volume (BV)</strong> lalu gunakan tombol <em>"Link to RAB"</em> untuk memasukkan pekerjaan ke RAB.
-                  </td>
-                </tr>
-              ) : (
-                rabItems.map((item, idx) => {
-                  const isHeader = item.isHeaderOnly;
-                  const rapSatuan = Number(item.rapUnitPrice || 0);
-                  const rabSatuan = Number(item.rabUnitPrice || 0);
-                  const totalRab = Number(item.rabTotalPrice || 0);
+      {/* ================= MODAL BULK PRICE ================= */}
+      {bulkPriceModal && (
+        <div className={styles["rab-modal-overlay"]}>
+          <div className={styles["rab-modal"]}>
+            <h3>Edit Harga Massal (Terpilih)</h3>
+            <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Harga Baru (RAP Satuan)
+              <input type="number" className={styles["rab-form-input"]} placeholder="Kosongkan jika tidak ingin ubah" value={bulkPriceModal.rapUnitPrice} onChange={(e) => setBulkPriceModal({ ...bulkPriceModal, rapUnitPrice: e.target.value })} />
+            </label>
+            <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Overhead Baru (%)
+              <input type="number" className={styles["rab-form-input"]} placeholder="Kosongkan jika tidak ingin ubah" value={bulkPriceModal.overheadPercent} onChange={(e) => setBulkPriceModal({ ...bulkPriceModal, overheadPercent: e.target.value })} />
+            </label>
+            <div className={styles["rab-modal-actions"]} style={{ marginTop: '24px' }}>
+              <button className={styles["rab-btn"]} onClick={() => setBulkPriceModal(null)}>Batal</button>
+              <button className={[styles["rab-btn"], styles["rab-btn-primary"]].join(" ")} onClick={handleSaveBulkPrice}>Update Massal</button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                  return (
-                    <tr key={item.id} className={isHeader ? styles.headerRow : ''}>
-                      <td>{idx + 1}</td>
-                      <td style={{ fontWeight: isHeader ? 700 : 400 }}>
-                        {item.name}
-                        {item.sourceJobTypeId && (
-                          <span style={{ display: 'inline-block', marginLeft: 8, fontSize: '0.68rem', padding: '2px 6px', background: '#221e15', color: '#e8c874', border: '1px solid #7d6733', borderRadius: 3 }}>
-                            AHSP Master
-                          </span>
-                        )}
-                      </td>
-                      <td>{isHeader ? '-' : Number(item.volume || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 })}</td>
-                      <td>{isHeader ? '-' : (item.paymentUnit || '-')}</td>
-                      <td>{isHeader ? '-' : `Rp ${rapSatuan.toLocaleString('id-ID')}`}</td>
-                      <td>{isHeader ? '-' : `${item.overheadPercent ?? 10}%`}</td>
-                      <td style={{ color: '#e8c874', fontWeight: 600 }}>
-                        {isHeader ? '-' : `Rp ${rabSatuan.toLocaleString('id-ID')}`}
-                      </td>
-                      <td style={{ color: '#c9a24b', fontWeight: 700 }}>
-                        {isHeader ? '-' : `Rp ${totalRab.toLocaleString('id-ID')}`}
-                      </td>
-                      <td>
-                        <div className={styles.actionsCell}>
-                          {!isHeader && (
-                            <button
-                              className={styles.btnIcon}
-                              type="button"
-                              onClick={() => handleOpenEdit(item)}
-                              title="Set / Suntik Harga AHSP"
-                            >
-                              <Zap size={13} /> Harga
-                            </button>
-                          )}
-                          <button
-                            className={styles.btnDanger}
-                            type="button"
-                            onClick={() => handleDelete(item.id, item.name)}
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+      {/* ================= MODAL BULK SWITCH AHSP ================= */}
+      {bulkSwitchModal && (
+        <div className={styles["rab-modal-overlay"]}>
+          <div className={styles["rab-modal"]}>
+            <h3>Suntik AHSP Massal (Terpilih)</h3>
+            <div style={{ padding: '12px', background: '#1a1a1a', borderRadius: '6px', border: '1px solid #333', marginTop: '16px' }}>
+              <label className={styles["rab-form-label"]}>Cari Master Pekerjaan
+                <input className={styles["rab-form-input"]} placeholder="Ketik nama pekerjaan..." value={bulkSwitchModal.switchQuery} onChange={(e) => searchBulkSwitchJobs(e.target.value)} />
+              </label>
+              {bulkSwitchModal.switchResults.length > 0 && (
+                <select className={styles["rab-form-input"]} size={4} style={{ marginTop: '12px' }} value={bulkSwitchModal.sourceJobId || ""} onChange={(e) => setBulkSwitchModal({ ...bulkSwitchModal, sourceJobId: e.target.value })}>
+                  <option value="" disabled>-- Pilih Master AHSP --</option>
+                  {bulkSwitchModal.switchResults.map((job) => (
+                    <option key={job.id} value={job.id}>{job.reference ? `${job.reference} — ` : ""}{job.name}</option>
+                  ))}
+                </select>
               )}
-            </tbody>
-          </table>
+            </div>
+            <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Custom Overhead (%)
+              <input type="number" className={styles["rab-form-input"]} placeholder="Kosongkan untuk pakai default" value={bulkSwitchModal.overheadPercent} onChange={(e) => setBulkSwitchModal({ ...bulkSwitchModal, overheadPercent: e.target.value })} />
+            </label>
+            <div className={styles["rab-modal-actions"]} style={{ marginTop: '24px' }}>
+              <button className={styles["rab-btn"]} onClick={() => setBulkSwitchModal(null)}>Batal</button>
+              <button className={[styles["rab-btn"], styles["rab-btn-success"]].join(" ")} onClick={handleSaveBulkSwitch}>Suntik Massal</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL SAPU JAGAT BY NAMA ================= */}
+      {bulkNameModal && (
+        <div className={styles["rab-modal-overlay"]}>
+          <div className={styles["rab-modal"]}>
+            <h3>Sapu Jagat: Update By Nama</h3>
+            <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Nama Item (Harus Sama Persis)
+              <input type="text" className={styles["rab-form-input"]} placeholder="Misal: Cat Dinding Dalam" value={bulkNameModal.name} onChange={(e) => setBulkNameModal({ ...bulkNameModal, name: e.target.value })} />
+            </label>
+            <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Harga Baru (RAP Satuan)
+              <input type="number" className={styles["rab-form-input"]} value={bulkNameModal.rapUnitPrice} onChange={(e) => setBulkNameModal({ ...bulkNameModal, rapUnitPrice: e.target.value })} />
+            </label>
+            <div className={styles["rab-modal-actions"]} style={{ marginTop: '24px' }}>
+              <button className={styles["rab-btn"]} onClick={() => setBulkNameModal(null)}>Batal</button>
+              <button className={[styles["rab-btn"], styles["rab-btn-danger"]].join(" ")} onClick={handleSaveBulkName}>Eksekusi Sapu Jagat</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+// ==========================================================
+// GROUP NODE & ITEMS TABLE
+// ==========================================================
+function RabGroupNode({ 
+  group, 
+  depth, 
+  sumGroupRecursive, 
+  onDeleteGroup, 
+  onAddSubGroup, 
+  onEditItem, 
+  onDeleteItem, 
+  selectedItemIds, 
+  onToggleSelect 
+}) {
+  const subtotal = sumGroupRecursive(group);
+  return (
+    <div className={styles["rab-group-block"]} style={{ marginLeft: depth > 0 ? 18 : 0 }}>
+      <div className={depth === 0 ? styles["rab-group-row"] : styles["rab-subgroup-row"]}>
+        <div>
+          <span className={styles["rab-group-label"]}>{group.name}</span>
+        </div>
+        <div className={styles["rab-group-actions"]}>
+          <span className={styles["rab-group-subtotal"]}>{fmtRp(subtotal)}</span>
+          {depth === 0 && (
+            <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onAddSubGroup(group.id)} type="button">+ Sub-Group</button>
+          )}
+          <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} onClick={() => onDeleteGroup(group.id)} type="button">Hapus</button>
         </div>
       </div>
-
-      {/* EDIT MODAL MOUNTING */}
-      <EditRabModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        item={editItem}
-        onSuccess={refresh}
-      />
+      {(group.items || []).length > 0 && (
+        <RabItemsTable 
+          items={group.items} 
+          onEdit={onEditItem} 
+          onDelete={onDeleteItem} 
+          selectedItemIds={selectedItemIds}
+          onToggleSelect={onToggleSelect}
+        />
+      )}
+      {(group.children || []).map((child) => (
+        <RabGroupNode
+          key={child.id} group={child} depth={depth + 1}
+          sumGroupRecursive={sumGroupRecursive}
+          onDeleteGroup={onDeleteGroup}
+          onAddSubGroup={onAddSubGroup}
+          onEditItem={onEditItem} onDeleteItem={onDeleteItem}
+          selectedItemIds={selectedItemIds}
+          onToggleSelect={onToggleSelect}
+        />
+      ))}
     </div>
   );
 }
+
+function RabItemsTable({ items, onEdit, onDelete, selectedItemIds, onToggleSelect }) {
+  let counter = 0;
+
+  return (
+    <table className={styles["rab-items-table"]}>
+      <thead>
+        <tr>
+          <th style={{ width: "30px", textAlign: "center" }}>✓</th>
+          <th>Uraian Pekerjaan</th>
+          <th>Satuan</th>
+          <th>Volume</th>
+          <th>RAP Satuan</th>
+          <th>RAP Total</th>
+          <th>RAB Satuan</th>
+          <th>RAB Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((item) => {
+          const isChild = !!item.parentId;
+          const no = isChild ? "" : ++counter;
+          const special = item.isByOwner ? "By Owner" : item.isStip ? "-" : null;
+
+          return (
+            <tr key={item.id} className={selectedItemIds.includes(item.id) ? styles["rab-row-selected"] : ""}>
+              <td style={{ textAlign: "center" }}>
+                <input 
+                    type="checkbox" 
+                    className={styles["rab-checkbox"]}
+                    checked={selectedItemIds.includes(item.id)} 
+                    onChange={() => onToggleSelect(item.id)} 
+                  />
+              </td>
+              <td>{isChild ? "— " : ""}{item.name}</td>
+              <td>{item.paymentUnit}</td>
+              <td className={styles["rab-mono"]}>{item.volume != null ? Number(item.volume).toFixed(2) : ""}</td>
+              {special ? (
+                <>
+                  <td className={[styles["rab-text-center"], styles["rab-special-cell"]].join(" ")}>{special}</td>
+                  <td className={[styles["rab-text-center"], styles["rab-special-cell"]].join(" ")}>{special}</td>
+                  <td className={[styles["rab-text-center"], styles["rab-special-cell"]].join(" ")}>{special}</td>
+                  <td className={[styles["rab-text-center"], styles["rab-special-cell"]].join(" ")}>{special}</td>
+                </>
+              ) : (
+                <>
+                  <td className={styles["rab-mono"]}>{fmtRp(item.rapUnitPrice)}</td>
+                  <td className={styles["rab-mono"]}>{fmtRp(item.rapTotalPrice)}</td>
+                  <td className={styles["rab-mono"]}>{fmtRp(item.rabUnitPrice)}</td>
+                  <td className={[styles["rab-mono"], styles["rab-fw-bold"]].join(" ")}>{fmtRp(item.rabTotalPrice)}</td>
+                </>
+              )}
+              <td className={styles["rab-row-actions"]}>
+                <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onEdit(item)} type="button">Edit</button>
+                <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} onClick={() => onDelete(item.id)} type="button">Hapus</button>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+export default RabBudgeting;

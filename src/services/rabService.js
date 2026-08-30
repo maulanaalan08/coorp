@@ -21,7 +21,7 @@ export const rabService = {
 
   // Hapus massal RAB items
   deleteBulk: (ids) =>
-    fetchAPI(`/rab-items/bulk-delete`, {
+    fetchAPI(`/bulk-rab-items/delete`, {
       method: 'POST',
       body: JSON.stringify({ ids }),
     }),
@@ -35,14 +35,14 @@ export const rabService = {
 
   // Bulk price update
   bulkPrice: (ids, rapUnitPrice, overheadPercent) =>
-    fetchAPI(`/rab-items/bulk-price`, {
+    fetchAPI(`/bulk-rab-items/price`, {
       method: 'PUT',
       body: JSON.stringify({ ids, rapUnitPrice, overheadPercent }),
     }),
 
   // Bulk switch job
   bulkSwitchJob: (ids, newJobTypeId, customOverhead) =>
-    fetchAPI(`/rab-items/bulk-switch-job`, {
+    fetchAPI(`/bulk-rab-items/switch-job`, {
       method: 'PUT',
       body: JSON.stringify({ ids, newJobTypeId, customOverhead }),
     }),
