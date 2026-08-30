@@ -97,21 +97,39 @@
   box-shadow: 0 10px 24px -10px rgba(201, 162, 75, 0.5);
 }
 
-/* Kanban Board */
-.kanbanContainer {
-  display: flex;
-  padding: 0 32px 32px;
+/* Project Grid — 3 kolom, mengalir ke bawah */
+.gridContainer {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 24px;
-  overflow-x: auto;
-  align-items: flex-start;
+  padding: 0 32px 32px;
+  align-items: start;
 }
-.kanbanColumn {
-  min-width: 280px;
-  width: 280px;
+
+.emptyState {
+  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 32px;
+  color: var(--text-muted);
+  text-align: center;
 }
+
+@media (max-width: 1100px) {
+  .gridContainer {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .gridContainer {
+    grid-template-columns: 1fr;
+  }
+}
+
 .columnHeader {
   display: flex; justify-content: space-between; align-items: center;
 }

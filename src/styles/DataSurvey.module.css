@@ -1,0 +1,562 @@
+/* ===========================================
+   DataSurvey.module.css — halaman data survey
+   Palette sama dengan tema global dark & gold
+=========================================== */
+
+.wrapper {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #0c0b09;
+  color: #f2ead9;
+  padding: 32px 40px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ========================
+   HEADER SECTION
+======================== */
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.titleBlock h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: #f2ead9;
+  margin: 0 0 6px 0;
+}
+
+.titleBlock p {
+  font-size: 0.85rem;
+  color: #a89c85;
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ========================
+   PROJECT SELECTOR
+======================== */
+.projectSelector {
+  background-color: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 6px;
+  padding: 20px 24px;
+}
+
+.selectorLabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: #7d6733;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.selectProject {
+  width: 100%;
+  max-width: 480px;
+  padding: 12px 16px;
+  background: #1d1810;
+  color: #f2ead9;
+  border: 1px solid #322b1e;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.selectProject:focus {
+  border-color: #c9a24b;
+}
+
+/* ========================
+   STATS ROW
+======================== */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.statBox {
+  background-color: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 6px;
+  padding: 18px 20px;
+}
+
+.statBox .statNum {
+  font-family: 'Fraunces', serif;
+  font-size: 2rem;
+  font-weight: 600;
+  color: #e8c874;
+  margin: 0 0 4px 0;
+}
+
+.statBox .statLbl {
+  font-size: 0.78rem;
+  color: #a89c85;
+  margin: 0;
+}
+
+/* ========================
+   SURVEY LIST TABLE
+======================== */
+.section {
+  background-color: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 6px;
+  padding: 24px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.titleAccent {
+  width: 3px;
+  height: 18px;
+  background-color: #c9a24b;
+  flex-shrink: 0;
+}
+
+.sectionTitle h3 {
+  font-family: 'Fraunces', serif;
+  font-size: 1.1rem;
+  margin: 0;
+  color: #f2ead9;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: #7d6733;
+  padding: 12px 14px;
+  border-bottom: 1px solid #221e15;
+  letter-spacing: 0.08em;
+}
+
+.table td {
+  padding: 14px;
+  border-bottom: 1px solid #221e15;
+  font-size: 0.88rem;
+  color: #f2ead9;
+  vertical-align: middle;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr:hover td {
+  background-color: #1d1810;
+}
+
+.noData {
+  text-align: center;
+  color: #a89c85;
+  padding: 40px !important;
+}
+
+/* ========================
+   BADGES & TAGS
+======================== */
+.areaBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #221e15;
+  border: 1px solid #322b1e;
+  color: #a89c85;
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ========================
+   ACTION BUTTONS
+======================== */
+.btnGold {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #7d6733, #c9a24b);
+  color: #17140f;
+  font-weight: 700;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btnGold:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -8px rgba(201, 162, 75, 0.5);
+}
+
+.btnOutline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid #322b1e;
+  color: #f2ead9;
+  padding: 9px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.btnOutline:hover {
+  border-color: #7d6733;
+  color: #e8c874;
+}
+
+.btnDanger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  padding: 7px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background 0.2s;
+}
+
+.btnDanger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.btnIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid #322b1e;
+  color: #a89c85;
+  padding: 7px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.btnIcon:hover {
+  color: #e8c874;
+  border-color: #7d6733;
+}
+
+.actionsCell {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ========================
+   EXPAND DETAIL AREA PANEL
+======================== */
+.detailPanel {
+  background: #1d1810;
+  border-top: 1px solid #221e15;
+  padding: 20px;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.areaCard {
+  background: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 4px;
+  padding: 14px;
+}
+
+.areaCard h5 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: #c9a24b;
+  margin: 0 0 8px 0;
+  letter-spacing: 0.06em;
+}
+
+.areaCard p {
+  font-size: 0.82rem;
+  color: #a89c85;
+  margin: 0 0 4px 0;
+}
+
+.areaCard p span {
+  color: #f2ead9;
+}
+
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.photoThumb {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid #322b1e;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.photoThumb:hover {
+  transform: scale(1.06);
+}
+
+.dimTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  margin-top: 6px;
+}
+
+.dimTable th {
+  color: #7d6733;
+  padding: 6px 8px;
+  border-bottom: 1px solid #221e15;
+  text-align: left;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+}
+
+.dimTable td {
+  padding: 6px 8px;
+  color: #a89c85;
+  border-bottom: 1px solid #1a1710;
+}
+
+/* ========================
+   MODAL OVERLAY
+======================== */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  animation: fadeIn 0.25s ease;
+}
+
+.modalBox {
+  width: 760px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #0c0b09;
+  border: 1px solid rgba(201, 162, 75, 0.35);
+  border-radius: 6px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65), 0 0 35px rgba(201, 162, 75, 0.08);
+  animation: popup 0.3s ease;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  border-bottom: 1px solid rgba(201, 162, 75, 0.18);
+}
+
+.modalHeader h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: #c9a24b;
+  margin: 0;
+}
+
+.closeBtn {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #322b1e;
+  background: #17140f;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #f2ead9;
+  transition: 0.25s;
+}
+
+.closeBtn:hover {
+  background: #c9a24b;
+  color: #17140f;
+  transform: rotate(90deg);
+}
+
+.modalBody {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Form fields inside modal */
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formGroup label {
+  font-size: 0.78rem;
+  color: #a89c85;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.formGroup input,
+.formGroup textarea,
+.formGroup select {
+  width: 100%;
+  padding: 12px 14px;
+  background: #1d1810;
+  color: #f2ead9;
+  border: 1px solid #322b1e;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.formGroup input:focus,
+.formGroup textarea:focus,
+.formGroup select:focus {
+  border-color: #c9a24b;
+}
+
+.formGroup textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Area card inside modal */
+.areaFormCard {
+  background: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 4px;
+  padding: 16px;
+  position: relative;
+}
+
+.areaFormCard h4 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: #c9a24b;
+  margin: 0 0 14px 0;
+  letter-spacing: 0.06em;
+}
+
+.removeAreaBtn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 2px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.removeAreaBtn:hover {
+  opacity: 1;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 28px;
+  border-top: 1px solid #221e15;
+}
+
+.errorBanner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+  padding: 12px 16px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+/* ========================
+   MISC
+======================== */
+.textGray { color: #a89c85; }
+.textGold { color: #e8c874; }
+.textDanger { color: #ef4444; }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popup {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

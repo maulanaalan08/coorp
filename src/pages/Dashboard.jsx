@@ -1,34 +1,180 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import styles from "../styles/Dashboard.module.css";
-import { 
-  Network, 
-  Compass, 
-  UserCog, 
-  TriangleAlert, 
-  RefreshCw, 
-  Plus, 
-  Filter, 
-  MoreVertical, 
-  ChevronLeft, 
-  ChevronRight 
+import {
+  Network,
+  Compass,
+  UserCog,
+  TriangleAlert,
+  RefreshCw,
+  Plus,
+  Filter,
+  MoreVertical,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Save,
+  Pencil,
+  Trash2
 } from "lucide-react";
 
 import Header from "../components/Header";
 import StatCard from "../components/StatCard";
 import ProjectTableRow from "../components/ProjectTableRow";
 import CreateProjectModal from "../components/CreateProjectModal";
-import EditProjectModal from "../components/EditProjectModal";
-import { projectService } from "../services/projectService";
+import { useProjects } from "../hooks/useProjects";
 
+// ================================================================
+// INLINE EDIT MODAL — Desain selaras dengan CreateProjectModal
+// ================================================================
+function EditProjectModal({ editProject, editForm, editError, savingEdit, onClose, onChange, onSubmit }) {
+  if (!editProject) return null;
+
+  return (
+    <div className="modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !savingEdit) onClose(); }}>
+      <div className="modal-content" style={{ maxWidth: 640 }}>
+        <div className="modal-header">
+          <h3>Edit Project</h3>
+          <button className="close-btn" type="button" onClick={onClose} disabled={savingEdit}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <form className="project-form" onSubmit={onSubmit}>
+          {editError && (
+            <div style={{
+              background: 'rgba(239,68,68,0.1)',
+              border: '1px solid rgba(239,68,68,0.35)',
+              color: '#ef4444',
+              padding: '12px 16px',
+              borderRadius: 4,
+              fontSize: '0.85rem',
+              marginBottom: 20
+            }}>
+              {editError}
+            </div>
+          )}
+
+          <div className="card">
+            <h2>Informasi Project</h2>
+            <div className="grid">
+              <div className="form-group">
+                <label>Project Name</label>
+                <input
+                  id="edit-name"
+                  name="name"
+                  type="text"
+                  value={editForm.name}
+                  onChange={onChange}
+                  placeholder="Nama project"
+                  disabled={savingEdit}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Client Name</label>
+                <input
+                  id="edit-clientName"
+                  name="clientName"
+                  type="text"
+                  value={editForm.clientName}
+                  onChange={onChange}
+                  placeholder="Nama client"
+                  disabled={savingEdit}
+                />
+              </div>
+
+              <div className="form-group full">
+                <label>Location</label>
+                <input
+                  id="edit-location"
+                  name="location"
+                  type="text"
+                  value={editForm.location}
+                  onChange={onChange}
+                  placeholder="Lokasi project"
+                  disabled={savingEdit}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>HSPK Period</label>
+                <input
+                  id="edit-hspkPeriod"
+                  name="hspkPeriod"
+                  type="number"
+                  value={editForm.hspkPeriod}
+                  onChange={onChange}
+                  placeholder="Contoh: 2026"
+                  disabled={savingEdit}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Discipline</label>
+                <select
+                  id="edit-discipline"
+                  name="discipline"
+                  value={editForm.discipline}
+                  onChange={onChange}
+                  disabled={savingEdit}
+                >
+                  <option value="">— Pilih Disiplin —</option>
+                  <option value="SIPIL">Sipil</option>
+                  <option value="INTERIOR">Interior</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Grade</label>
+                <select
+                  id="edit-grade"
+                  name="grade"
+                  value={editForm.grade}
+                  onChange={onChange}
+                  disabled={savingEdit}
+                >
+                  <option value="">— Pilih Grade —</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="actions">
+            <button type="button" className="cancel" onClick={onClose} disabled={savingEdit}>
+              Cancel
+            </button>
+            <button type="submit" className="create" disabled={savingEdit}>
+              {savingEdit ? (
+                <><RefreshCw size={16} style={{ display: 'inline', marginRight: 6, animation: 'spin 1s linear infinite' }} /> Saving...</>
+              ) : (
+                <><Save size={16} style={{ display: 'inline', marginRight: 6 }} /> Save Changes</>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ================================================================
+// KOMPONEN UTAMA DASHBOARD
+// ================================================================
 const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
-  // ============================================================
-  // STATES
-  // ============================================================
-  const [projects, setProjects] = useState([]);
-  const [surveyStatus, setSurveyStatus] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [loadingSurvey, setLoadingSurvey] = useState(false);
-  const [error, setError] = useState(null);
+  const {
+    projects,
+    surveyStatus,
+    loading,
+    loadingSurvey,
+    error,
+    refresh: loadProjects,
+    updateProject,
+    deleteProject,
+  } = useProjects();
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,62 +186,12 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
   const [editError, setEditError] = useState(null);
 
   // ============================================================
-  // FETCH / LOAD DATA
-  // ============================================================
-  const checkSurveyStatus = async (projectList) => {
-    if (!Array.isArray(projectList) || projectList.length === 0) {
-      setSurveyStatus({});
-      return;
-    }
-    setLoadingSurvey(true);
-    try {
-      const results = await Promise.all(
-        projectList.map(async (project) => {
-          try {
-            const res = await projectService.getSurveys(project.id);
-            const surveys = Array.isArray(res) ? res : res?.data || [];
-            return { projectId: project.id, hasSurvey: surveys.length > 0 };
-          } catch {
-            return { projectId: project.id, hasSurvey: false };
-          }
-        })
-      );
-      const statusMap = {};
-      results.forEach((item) => { statusMap[item.projectId] = item.hasSurvey; });
-      setSurveyStatus(statusMap);
-    } finally {
-      setLoadingSurvey(false);
-    }
-  };
-
-  const loadProjects = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await projectService.getAll();
-      const projectList = Array.isArray(data) ? data : data?.data || [];
-      setProjects(projectList);
-      await checkSurveyStatus(projectList);
-    } catch (err) {
-      setProjects([]);
-      setError("Failed to load projects. Make sure the backend server is running.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadProjects();
-  }, []);
-
-  // ============================================================
-  // HANDLERS (DELETE & EDIT)
+  // HANDLERS
   // ============================================================
   const handleDeleteProject = async (id, name) => {
     if (!window.confirm(`Hapus project "${name}"?`)) return;
     try {
-      await projectService.delete(id);
-      await loadProjects();
+      await deleteProject(id);
     } catch (err) {
       alert(err.message);
     }
@@ -130,7 +226,7 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
     if (!editProject?.id || !editForm.name.trim()) return;
     setSavingEdit(true);
     try {
-      await projectService.update(editProject.id, {
+      await updateProject(editProject.id, {
         name: editForm.name.trim(),
         location: editForm.location.trim(),
         hspkPeriod: editForm.hspkPeriod === "" ? null : Number(editForm.hspkPeriod),
@@ -139,7 +235,6 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
         clientName: editForm.clientName.trim(),
       });
       closeEditProjectModal();
-      await loadProjects();
     } catch (err) {
       setEditError(err.message);
     } finally {
@@ -176,14 +271,14 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
               <h3>Recent Active Projects</h3>
             </div>
             <div className={styles.projectsActions}>
-              <button className={styles.iconBtn} onClick={loadProjects} disabled={loading || loadingSurvey} type="button">
+              <button className={styles.iconBtn} onClick={loadProjects} disabled={loading || loadingSurvey} type="button" title="Refresh">
                 <RefreshCw size={18} />
               </button>
               <button className={styles.newProjectBtn} onClick={() => setIsModalOpen(true)} type="button">
                 <Plus size={18} /> New Project
               </button>
-              <button className={styles.iconBtn} type="button"><Filter size={18} /></button>
-              <button className={styles.iconBtn} type="button"><MoreVertical size={18} /></button>
+              <button className={styles.iconBtn} type="button" title="Filter"><Filter size={18} /></button>
+              <button className={styles.iconBtn} type="button" title="More"><MoreVertical size={18} /></button>
             </div>
           </div>
 
@@ -236,6 +331,7 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
       </div>
 
       <CreateProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onProjectCreated={loadProjects} />
+
       <EditProjectModal
         editProject={editProject}
         editForm={editForm}

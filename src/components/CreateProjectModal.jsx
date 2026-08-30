@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import "../styles/CreateProjectModal.css";
 import { X } from "lucide-react";
+import { hspkService } from "../services/hspkService";
+import { projectService } from "../services/projectService";
 
 const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
   const [projectName, setProjectName] = useState("");
@@ -17,9 +19,7 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
   useEffect(() => {
     const fetchHspk = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/hspk/available-combos");
-        if (!res.ok) throw new Error("Failed to fetch HSPK data");
-        const result = await res.json();
+        const result = await hspkService.getAvailableCombos();
         setHspkOptions(result);
       } catch (err) {
         console.error(err);
@@ -63,24 +63,14 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
     }
 
     try {
-      const response = await fetch("http://localhost:4000/api/projects", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: projectName.trim(),
-          clientName: client.trim(),
-          location: location.trim(),
-          hspkPeriod: selectedCombo?.period,
-          discipline: selectedCombo?.discipline,
-          grade: selectedCombo?.grade,
-        }),
+      await projectService.create({
+        name: projectName.trim(),
+        clientName: client.trim(),
+        location: location.trim(),
+        hspkPeriod: selectedCombo?.period,
+        discipline: selectedCombo?.discipline,
+        grade: selectedCombo?.grade,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to create project");
-      }
 
       alert("Project berhasil dibuat!");
 

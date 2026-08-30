@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styles from '../styles/UploadHspk.module.css';
 import { UploadCloud, FileText, AlertCircle } from 'lucide-react';
 import Header from '../components/Header';
+import { hspkService } from '../services/hspkService';
 
 const GRADE_OPTIONS = {
   SIPIL: ['A', 'B'],
@@ -69,16 +70,7 @@ function UploadHspk() {
     form.append('grade', grade);
 
     try {
-      const res = await fetch('http://localhost:4000/api/upload', {
-        method: 'POST',
-        body: form,
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Proses upload gagal.');
-      }
-
+      const data = await hspkService.upload(form);
       setResult(data);
     } catch (err) {
       setError('Gagal: ' + err.message);

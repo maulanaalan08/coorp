@@ -1,0 +1,386 @@
+/* ===========================================
+   RabBudgeting.module.css — Styling RAB & Budgeting
+   Desain konsisten dengan tema Dark & Gold
+=========================================== */
+
+.wrapper {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #0c0b09;
+  color: #f2ead9;
+  padding: 32px 40px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.titleBlock h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: #f2ead9;
+  margin: 0 0 6px 0;
+}
+
+.titleBlock p {
+  font-size: 0.85rem;
+  color: #a89c85;
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.projectSelector {
+  background-color: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 6px;
+  padding: 20px 24px;
+}
+
+.selectorLabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: #7d6733;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.selectProject {
+  width: 100%;
+  max-width: 480px;
+  padding: 12px 16px;
+  background: #1d1810;
+  color: #f2ead9;
+  border: 1px solid #322b1e;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.statBox {
+  background-color: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 6px;
+  padding: 18px 20px;
+}
+
+.statBox .statNum {
+  font-family: 'Fraunces', serif;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #e8c874;
+  margin: 0 0 4px 0;
+}
+
+.statBox .statLbl {
+  font-size: 0.78rem;
+  color: #a89c85;
+  margin: 0;
+}
+
+.section {
+  background-color: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 6px;
+  padding: 24px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.titleAccent {
+  width: 3px;
+  height: 18px;
+  background-color: #c9a24b;
+  flex-shrink: 0;
+}
+
+.sectionTitle h3 {
+  font-family: 'Fraunces', serif;
+  font-size: 1.1rem;
+  margin: 0;
+  color: #f2ead9;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: #7d6733;
+  padding: 12px 14px;
+  border-bottom: 1px solid #221e15;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 14px;
+  border-bottom: 1px solid #221e15;
+  font-size: 0.88rem;
+  color: #f2ead9;
+  vertical-align: middle;
+}
+
+.table tr:hover td {
+  background-color: #1d1810;
+}
+
+.headerRow td {
+  background-color: #1f1a12 !important;
+  font-weight: 700;
+  color: #c9a24b;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 0.95rem;
+}
+
+.noData {
+  text-align: center;
+  color: #a89c85;
+  padding: 40px !important;
+}
+
+.btnGold {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #7d6733, #c9a24b);
+  color: #17140f;
+  font-weight: 700;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btnGold:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -8px rgba(201, 162, 75, 0.5);
+}
+
+.btnOutline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid #322b1e;
+  color: #f2ead9;
+  padding: 9px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.btnOutline:hover {
+  border-color: #7d6733;
+  color: #e8c874;
+}
+
+.btnIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid #322b1e;
+  color: #a89c85;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.btnIcon:hover {
+  color: #e8c874;
+  border-color: #7d6733;
+}
+
+.btnDanger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.btnDanger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.actionsCell {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  animation: fadeIn 0.25s ease;
+}
+
+.modalBox {
+  width: 720px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #0c0b09;
+  border: 1px solid rgba(201, 162, 75, 0.35);
+  border-radius: 6px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  border-bottom: 1px solid rgba(201, 162, 75, 0.18);
+}
+
+.modalHeader h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.3rem;
+  color: #c9a24b;
+  margin: 0;
+}
+
+.closeBtn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #322b1e;
+  background: #17140f;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #f2ead9;
+}
+
+.modalBody {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 28px;
+  border-top: 1px solid #221e15;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formGroup label {
+  font-size: 0.78rem;
+  color: #a89c85;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.formGroup input,
+.formGroup select {
+  width: 100%;
+  padding: 12px 14px;
+  background: #1d1810;
+  color: #f2ead9;
+  border: 1px solid #322b1e;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.compTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 0.8rem;
+}
+
+.compTable th {
+  color: #7d6733;
+  padding: 8px;
+  border-bottom: 1px solid #221e15;
+  text-align: left;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.compTable td {
+  padding: 8px;
+  border-bottom: 1px solid #1a1710;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
