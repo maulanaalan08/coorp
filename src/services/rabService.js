@@ -21,7 +21,7 @@ export const rabService = {
 
   // Hapus massal RAB items
   deleteBulk: (ids) =>
-    fetchAPI(`/bulk-rab-items/delete`, {
+    fetchAPI(`/rab-items/bulk-delete`, {
       method: 'POST',
       body: JSON.stringify({ ids }),
     }),
@@ -34,18 +34,28 @@ export const rabService = {
     }),
 
   // Bulk price update
-  bulkPrice: (ids, rapUnitPrice, overheadPercent) =>
-    fetchAPI(`/bulk-rab-items/price`, {
-      method: 'PUT',
-      body: JSON.stringify({ ids, rapUnitPrice, overheadPercent }),
-    }),
+  bulkPrice: async (ids, rapUnitPrice, overheadPercent) => {
+    // Frontend workaround for backend route collision (Express PUT /rab-items/:id catching bulk-price)
+    const promises = ids.map(id =>
+      fetchAPI(`/rab-items/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ rapUnitPrice, overheadPercent }),
+      })
+    );
+    return Promise.all(promises);
+  },
 
   // Bulk switch job
-  bulkSwitchJob: (ids, newJobTypeId, customOverhead) =>
-    fetchAPI(`/bulk-rab-items/switch-job`, {
-      method: 'PUT',
-      body: JSON.stringify({ ids, newJobTypeId, customOverhead }),
-    }),
+  bulkSwitchJob: async (ids, newJobTypeId, customOverhead) => {
+    // Frontend workaround for backend route collision
+    const promises = ids.map(id =>
+      fetchAPI(`/rab-items/${id}/switch-job`, {
+        method: 'PUT',
+        body: JSON.stringify({ newJobTypeId, customOverhead }),
+      })
+    );
+    return Promise.all(promises);
+  },
 
   // Bulk price by name in project
   bulkPriceByName: (projectId, name, newUnitPrice) =>
