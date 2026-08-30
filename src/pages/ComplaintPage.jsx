@@ -54,8 +54,8 @@ export default function ComplaintPage() {
                     {/* Tombol Hapus[cite: 1, 6] */}
                     <button 
                       onClick={() => handleDelete(c.id)}
-                      className="btn-submit"
-                      style={{ margin: 0, backgroundColor: '#ef4444', width: 'auto', padding: '8px 16px' }}
+                      className="btn-danger"
+                      style={{ margin: 0, width: 'auto', padding: '8px 16px' }}
                     >
                       Hapus
                     </button>

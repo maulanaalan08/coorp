@@ -29,6 +29,7 @@
   font-weight: 700;
   margin: 0 0 4px 0;
   color: #d4af37; /* Aksen Emas */
+  font-family: 'Fraunces', serif;
 }
 
 .tsp-subtitle {
@@ -354,29 +355,31 @@
   font-weight: 700;
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 10;
 }
 
 .tsp-sticky-col {
   position: sticky;
   background: #161513; /* Sama dengan card background */
-  z-index: 2;
+  z-index: 5;
 }
 
-thead .tsp-sticky-col {
-  z-index: 4;
+.tsp-gantt-table thead th.tsp-sticky-col {
+  z-index: 20;
   background: #0c0b09;
 }
 
 /* Kolom tetap */
-.tsp-col-group { left: 0; min-width: 120px; }
-.tsp-col-name { left: 120px; min-width: 220px; white-space: normal; }
-.tsp-col-unit { left: 340px; min-width: 70px; }
-.tsp-col-volume { left: 410px; min-width: 80px; text-align: right; }
-.tsp-col-price { left: 490px; min-width: 130px; text-align: right; }
-.tsp-col-weight { left: 620px; min-width: 80px; text-align: right; }
-.tsp-col-range { left: 700px; min-width: 140px; }
-.tsp-col-action { left: 840px; min-width: 160px; box-shadow: 4px 0 6px -4px rgba(0,0,0,0.3); }
+.tsp-col-name { left: 0; min-width: 250px; max-width: 250px; }
+.tsp-name-wrapper { white-space: normal; word-wrap: break-word; line-height: 1.4; }
+.tsp-col-range { left: 250px; min-width: 140px; max-width: 140px; }
+.tsp-col-action { left: 390px; min-width: 140px; max-width: 140px; box-shadow: 4px 0 6px -4px rgba(0,0,0,0.3); }
+
+/* Kolom tidak tetap */
+.tsp-col-unit { min-width: 70px; }
+.tsp-col-volume { min-width: 80px; text-align: right; }
+.tsp-col-price { min-width: 130px; text-align: right; }
+.tsp-col-weight { min-width: 80px; text-align: right; }
 
 .tsp-week-col {
   min-width: 64px;
@@ -402,6 +405,8 @@ thead .tsp-sticky-col {
   font-weight: 700;
   color: #d4af37;
   font-size: 12.5px;
+  left: 0;
+  z-index: 15;
 }
 
 .tsp-group-heading-cell {

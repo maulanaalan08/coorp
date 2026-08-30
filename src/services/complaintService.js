@@ -1,36 +1,38 @@
-import axios from 'axios';
+import { fetchAPI } from './api';
 
-// Ganti dengan baseURL API Anda
-const API_URL = 'http://localhost:4000/api'; 
+// Fallback untuk open new tab (karena fetchAPI dipakai untuk async/await fetch)
+const API_URL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : 'http://localhost:4000/api';
 
 export const complaintService = {
   getComplaintsByProject: async (projectId) => {
-    const response = await axios.get(`${API_URL}/projects/${projectId}/complaints`);
-    return response.data;
+    return fetchAPI(`/projects/${projectId}/complaints`);
   },
 
   getComplaintById: async (id) => {
-    const response = await axios.get(`${API_URL}/complaints/${id}`);
-    return response.data;
+    return fetchAPI(`/complaints/${id}`);
   },
 
   createComplaint: async (projectId, formData) => {
-    const response = await axios.post(`${API_URL}/projects/${projectId}/complaints`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    return fetchAPI(`/projects/${projectId}/complaints`, {
+      method: 'POST',
+      body: formData,
+      // fetchAPI secara otomatis mengatur boundary untuk multipart/form-data
     });
-    return response.data;
   },
 
   updateComplaint: async (id, formData) => {
-    const response = await axios.put(`${API_URL}/complaints/${id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    return fetchAPI(`/complaints/${id}`, {
+      method: 'PUT',
+      body: formData,
     });
-    return response.data;
   },
 
   deleteComplaint: async (id) => {
-    const response = await axios.delete(`${API_URL}/complaints/${id}`);
-    return response.data;
+    return fetchAPI(`/complaints/${id}`, {
+      method: 'DELETE',
+    });
   },
 
   downloadPdf: (id) => {

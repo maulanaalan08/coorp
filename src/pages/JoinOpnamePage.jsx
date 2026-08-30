@@ -65,11 +65,11 @@ function JoinOpnamePage({ initialProjectId = null }) {
           </div>
 
           <div className="jo-summary-grid">
-            <div className="jo-card jo-summary-card"><span>Total Item</span><strong>{summary.totalItems}</strong></div>
-            <div className="jo-card jo-summary-card"><span>Belum Mulai</span><strong>{summary.notStarted}</strong></div>
-            <div className="jo-card jo-summary-card"><span>On Progress</span><strong>{summary.onProgress}</strong></div>
-            <div className="jo-card jo-summary-card"><span>Selesai</span><strong>{summary.completed}</strong></div>
-            <div className="jo-card jo-summary-card"><span>Rata-rata Progress</span><strong>{formatPercent(summary.averageProgress)}%</strong></div>
+            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #e5e7eb' }}><span>Total Item</span><strong style={{ color: '#e5e7eb' }}>{summary.totalItems}</strong></div>
+            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #ef4444' }}><span>Belum Mulai</span><strong style={{ color: '#ef4444' }}>{summary.notStarted}</strong></div>
+            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #60a5fa' }}><span>On Progress</span><strong style={{ color: '#60a5fa' }}>{summary.onProgress}</strong></div>
+            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #81c784' }}><span>Selesai</span><strong style={{ color: '#81c784' }}>{summary.completed}</strong></div>
+            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #d4af37' }}><span>Rata-rata Progress</span><strong style={{ color: '#d4af37' }}>{formatPercent(summary.averageProgress)}%</strong></div>
           </div>
 
           {loading && <div className="jo-card jo-loading"><div className="jo-spinner" /><span>Memuat data Join Opname...</span></div>}
@@ -109,8 +109,8 @@ function JoinOpnamePage({ initialProjectId = null }) {
                 <table className="jo-table jo-daily-table">
                   <thead>
                     <tr>
-                      <th>Pekerjaan</th>
-                      <th>Bobot</th>
+                      <th className="jo-daily-sticky-name">Pekerjaan</th>
+                      <th className="jo-daily-sticky-weight">Bobot</th>
                       {days.map((day) => (
                         <th key={day.dayNumber}>
                           <div>Hari {day.dayNumber}</div>
@@ -122,8 +122,8 @@ function JoinOpnamePage({ initialProjectId = null }) {
                   <tbody>
                     {items.map((item) => (
                       <tr key={item.rabItemId}>
-                        <td className="jo-name-cell">{item.name}</td>
-                        <td>{formatPercent(item.weight)}%</td>
+                        <td className="jo-name-cell jo-daily-sticky-name">{item.name}</td>
+                        <td className="jo-daily-sticky-weight">{formatPercent(item.weight)}%</td>
                         {days.map((day) => {
                           const breakdown = item.dailyBreakdown?.find((r) => r.dayNumber === day.dayNumber);
                           return (

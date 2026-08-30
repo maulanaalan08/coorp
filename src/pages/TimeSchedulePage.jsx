@@ -2,7 +2,6 @@ import React from "react";
 import { useTimeSchedule } from "../hooks/useTimeSchedule";
 import { timeScheduleService } from "../services/timeScheduleService";
 import { formatWeight } from "../services/utils";
-import TimeScheduleChart from "../components/TimeScheduleChart";
 import TimeScheduleTable from "../components/TimeScheduleTable";
 import "../styles/TimeSchedulePage.css";
 
@@ -145,11 +144,6 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
             <div className="tsp-card tsp-summary-card"><span className="tsp-summary-label">Sudah Dijadwalkan</span><span className="tsp-summary-value">{scheduledCount}</span></div>
             <div className="tsp-card tsp-summary-card"><span className="tsp-summary-label">Jumlah Minggu</span><span className="tsp-summary-value">{maxWeek}</span></div>
             <div className="tsp-card tsp-summary-card"><span className="tsp-summary-label">Progress Terakhir</span><span className="tsp-summary-value">{formatWeight(lastProgress)}%</span></div>
-          </div>
-
-          <div className="tsp-card tsp-chart-card">
-            <h2 className="tsp-card-title">Kurva S — Progress Kumulatif</h2>
-            <TimeScheduleChart maxWeek={maxWeek} chart={chart} hoverPoint={hoverPoint} setHoverPoint={setHoverPoint} />
           </div>
 
           <div className="tsp-card tsp-gantt-card">

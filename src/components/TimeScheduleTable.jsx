@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatCurrency, formatWeight, formatDate } from '../services/utils';
+import { Save, Trash2 } from 'lucide-react';
 
 export default function TimeScheduleTable({
   items, groupedItems, weekRange, weekDates, editDrafts, setEditDrafts, busyItems, handleSaveItemSchedule, handleDeleteItemSchedule
@@ -34,12 +35,11 @@ export default function TimeScheduleTable({
       <table className="tsp-gantt-table">
         <thead>
           <tr>
-            <th className="tsp-sticky-col tsp-col-group">Group</th>
             <th className="tsp-sticky-col tsp-col-name">Nama Pekerjaan</th>
-            <th className="tsp-sticky-col tsp-col-unit">Satuan</th>
-            <th className="tsp-sticky-col tsp-col-volume">Volume</th>
-            <th className="tsp-sticky-col tsp-col-price">Nilai RAB</th>
-            <th className="tsp-sticky-col tsp-col-weight">Bobot</th>
+            <th className="tsp-col-unit">Satuan</th>
+            <th className="tsp-col-volume">Volume</th>
+            <th className="tsp-col-price">Nilai RAB</th>
+            <th className="tsp-col-weight">Bobot</th>
             <th className="tsp-sticky-col tsp-col-range">Rentang Minggu</th>
             <th className="tsp-sticky-col tsp-col-action">Aksi</th>
             {weekRange.map((w) => {
@@ -57,7 +57,7 @@ export default function TimeScheduleTable({
           {groupedItems.map(([groupName, groupItems]) => (
             <React.Fragment key={groupName}>
               <tr className="tsp-group-heading-row">
-                <td className="tsp-sticky-col tsp-group-heading" colSpan={8}>{groupName}</td>
+                <td className="tsp-sticky-col tsp-group-heading" colSpan={7}>{groupName}</td>
                 {weekRange.map((w) => <td key={w} className="tsp-week-col tsp-group-heading-cell" />)}
               </tr>
               {groupItems.map((item) => {
@@ -69,17 +69,18 @@ export default function TimeScheduleTable({
 
                 return (
                   <tr key={item.rabItemId} className={item.hasChildren ? "tsp-parent-row" : ""}>
-                    <td className="tsp-sticky-col tsp-col-group">{item.groupName || "-"}</td>
                     <td className="tsp-sticky-col tsp-col-name">
-                      {item.isChild && <span className="tsp-child-indent">↳ </span>}
-                      {item.name}
-                      {item.isByOwner && <span className="tsp-owner-tag">By Owner</span>}
-                      {item.isStip && <span className="tsp-stip-tag">Stip</span>}
+                      <div className="tsp-name-wrapper">
+                        {item.isChild && <span className="tsp-child-indent">↳ </span>}
+                        {item.name}
+                        {item.isByOwner && <span className="tsp-owner-tag">By Owner</span>}
+                        {item.isStip && <span className="tsp-stip-tag">Stip</span>}
+                      </div>
                     </td>
-                    <td className="tsp-sticky-col tsp-col-unit">{item.paymentUnit || "-"}</td>
-                    <td className="tsp-sticky-col tsp-col-volume">{item.volume ?? 0}</td>
-                    <td className="tsp-sticky-col tsp-col-price">{formatCurrency(item.rabTotalPrice)}</td>
-                    <td className="tsp-sticky-col tsp-col-weight">{formatWeight(item.weight)}%</td>
+                    <td className="tsp-col-unit">{item.paymentUnit || "-"}</td>
+                    <td className="tsp-col-volume">{item.volume ?? 0}</td>
+                    <td className="tsp-col-price">{formatCurrency(item.rabTotalPrice)}</td>
+                    <td className="tsp-col-weight">{formatWeight(item.weight)}%</td>
                     <td className="tsp-sticky-col tsp-col-range">
                       {disabled ? <span className="tsp-muted">Tidak dapat diedit</span> : (
                         <div className="tsp-range-inputs">
@@ -92,9 +93,15 @@ export default function TimeScheduleTable({
                     </td>
                     <td className="tsp-sticky-col tsp-col-action">
                       {!disabled && (
-                        <div className="tsp-action-buttons">
-                          <button className="tsp-btn tsp-btn-primary tsp-btn-sm" onClick={() => handleSaveItemSchedule(item, draft)} disabled={busy}>{busy ? "..." : "Simpan"}</button>
-                          {hasSchedule && <button className="tsp-btn tsp-btn-danger tsp-btn-sm" onClick={() => handleDeleteItemSchedule(item)} disabled={busy}>Hapus</button>}
+                        <div className="tsp-action-buttons" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <button className="tsp-btn tsp-btn-primary tsp-btn-sm" style={{ padding: '6px' }} onClick={() => handleSaveItemSchedule(item, draft)} disabled={busy} title="Simpan">
+                            <Save size={14} />
+                          </button>
+                          {hasSchedule && (
+                            <button className="tsp-btn tsp-btn-danger tsp-btn-sm" style={{ padding: '6px' }} onClick={() => handleDeleteItemSchedule(item)} disabled={busy} title="Hapus">
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>

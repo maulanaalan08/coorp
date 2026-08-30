@@ -5,6 +5,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useBvItems } from '../hooks/useBvItems';
 import { groupService } from '../services/groupService';
 import { hspkService } from '../services/hspkService';
+import { Pencil, Trash2, Plus } from 'lucide-react';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
 
@@ -672,17 +673,23 @@ export default function BackUpVolume() {
               )}
             </td>
             <td>
-              <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
-                <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditBv(it)}>Edit</button>
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
+                <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditBv(it)} title="Edit">
+                  <Pencil size={14} />
+                </button>
                 {(!it.linkStatus || it.linkStatus === 'BELUM_DILINK') && (
                   <button type="button" className={styles.btnGreen} onClick={() => linkToRab(it.id, { includeChildren: true })}>
                     Link
                   </button>
                 )}
                 {!it.parentBvItemId && (
-                  <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(it.groupId, it.id)}>+ Sub</button>
+                  <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(it.groupId, it.id)} title="Tambah Sub">
+                    <Plus size={14} /> Sub
+                  </button>
                 )}
-                <button type="button" className={styles.btnDanger} onClick={() => deleteBvItem(it.id)}>Hapus</button>
+                <button type="button" className={styles.btnDanger} onClick={() => deleteBvItem(it.id)} title="Hapus">
+                  <Trash2 size={14} />
+                </button>
               </div>
             </td>
           </tr>
@@ -730,7 +737,7 @@ export default function BackUpVolume() {
 
       <div className={styles.bvHeader}>
         <div className={styles.headerTitle}>
-          <h2>BV — BACK UP VOLUME</h2>
+          <h2 style={{ fontFamily: "'Fraunces', serif" }}>BV — BACK UP VOLUME</h2>
           <p>{selectedProject ? `${selectedProject.name} (${selectedProject.discipline} ${selectedProject.hspkPeriod})` : 'Kelola struktur Group Pekerjaan, Sub-Group, serta rincian dimensi volume.'}</p>
         </div>
         <div className={styles.headerActions}>
@@ -796,11 +803,19 @@ export default function BackUpVolume() {
                 <div key={g.id} className={styles.groupBlock}>
                   <div className={styles.groupHead}>
                     <span>{ROMAN[idx] || idx + 1}. {g.name}</span>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(g.id, null)}>+ Baris</button>
-                      <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddGroup(g.id)}>+ Sub-Group</button>
-                      <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditGroup(g)}>Edit</button>
-                      <button type="button" className={styles.btnDanger} onClick={() => handleDeleteGroup(g.id)}>Hapus</button>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(g.id, null)} title="Tambah Baris">
+                        <Plus size={14} /> Baris
+                      </button>
+                      <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddGroup(g.id)} title="Tambah Sub-Group">
+                        <Plus size={14} /> Sub-Group
+                      </button>
+                      <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditGroup(g)} title="Edit">
+                        <Pencil size={14} />
+                      </button>
+                      <button type="button" className={styles.btnDanger} onClick={() => handleDeleteGroup(g.id)} title="Hapus">
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
 
@@ -810,10 +825,16 @@ export default function BackUpVolume() {
                       <React.Fragment key={sg.id}>
                         <div className={styles.subgroupHead}>
                           <span>{sgIdx + 1}. {sg.name}</span>
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(sg.id, null)}>+ Baris</button>
-                            <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditGroup(sg)}>Edit</button>
-                            <button type="button" className={styles.btnDanger} onClick={() => handleDeleteGroup(sg.id)}>Hapus</button>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(sg.id, null)} title="Tambah Baris">
+                              <Plus size={14} /> Baris
+                            </button>
+                            <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditGroup(sg)} title="Edit">
+                              <Pencil size={14} />
+                            </button>
+                            <button type="button" className={styles.btnDanger} onClick={() => handleDeleteGroup(sg.id)} title="Hapus">
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         </div>
                         {subGroupItems.length > 0 ? (

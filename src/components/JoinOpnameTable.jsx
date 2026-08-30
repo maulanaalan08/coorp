@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatCurrency, formatNumber, formatPercent, formatDate } from '../services/utils';
+import { Save } from 'lucide-react';
 
 export default function JoinOpnameTable({ groupedItems, progressInputs, busyItems, selectedDate, handleProgressChange, handleFileChange, handleSaveProgress }) {
   return (
@@ -86,8 +87,10 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
                           className="jo-btn jo-btn-save"
                           onClick={() => handleSaveProgress(item)}
                           disabled={busy}
+                          title="Simpan"
+                          style={{ padding: '6px' }}
                         >
-                          {busy ? "..." : "Simpan"}
+                          {busy ? "..." : <Save size={14} />}
                         </button>
                       )}
                     </td>

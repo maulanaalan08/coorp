@@ -7,6 +7,9 @@ import UploadHspk from "./pages/UploadHspk";
 import BackUpVolume from "./pages/BackUpVolume";
 import DataSurvey from "./pages/DataSurvey";
 import RabBudgeting from "./pages/RabBudgeting";
+import TimeSchedulePage from "./pages/TimeSchedulePage";
+import JoinOpnamePage from "./pages/JoinOpnamePage";
+import ComplaintPage from "./pages/ComplaintPage";
 
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -27,6 +30,9 @@ function App() {
         {activeTab === "data-survey" && <DataSurvey />}
         {(activeTab === "bv" || activeTab === "backup-volume") && <BackUpVolume />}
         {activeTab === "rab" && <RabBudgeting />}
+        {activeTab === "time-schedule" && <TimeSchedulePage />}
+        {activeTab === "join-opname" && <JoinOpnamePage />}
+        {activeTab === "complain" && <ComplaintPage />}
       </main>
     </div>
   );

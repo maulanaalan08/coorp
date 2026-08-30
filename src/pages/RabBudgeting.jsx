@@ -8,6 +8,10 @@ import {
   ChevronDown,
   ChevronLeft,
   RefreshCw,
+  Pencil,
+  Trash2,
+  Plus,
+  Save,
 } from "lucide-react";
 import styles from "../styles/RabBudgeting.module.css";
 import Header from "../components/Header";
@@ -628,9 +632,9 @@ function RabGroupNode({
         <div className={styles["rab-group-actions"]}>
           <span className={styles["rab-group-subtotal"]}>{fmtRp(subtotal)}</span>
           {depth === 0 && (
-            <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onAddSubGroup(group.id)} type="button">+ Sub-Group</button>
+            <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onAddSubGroup(group.id)} type="button" title="Tambah Sub-Group"><Plus size={14} /></button>
           )}
-          <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} onClick={() => onDeleteGroup(group.id)} type="button">Hapus</button>
+          <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} onClick={() => onDeleteGroup(group.id)} type="button" title="Hapus"><Trash2 size={14} /></button>
         </div>
       </div>
       {(group.items || []).length > 0 && (
@@ -710,8 +714,8 @@ function RabItemsTable({ items, onEdit, onDelete, selectedItemIds, onToggleSelec
                 </>
               )}
               <td className={styles["rab-row-actions"]}>
-                <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onEdit(item)} type="button">Edit</button>
-                <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} onClick={() => onDelete(item.id)} type="button">Hapus</button>
+                <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onEdit(item)} type="button" title="Edit"><Pencil size={14} /></button>
+                <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} onClick={() => onDelete(item.id)} type="button" title="Hapus"><Trash2 size={14} /></button>
               </td>
             </tr>
           );
