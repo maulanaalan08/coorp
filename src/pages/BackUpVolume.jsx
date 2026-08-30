@@ -620,7 +620,7 @@ export default function BackUpVolume() {
 
       let ketText = it.sourceJobType
         ? "HSPK: " + (it.sourceJobType.reference || "")
-        : it.isHeaderOnly ? "" : (it.keterangan || "-");
+        : it.isHeaderOnly ? "" : (it.keterangan || "");
 
       if (hasSingleBreakdown && b0?.keterangan) {
         ketText = b0.keterangan;
@@ -646,15 +646,15 @@ export default function BackUpVolume() {
 
             {hasSingleBreakdown ? (
               <>
-                <td className="num">{b0.isPChecked ? '☑ ' : ''}{b0.panjang ?? '-'}</td>
-                <td className="num">{b0.isLChecked ? '☑ ' : ''}{b0.lebar ?? '-'}</td>
-                <td className="num">{b0.isTChecked ? '☑ ' : ''}{b0.tinggi ?? '-'}</td>
-                <td className="num">{b0.isLuasChecked ? '☑ ' : ''}{b0.luas ?? '-'}</td>
-                <td className="num">{b0.isKelChecked ? '☑ ' : ''}{b0.keliling ?? '-'}</td>
-                <td className="num">{b0.diameter ?? '-'}</td>
-                <td className="num">{b0.isBeratChecked ? '☑ ' : ''}{b0.berat ?? '-'}</td>
-                <td className="num">{b0.jumlahSisi ?? '-'}</td>
-                <td className="num">{b0.jumlahBh ?? '-'}</td>
+                <td className="num">{b0.isPChecked ? '☑ ' : ''}{b0.panjang ?? ''}</td>
+                <td className="num">{b0.isLChecked ? '☑ ' : ''}{b0.lebar ?? ''}</td>
+                <td className="num">{b0.isTChecked ? '☑ ' : ''}{b0.tinggi ?? ''}</td>
+                <td className="num">{b0.isLuasChecked ? '☑ ' : ''}{b0.luas ?? ''}</td>
+                <td className="num">{b0.isKelChecked ? '☑ ' : ''}{b0.keliling ?? ''}</td>
+                <td className="num">{b0.diameter ?? ''}</td>
+                <td className="num">{b0.isBeratChecked ? '☑ ' : ''}{b0.berat ?? ''}</td>
+                <td className="num">{b0.jumlahSisi ?? ''}</td>
+                <td className="num">{b0.jumlahBh ?? ''}</td>
                 <td className="num">{b0.waste ?? 0}</td>
               </>
             ) : (
@@ -663,7 +663,7 @@ export default function BackUpVolume() {
 
             <td className="num">{it.isHeaderOnly ? '' : Number(it.totalVolume || 0).toFixed(2)}</td>
             <td>{it.paymentUnit || ''}</td>
-            <td>{it.ecommerceLink || '-'}</td>
+            <td>{renderCleanLink(it.ecommerceLink)}</td>
             <td>
               {it.isHeaderOnly ? '' : (
                 <span className={it.linkStatus === 'SUDAH_DILINK' ? styles.badgeSinkron : styles.badgeBelum}>
@@ -695,15 +695,15 @@ export default function BackUpVolume() {
                 <td className="left"></td>
                 <td colSpan={2}></td>
                 <td className="left">{b.keterangan || ''}</td>
-                <td className="num">{b.isPChecked ? '☑ ' : ''}{b.panjang ?? '-'}</td>
-                <td className="num">{b.isLChecked ? '☑ ' : ''}{b.lebar ?? '-'}</td>
-                <td className="num">{b.isTChecked ? '☑ ' : ''}{b.tinggi ?? '-'}</td>
-                <td className="num">{b.isLuasChecked ? '☑ ' : ''}{b.luas ?? '-'}</td>
-                <td className="num">{b.isKelChecked ? '☑ ' : ''}{b.keliling ?? '-'}</td>
-                <td className="num">{b.diameter ?? '-'}</td>
-                <td className="num">{b.isBeratChecked ? '☑ ' : ''}{b.berat ?? '-'}</td>
-                <td className="num">{b.jumlahSisi ?? '-'}</td>
-                <td className="num">{b.jumlahBh ?? '-'}</td>
+                <td className="num">{b.isPChecked ? '☑ ' : ''}{b.panjang ?? ''}</td>
+                <td className="num">{b.isLChecked ? '☑ ' : ''}{b.lebar ?? ''}</td>
+                <td className="num">{b.isTChecked ? '☑ ' : ''}{b.tinggi ?? ''}</td>
+                <td className="num">{b.isLuasChecked ? '☑ ' : ''}{b.luas ?? ''}</td>
+                <td className="num">{b.isKelChecked ? '☑ ' : ''}{b.keliling ?? ''}</td>
+                <td className="num">{b.diameter ?? ''}</td>
+                <td className="num">{b.isBeratChecked ? '☑ ' : ''}{b.berat ?? ''}</td>
+                <td className="num">{b.jumlahSisi ?? ''}</td>
+                <td className="num">{b.jumlahBh ?? ''}</td>
                 <td className="num">{b.waste ?? 0}</td>
                 <td className="num">{Number(b.subTotal || 0).toFixed(2)}</td>
                 <td colSpan={4}></td>
@@ -863,3 +863,31 @@ export default function BackUpVolume() {
     </div>
   );
 }
+
+// Helper untuk mengubah URL penuh menjadi domain bersih + validasi link redirect
+const renderCleanLink = (url) => {
+  if (!url || url === '-') return '-';
+
+  // 1. Pastikan URL memiliki protocol agar tidak ter-redirect ke localhost
+  const validUrl = url.startsWith('http://') || url.startsWith('https://') 
+    ? url 
+    : `https://${url}`;
+
+  // 2. Ekstrak nama ringkas (misal "www.google.com/search..." -> "google")
+  let label = url
+    .replace(/^https?:\/\//, '') // Hapus http:// atau https://
+    .replace(/^www\./, '')       // Hapus www.
+    .split('/')[0]               // Ambil domain utamanya saja
+    .split('.')[0];              // Ambil kata pertama sebelum .com/.co.id
+
+  return (
+    <a 
+      href={validUrl} 
+      target="_blank" 
+      rel="noopener noreferrer"
+      style={{ color: '#e2c044', textDecoration: 'underline' }}
+    >
+      {label || 'Link'}
+    </a>
+  );
+};
