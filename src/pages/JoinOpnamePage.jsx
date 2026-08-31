@@ -131,7 +131,19 @@ function JoinOpnamePage({ initialProjectId = null }) {
                               <div className="jo-day-progress">
                                 <strong>{formatPercent(breakdown?.progress || 0)}%</strong>
                                 <small>Vol: {formatNumber(breakdown?.volume || 0)}</small>
-                                {breakdown?.photoUrl && <span style={{fontSize: '8px', color: '#b9a35a'}}>📷 Ada Foto</span>}
+                                
+                                {/* Fungsi untuk melihat foto aktual lapangan jika URL tersedia */}
+                                {breakdown?.photoUrl && (
+                                  <a 
+                                    href={`http://localhost:4000${breakdown.photoUrl}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    style={{ fontSize: '10px', color: '#b9a35a', textDecoration: 'underline', marginTop: '2px' }}
+                                  >
+                                    Lihat Foto Aktual
+                                  </a>
+                                )}
+                                
                               </div>
                             </td>
                           );
