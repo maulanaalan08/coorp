@@ -616,7 +616,7 @@ function RabGroupNode({
   depth, 
   sumGroupRecursive, 
   onDeleteGroup, 
-  onAddSubGroup, 
+  onAddSubGroup, // Prop ini bisa dibiarkan (atau dihapus dari pemanggilan di atas) jika sewaktu-waktu dibutuhkan kembali
   onEditItem, 
   onDeleteItem, 
   selectedItemIds, 
@@ -631,9 +631,8 @@ function RabGroupNode({
         </div>
         <div className={styles["rab-group-actions"]}>
           <span className={styles["rab-group-subtotal"]}>{fmtRp(subtotal)}</span>
-          {depth === 0 && (
-            <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onAddSubGroup(group.id)} type="button" title="Tambah Sub-Group"><Plus size={14} /></button>
-          )}
+          {/* Tombol Tambah Sub-Group Dihapus dari sini sesuai permintaan */}
+          
           <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} onClick={() => onDeleteGroup(group.id)} type="button" title="Hapus"><Trash2 size={14} /></button>
         </div>
       </div>
@@ -682,23 +681,40 @@ function RabItemsTable({ items, onEdit, onDelete, selectedItemIds, onToggleSelec
       <tbody>
         {items.map((item) => {
           const isChild = !!item.parentId;
+          const hasChildren = item.hasChildren || items.some((child) => child.parentId === item.id);
           const no = isChild ? "" : ++counter;
           const special = item.isByOwner ? "By Owner" : item.isStip ? "-" : null;
+
+          let displayRapTotal = Number(item.rapTotalPrice || 0);
+          let displayRabTotal = Number(item.rabTotalPrice || 0);
+
+          if (hasChildren) {
+            const childItems = items.filter(child => child.parentId === item.id);
+            displayRapTotal = childItems.reduce((sum, child) => sum + Number(child.rapTotalPrice || 0), 0);
+            displayRabTotal = childItems.reduce((sum, child) => sum + Number(child.rabTotalPrice || 0), 0);
+          }
 
           return (
             <tr key={item.id} className={selectedItemIds.includes(item.id) ? styles["rab-row-selected"] : ""}>
               <td style={{ textAlign: "center" }}>
-                <input 
+                {/* Checkbox disembunyikan jika baris ini memiliki child */}
+                {!hasChildren && (
+                  <input 
                     type="checkbox" 
                     className={styles["rab-checkbox"]}
                     checked={selectedItemIds.includes(item.id)} 
                     onChange={() => onToggleSelect(item.id)} 
                   />
+                )}
               </td>
-              <td>{isChild ? "— " : ""}{item.name}</td>
-              <td>{item.paymentUnit}</td>
-              <td className={styles["rab-mono"]}>{item.volume != null ? Number(item.volume).toFixed(2) : ""}</td>
-              {special ? (
+              <td>
+                {isChild ? "— " : ""}
+                {item.name}
+                {hasChildren && <span style={{ fontSize: "10px", marginLeft: "6px", color: "#d4af37", background: "rgba(212,175,55,0.1)", padding: "2px 6px", borderRadius: "4px" }}>Parent</span>}
+              </td>
+              <td>{hasChildren ? "" : item.paymentUnit}</td>
+              <td className={styles["rab-mono"]}>{item.volume != null && !hasChildren ? Number(item.volume).toFixed(2) : ""}</td>
+              {special && !hasChildren ? (
                 <>
                   <td className={[styles["rab-text-center"], styles["rab-special-cell"]].join(" ")}>{special}</td>
                   <td className={[styles["rab-text-center"], styles["rab-special-cell"]].join(" ")}>{special}</td>
@@ -707,14 +723,16 @@ function RabItemsTable({ items, onEdit, onDelete, selectedItemIds, onToggleSelec
                 </>
               ) : (
                 <>
-                  <td className={styles["rab-mono"]}>{fmtRp(item.rapUnitPrice)}</td>
-                  <td className={styles["rab-mono"]}>{fmtRp(item.rapTotalPrice)}</td>
-                  <td className={styles["rab-mono"]}>{fmtRp(item.rabUnitPrice)}</td>
-                  <td className={[styles["rab-mono"], styles["rab-fw-bold"]].join(" ")}>{fmtRp(item.rabTotalPrice)}</td>
+                  <td className={styles["rab-mono"]}>{hasChildren ? "" : fmtRp(item.rapUnitPrice)}</td>
+                  <td className={styles["rab-mono"]}>{fmtRp(displayRapTotal)}</td>
+                  <td className={styles["rab-mono"]}>{hasChildren ? "" : fmtRp(item.rabUnitPrice)}</td>
+                  <td className={[styles["rab-mono"], styles["rab-fw-bold"]].join(" ")}>{fmtRp(displayRabTotal)}</td>
                 </>
               )}
               <td className={styles["rab-row-actions"]}>
-                <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onEdit(item)} type="button" title="Edit"><Pencil size={14} /></button>
+                {!hasChildren && (
+                  <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onEdit(item)} type="button" title="Edit"><Pencil size={14} /></button>
+                )}
                 <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} onClick={() => onDelete(item.id)} type="button" title="Hapus"><Trash2 size={14} /></button>
               </td>
             </tr>
