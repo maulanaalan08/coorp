@@ -1,5 +1,6 @@
 // src/App.jsx
 import React, { useState } from "react";
+import { Toaster } from 'react-hot-toast';
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import ProjectBoard from "./pages/ProjectBoard";
@@ -17,6 +18,7 @@ function App() {
 
   return (
     <div style={{ display: "flex", width: "100vw", minHeight: "100vh", backgroundColor: "#0c0b09" }}>
+      <Toaster position="top-right" />
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main style={{ flex: 1, marginLeft: "260px", overflowY: "auto" }}>

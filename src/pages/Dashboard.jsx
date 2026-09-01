@@ -22,6 +22,7 @@ import StatCard from "../components/StatCard";
 import ProjectTableRow from "../components/ProjectTableRow";
 import CreateProjectModal from "../components/CreateProjectModal";
 import { useProjects } from "../hooks/useProjects";
+import toast from "react-hot-toast";
 
 // ================================================================
 // INLINE EDIT MODAL — Desain selaras dengan CreateProjectModal
@@ -190,11 +191,14 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
   // ============================================================
   const handleDeleteProject = async (id, name) => {
     if (!window.confirm(`Hapus project "${name}"?`)) return;
-    try {
-      await deleteProject(id);
-    } catch (err) {
-      alert(err.message);
-    }
+    
+    toast.promise(deleteProject(id), {
+      loading: 'Menghapus project...',
+      success: 'Project berhasil dihapus!',
+      error: 'Gagal menghapus project.'
+    }).catch((err) => {
+      console.error(err);
+    });
   };
 
   const openEditProjectModal = (project) => {
@@ -226,7 +230,7 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
     if (!editProject?.id || !editForm.name.trim()) return;
     setSavingEdit(true);
     try {
-      await updateProject(editProject.id, {
+      const updatePromise = updateProject(editProject.id, {
         name: editForm.name.trim(),
         location: editForm.location.trim(),
         hspkPeriod: editForm.hspkPeriod === "" ? null : Number(editForm.hspkPeriod),
@@ -234,13 +238,32 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
         grade: editForm.grade.trim(),
         clientName: editForm.clientName.trim(),
       });
-      closeEditProjectModal();
+
+      toast.promise(updatePromise, {
+        loading: 'Menyimpan perubahan...',
+        success: 'Project berhasil diperbarui!',
+        error: 'Gagal memperbarui project.'
+      }).then(() => {
+        closeEditProjectModal();
+      }).catch((err) => {
+        setEditError(err.message);
+      }).finally(() => {
+        setSavingEdit(false);
+      });
     } catch (err) {
       setEditError(err.message);
-    } finally {
       setSavingEdit(false);
     }
   };
+
+  React.useEffect(() => {
+    if (loading) {
+      toast.loading('Memuat data project...', { id: 'load-projects' });
+    } else {
+      toast.dismiss('load-projects');
+      if (error) toast.error('Gagal memuat data project');
+    }
+  }, [loading, error]);
 
   // ============================================================
   // STATS COUNTERS

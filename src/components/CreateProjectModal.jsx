@@ -3,6 +3,7 @@ import "../styles/CreateProjectModal.css";
 import { X } from "lucide-react";
 import { hspkService } from "../services/hspkService";
 import { projectService } from "../services/projectService";
+import toast from "react-hot-toast";
 
 const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
   const [projectName, setProjectName] = useState("");
@@ -54,26 +55,28 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
     const selectedCombo = filteredHspkOptions[Number(selectedComboIndex)];
 
     if (!selectedCombo?.period) {
-      alert("Pilih data HSPK dulu.");
+      toast.error("Pilih data HSPK dulu.");
       return;
     }
     if (!projectName.trim() || !location.trim() || !client.trim()) {
-      alert("Semua field wajib diisi.");
+      toast.error("Semua field wajib diisi.");
       return;
     }
 
-    try {
-      await projectService.create({
-        name: projectName.trim(),
-        clientName: client.trim(),
-        location: location.trim(),
-        hspkPeriod: selectedCombo?.period,
-        discipline: selectedCombo?.discipline,
-        grade: selectedCombo?.grade,
-      });
+    const createPromise = projectService.create({
+      name: projectName.trim(),
+      clientName: client.trim(),
+      location: location.trim(),
+      hspkPeriod: selectedCombo?.period,
+      discipline: selectedCombo?.discipline,
+      grade: selectedCombo?.grade,
+    });
 
-      alert("Project berhasil dibuat!");
-
+    toast.promise(createPromise, {
+      loading: "Membuat project...",
+      success: "Project berhasil dibuat!",
+      error: "Gagal membuat project."
+    }).then(() => {
       // Reset form
       setProjectName("");
       setClient("");
@@ -86,10 +89,9 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
       }
 
       onClose();
-    } catch (err) {
+    }).catch((err) => {
       console.error(err);
-      alert("Gagal membuat project");
-    }
+    });
   };
 
   return (

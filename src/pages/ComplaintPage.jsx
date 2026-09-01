@@ -3,6 +3,7 @@ import { useComplaints } from '../hooks/useComplaints';
 import { complaintService } from '../services/complaintService';
 import ComplaintForm from '../components/ComplaintForm';
 import "../styles/Complaint.css"; 
+import toast from 'react-hot-toast';
 
 export default function ComplaintPage() {
   const projectId = "123-abc"; 
@@ -12,14 +13,24 @@ export default function ComplaintPage() {
   // Menambahkan fungsi untuk memanggil endpoint DELETE backend[cite: 4, 6]
   const handleDelete = async (id) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus laporan ini?")) {
-      try {
-        await complaintService.deleteComplaint(id);
+      toast.promise(complaintService.deleteComplaint(id), {
+        loading: 'Menghapus laporan...',
+        success: 'Berhasil menghapus laporan!',
+        error: 'Gagal menghapus laporan.'
+      }).then(() => {
         refetch();
-      } catch (err) {
-        alert("Gagal menghapus laporan");
-      }
+      }).catch(err => console.error(err));
     }
   };
+
+  React.useEffect(() => {
+    if (isLoading) {
+      toast.loading('Memuat data complaint...', { id: 'loading-complaint' });
+    } else {
+      toast.dismiss('loading-complaint');
+      if (error) toast.error('Gagal memuat data');
+    }
+  }, [isLoading, error]);
 
   return (
     <div className="complaint-container">
@@ -32,9 +43,6 @@ export default function ComplaintPage() {
 
       <div>
         <h2 className="section-title">Daftar Laporan</h2>
-        
-        {isLoading && <p className="status-loading">Memuat data...</p>}
-        {error && <p className="status-error">{error}</p>}
         
         {!isLoading && !error && (
           <ul className="complaint-list">

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { timeScheduleService } from "../services/timeScheduleService";
 import { joinOpnameService } from "../services/joinOpnameService";
+import toast from "react-hot-toast";
 import { toInputDate } from "../services/utils";
 
 export function useJoinOpname(initialProjectId) {
@@ -18,8 +20,11 @@ export function useJoinOpname(initialProjectId) {
   const [notice, setNotice] = useState(null);
 
   const showNotice = useCallback((type, message) => {
-    setNotice({ type, message });
-    setTimeout(() => setNotice(null), 4000);
+    if (type === 'success') {
+      toast.success(message);
+    } else {
+      toast.error(message);
+    }
   }, []);
 
   const buildProgressInputs = useCallback((items, date) => {
@@ -109,15 +114,18 @@ export function useJoinOpname(initialProjectId) {
     }
 
     setBusyItems((prev) => ({ ...prev, [item.rabItemId]: true }));
-    try {
-      await joinOpnameService.updateProgress(item.rabItemId, selectedDate, progress, inputData.files);
-      showNotice("success", `Progress "${item.name}" berhasil disimpan.`);
-      await fetchJoinOpname(projectId);
-    } catch (err) {
-      showNotice("error", err.message);
-    } finally {
+    
+    toast.promise(joinOpnameService.updateProgress(item.rabItemId, selectedDate, progress, inputData.files), {
+      loading: 'Menyimpan progress...',
+      success: `Progress "${item.name}" berhasil disimpan.`,
+      error: 'Gagal menyimpan progress.'
+    }).then(() => {
+      fetchJoinOpname(projectId);
+    }).catch(err => {
+      console.error(err);
+    }).finally(() => {
       setBusyItems((prev) => ({ ...prev, [item.rabItemId]: false }));
-    }
+    });
   };
 
   const items = data?.items || [];

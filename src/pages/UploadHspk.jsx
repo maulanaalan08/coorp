@@ -3,6 +3,7 @@ import styles from '../styles/UploadHspk.module.css';
 import { UploadCloud, FileText, AlertCircle } from 'lucide-react';
 import Header from '../components/Header';
 import { hspkService } from '../services/hspkService';
+import toast from 'react-hot-toast';
 
 const GRADE_OPTIONS = {
   SIPIL: ['A', 'B'],
@@ -44,6 +45,7 @@ function UploadHspk() {
       if (droppedFile.name.endsWith('.xlsx') || droppedFile.name.endsWith('.xls')) {
         setFile(droppedFile);
       } else {
+        toast.error('Format file tidak didukung. Harap unggah file .xlsx');
         setError('Format file tidak didukung. Harap unggah file .xlsx');
       }
     }
@@ -51,10 +53,12 @@ function UploadHspk() {
 
   const handleUpload = async () => {
     if (!file) {
+      toast.error('Pilih file Excel terlebih dahulu.');
       setError('Pilih file Excel terlebih dahulu.');
       return;
     }
     if (!period) {
+      toast.error('Isi tahun (period) HSPK.');
       setError('Isi tahun (period) HSPK.');
       return;
     }
@@ -69,14 +73,17 @@ function UploadHspk() {
     form.append('discipline', discipline);
     form.append('grade', grade);
 
-    try {
-      const data = await hspkService.upload(form);
+    toast.promise(hspkService.upload(form), {
+      loading: 'Mengunggah HSPK...',
+      success: 'Berhasil mengunggah HSPK!',
+      error: 'Gagal mengunggah HSPK.'
+    }).then(data => {
       setResult(data);
-    } catch (err) {
+    }).catch(err => {
       setError('Gagal: ' + err.message);
-    } finally {
+    }).finally(() => {
       setLoading(false);
-    }
+    });
   };
 
   return (
@@ -181,11 +188,6 @@ function UploadHspk() {
           </div>
         )}
 
-        {result && (
-          <pre className={styles.hspkResult}>
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        )}
       </div>
     </div>
   );

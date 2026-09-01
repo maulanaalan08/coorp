@@ -6,6 +6,7 @@ import { useBvItems } from '../hooks/useBvItems';
 import { groupService } from '../services/groupService';
 import { hspkService } from '../services/hspkService';
 import { Pencil, Trash2, Plus } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
 
@@ -513,11 +514,19 @@ export default function BackUpVolume() {
       const preview = await groupService.deletePreview(groupId);
       const msg = `Group ini beserta ${preview.subGroupCount} sub-group, ${preview.bvCount} item BV, dan ${preview.rabCount} item RAB di dalamnya akan terhapus. Lanjutkan?`;
       if (!window.confirm(msg)) return;
-      await groupService.delete(groupId);
-      fetchGroups();
-      refresh();
+      
+      toast.promise(groupService.delete(groupId), {
+        loading: 'Menghapus group...',
+        success: 'Berhasil menghapus group!',
+        error: 'Gagal menghapus group.'
+      }).then(() => {
+        fetchGroups();
+        refresh();
+      }).catch(err => {
+        console.error(err);
+      });
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -550,26 +559,42 @@ export default function BackUpVolume() {
   const handleBulkDelete = async () => {
     if (checkedIds.length === 0) return;
     if (!window.confirm(`Yakin ingin menghapus ${checkedIds.length} item secara permanen?`)) return;
-    try {
-      await deleteBulk(checkedIds);
+    
+    toast.promise(deleteBulk(checkedIds), {
+      loading: 'Menghapus item terpilih...',
+      success: 'Berhasil menghapus item terpilih!',
+      error: 'Gagal menghapus item.'
+    }).then(() => {
       setCheckedIds([]);
       fetchGroups();
-    } catch (err) {
-      alert(err.message);
-    }
+    }).catch((err) => {
+      console.error(err);
+    });
   };
 
   const handleBulkLink = async () => {
     if (checkedIds.length === 0) return;
     if (!window.confirm(`Link ${checkedIds.length} item terpilih ke RAB?`)) return;
-    try {
-      await linkToRabBulk(checkedIds);
+    
+    toast.promise(linkToRabBulk(checkedIds), {
+      loading: 'Menautkan item ke RAB...',
+      success: 'Berhasil menautkan item ke RAB!',
+      error: 'Gagal menautkan item.'
+    }).then(() => {
       setCheckedIds([]);
       refresh();
-    } catch (err) {
-      alert(err.message);
-    }
+    }).catch(err => {
+      console.error(err);
+    });
   };
+
+  useEffect(() => {
+    if (loadingBv || loadingGroups) {
+      toast.loading('Memuat data Back Up Volume...', { id: 'loading-bv' });
+    } else {
+      toast.dismiss('loading-bv');
+    }
+  }, [loadingBv, loadingGroups]);
 
   // SESUAI REQUEST: Disesuaikan dengan struktur tableHeader yang diberikan
   const renderTableHeader = () => (
@@ -702,13 +727,12 @@ export default function BackUpVolume() {
                     type="button" 
                     className={styles.btnOutline} 
                     style={{ borderColor: '#e2c044', color: '#e2c044', fontSize: '11px', padding: '4px 8px' }} 
-                    onClick={async () => {
-                      try {
-                        await syncBvItem(it.id);
-                        alert("Berhasil disinkronkan ke RAB");
-                      } catch (err) {
-                        alert(err.message);
-                      }
+                    onClick={() => {
+                      toast.promise(syncBvItem(it.id), {
+                        loading: 'Sinkronisasi ke RAB...',
+                        success: 'Berhasil disinkronkan ke RAB!',
+                        error: 'Gagal sinkronisasi.'
+                      }).catch(err => console.error(err));
                     }} 
                     title="Dimensi/Volume berubah, sinkronkan ke RAB"
                   >

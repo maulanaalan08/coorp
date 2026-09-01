@@ -4,6 +4,7 @@ import { formatPercent, formatDate, formatNumber, toInputDate } from "../service
 import JoinOpnameTable from "../components/JoinOpnameTable";
 import { Image } from "lucide-react";
 import "../styles/JoinOpname.css"; // Menggunakan CSS bawaan tanpa modifikasi
+import toast from "react-hot-toast";
 
 function JoinOpnamePage({ initialProjectId = null }) {
   const {
@@ -13,6 +14,17 @@ function JoinOpnamePage({ initialProjectId = null }) {
     handleProjectChange, handleDateChange, handleProgressChange, handleFileChange, handleSaveProgress,
     items, days, totalDays, startDate, groupedItems, selectedDay, summary
   } = useJoinOpname(initialProjectId);
+
+  React.useEffect(() => {
+    if (loadingProjects || loading) {
+      toast.loading('Memuat data Join Opname...', { id: 'loading-jo' });
+    } else {
+      toast.dismiss('loading-jo');
+      if (error || projectError) {
+        toast.error(error || projectError);
+      }
+    }
+  }, [loadingProjects, loading, error, projectError]);
 
   return (
     <div className="join-opname-page">
@@ -25,8 +37,6 @@ function JoinOpnamePage({ initialProjectId = null }) {
           {loading ? "Memuat..." : `${totalDays} Hari`}
         </div>
       </div>
-
-      {notice && <div className={`jo-notice jo-notice-${notice.type}`}>{notice.message}</div>}
 
       <div className="jo-card jo-project-card">
         <div className="jo-section-title">Pilih Project</div>

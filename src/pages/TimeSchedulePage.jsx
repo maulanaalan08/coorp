@@ -4,6 +4,7 @@ import { timeScheduleService } from "../services/timeScheduleService";
 import { formatWeight } from "../services/utils";
 import TimeScheduleTable from "../components/TimeScheduleTable";
 import "../styles/TimeSchedulePage.css";
+import toast from "react-hot-toast";
 
 function TimeSchedulePage({ projectId: initialProjectId = null }) {
   const {
@@ -22,46 +23,66 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
 
   // Fungsi untuk menyimpan Tanggal Mulai Proyek
   const handleSaveStartDate = async () => {
-    if (!projectId) return showNotice("error", "Pilih project.");
-    if (!startDateInput) return showNotice("error", "Pilih tanggal mulai.");
+    if (!projectId) return toast.error("Pilih project.");
+    if (!startDateInput) return toast.error("Pilih tanggal mulai.");
     setSavingStartDate(true);
-    try {
-      await timeScheduleService.updateStartDate(projectId, startDateInput);
-      showNotice("success", "Tanggal mulai berhasil disimpan.");
-      await fetchSchedule(projectId); // Refresh data agar tanggal baru ter-apply ke hitungan minggu
-    } catch (err) { 
-      showNotice("error", err.message); 
-    } finally { 
-      setSavingStartDate(false); 
-    }
+    
+    toast.promise(timeScheduleService.updateStartDate(projectId, startDateInput), {
+      loading: 'Menyimpan tanggal mulai...',
+      success: 'Tanggal mulai berhasil disimpan.',
+      error: 'Gagal menyimpan tanggal.'
+    }).then(() => {
+      fetchSchedule(projectId);
+    }).catch(err => {
+      console.error(err);
+    }).finally(() => {
+      setSavingStartDate(false);
+    });
   };
 
   const handleSaveItemSchedule = async (item, draft) => {
     setBusyItems((prev) => ({ ...prev, [item.rabItemId]: true }));
-    try {
-      await timeScheduleService.updateItemSchedule(item.rabItemId, Number(draft.startWeek), Number(draft.endWeek));
-      showNotice("success", `Jadwal "${item.name}" disimpan.`);
-      await fetchSchedule(projectId);
-    } catch (err) { 
-      showNotice("error", err.message); 
-    } finally { 
-      setBusyItems((prev) => ({ ...prev, [item.rabItemId]: false })); 
-    }
+    
+    toast.promise(timeScheduleService.updateItemSchedule(item.rabItemId, Number(draft.startWeek), Number(draft.endWeek)), {
+      loading: 'Menyimpan jadwal...',
+      success: `Jadwal "${item.name}" disimpan.`,
+      error: 'Gagal menyimpan jadwal.'
+    }).then(() => {
+      fetchSchedule(projectId);
+    }).catch(err => {
+      console.error(err);
+    }).finally(() => {
+      setBusyItems((prev) => ({ ...prev, [item.rabItemId]: false }));
+    });
   };
 
   const handleDeleteItemSchedule = async (item) => {
     setBusyItems((prev) => ({ ...prev, [item.rabItemId]: true }));
-    try {
-      await timeScheduleService.deleteItemSchedule(item.rabItemId);
-      showNotice("success", `Jadwal "${item.name}" dihapus.`);
+    
+    toast.promise(timeScheduleService.deleteItemSchedule(item.rabItemId), {
+      loading: 'Menghapus jadwal...',
+      success: `Jadwal "${item.name}" dihapus.`,
+      error: 'Gagal menghapus jadwal.'
+    }).then(() => {
       setEditDrafts((prev) => { const next = { ...prev }; delete next[item.rabItemId]; return next; });
-      await fetchSchedule(projectId);
-    } catch (err) { 
-      showNotice("error", err.message); 
-    } finally { 
+      fetchSchedule(projectId);
+    }).catch(err => {
+      console.error(err);
+    }).finally(() => {
       setBusyItems((prev) => ({ ...prev, [item.rabItemId]: false })); 
-    }
+    });
   };
+
+  React.useEffect(() => {
+    if (loadingProjects || loading) {
+      toast.loading('Memuat data Time Schedule...', { id: 'loading-ts' });
+    } else {
+      toast.dismiss('loading-ts');
+      if (error || projectError) {
+        toast.error(error || projectError);
+      }
+    }
+  }, [loadingProjects, loading, error, projectError]);
 
   if (!loadingProjects && projectList.length === 0 && projectError) {
     return (
@@ -91,8 +112,6 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
           )}
         </div>
       </header>
-
-      {notice && <div className={`tsp-notice tsp-notice-${notice.type}`}>{notice.message}</div>}
 
       <div className="tsp-card tsp-project-card">
         <h2 className="tsp-card-title">Pilih Project</h2>

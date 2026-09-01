@@ -15,6 +15,7 @@ import Header from "../components/Header";
 import { useProjects } from "../hooks/useProjects";
 import { useRabGroups } from "../hooks/useRabGroups";
 import { useMaterialRequests } from "../hooks/useMaterialRequests";
+import toast from "react-hot-toast";
 
 const fmtRp = (n) =>
   "Rp " +
@@ -59,6 +60,17 @@ const FinancePage = () => {
     setExpandedRows({});
   }, [projectId]);
 
+  useEffect(() => {
+    if (loadingProjects || loadingRab || loadingMr) {
+      toast.loading('Memuat data Finance...', { id: 'loading-finance' });
+    } else {
+      toast.dismiss('loading-finance');
+      if (rabError || mrError) {
+        toast.error('Gagal memuat data');
+      }
+    }
+  }, [loadingProjects, loadingRab, loadingMr, rabError, mrError]);
+
   // Handle Input Changes
   const handleEditChange = (id, field, value) => {
     setEditedItems(prev => ({
@@ -73,20 +85,23 @@ const FinancePage = () => {
   // Handle Save
   const handleSave = async () => {
     setIsSaving(true);
-    try {
-      const payloadItems = mrItems.map(item => ({
-        id: item.id,
-        orderedVolume: editedItems[item.id]?.orderedVolume !== "" ? Number(editedItems[item.id].orderedVolume) : 0,
-        catatanFinance: editedItems[item.id]?.catatanFinance || ""
-      }));
+    const payloadItems = mrItems.map(item => ({
+      id: item.id,
+      orderedVolume: editedItems[item.id]?.orderedVolume !== "" ? Number(editedItems[item.id].orderedVolume) : 0,
+      catatanFinance: editedItems[item.id]?.catatanFinance || ""
+    }));
 
-      await updateBulkMaterialRequests(payloadItems);
-      alert("Data berhasil disimpan!");
-    } catch (err) {
-      alert("Error: " + err.message);
-    } finally {
+    toast.promise(updateBulkMaterialRequests(payloadItems), {
+      loading: 'Menyimpan data...',
+      success: 'Data berhasil disimpan!',
+      error: 'Gagal menyimpan data.'
+    }).then(() => {
+      // success
+    }).catch(err => {
+      console.error(err);
+    }).finally(() => {
       setIsSaving(false);
-    }
+    });
   };
 
   // Flatten items for display

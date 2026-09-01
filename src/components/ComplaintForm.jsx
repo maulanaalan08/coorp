@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { complaintService } from '../services/complaintService';
 import "../styles/Complaint.css";
+import toast from 'react-hot-toast';
 
 export default function ComplaintForm({ projectId, initialData = null, onSuccess }) {
   const [categories, setCategories] = useState(
@@ -20,7 +21,7 @@ export default function ComplaintForm({ projectId, initialData = null, onSuccess
   const handleFileChange = (catIndex, itemIndex, e) => {
     const files = Array.from(e.target.files);
     if (files.length > 20) {
-      alert('Maksimal 20 foto per item!');
+      toast.error('Maksimal 20 foto per item!');
       return;
     }
     const newCategories = [...categories];
@@ -64,17 +65,29 @@ export default function ComplaintForm({ projectId, initialData = null, onSuccess
 
       formData.append('complaintData', JSON.stringify(complaintData));
 
-      if (initialData?.id) {
-        await complaintService.updateComplaint(initialData.id, formData);
-      } else {
-        await complaintService.createComplaint(projectId, formData);
-      }
+      const submitPromise = (async () => {
+        if (initialData?.id) {
+          await complaintService.updateComplaint(initialData.id, formData);
+        } else {
+          await complaintService.createComplaint(projectId, formData);
+        }
+      })();
       
-      if (onSuccess) onSuccess();
+      toast.promise(submitPromise, {
+        loading: 'Menyimpan Complaint...',
+        success: 'Berhasil menyimpan Complaint!',
+        error: 'Gagal menyimpan Complaint.'
+      }).then(() => {
+        if (onSuccess) onSuccess();
+      }).catch((error) => {
+        console.error('Error submitting form', error);
+      }).finally(() => {
+        setLoading(false);
+      });
+
     } catch (error) {
-      console.error('Error submitting form', error);
-      alert(error.message || 'Terjadi kesalahan saat menyimpan data');
-    } finally {
+      console.error('Error preparing form', error);
+      toast.error(error.message || 'Terjadi kesalahan saat menyiapkan data');
       setLoading(false);
     }
   };

@@ -8,6 +8,7 @@ import {
 import { useProjects } from '../hooks/useProjects';
 import { useSurveys } from '../hooks/useSurveys';
 import { surveyService } from '../services/surveyService';
+import toast from 'react-hot-toast';
 
 // ================================================================
 // KONSTANTA
@@ -296,24 +297,24 @@ function SurveyModal({ isOpen, onClose, projectId, onSuccess, initialData }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!surveyDate || !surveyorName.trim()) {
+      toast.error('Tanggal survey dan nama surveyor wajib diisi.');
       setError('Tanggal survey dan nama surveyor wajib diisi.');
       return;
     }
     if (areas.length === 0) {
+      toast.error('Minimal harus ada 1 area.');
       setError('Minimal harus ada 1 area.');
       return;
     }
     for (const area of areas) {
       if (!area.areaName.trim()) {
+        toast.error('Semua nama area wajib diisi.');
         setError('Semua nama area wajib diisi.');
         return;
       }
     }
 
-    setSaving(true);
-    setError(null);
-
-    try {
+    const savePromise = (async () => {
       const surveyData = {
         surveyDate,
         surveyorName: surveyorName.trim(),
@@ -351,6 +352,17 @@ function SurveyModal({ isOpen, onClose, projectId, onSuccess, initialData }) {
       } else {
         await surveyService.create(projectId, formData);
       }
+      return true;
+    })();
+
+    setSaving(true);
+    setError(null);
+
+    toast.promise(savePromise, {
+      loading: 'Menyimpan laporan survey...',
+      success: 'Berhasil menyimpan laporan survey!',
+      error: 'Gagal menyimpan laporan survey.'
+    }).then(() => {
       onSuccess();
       onClose();
       // reset
@@ -358,11 +370,11 @@ function SurveyModal({ isOpen, onClose, projectId, onSuccess, initialData }) {
       setSurveyorName('');
       setNotes('');
       setAreas([emptyArea()]);
-    } catch (err) {
+    }).catch((err) => {
       setError(err.message || 'Gagal menyimpan survey. Coba lagi.');
-    } finally {
+    }).finally(() => {
       setSaving(false);
-    }
+    });
   };
 
   if (!isOpen) return null;
@@ -465,12 +477,16 @@ function SurveyRow({ survey, onDelete, onEdit }) {
   const handleDelete = async () => {
     if (!window.confirm(`Hapus laporan survey tanggal ${new Date(survey.surveyDate).toLocaleDateString('id-ID')}?`)) return;
     setDeleting(true);
-    try {
-      await onDelete(survey.id);
-    } catch (err) {
-      alert(err.message);
+    
+    toast.promise(onDelete(survey.id), {
+      loading: 'Menghapus survey...',
+      success: 'Berhasil menghapus survey!',
+      error: 'Gagal menghapus survey.'
+    }).catch((err) => {
+      console.error(err);
+    }).finally(() => {
       setDeleting(false);
-    }
+    });
   };
 
   return (
@@ -625,6 +641,17 @@ const DataSurvey = () => {
   const [editingSurvey, setEditingSurvey] = useState(null);
 
   const { surveys, loading: loadingSurveys, error: surveyError, refresh, deleteSurvey } = useSurveys(selectedProjectId);
+
+  React.useEffect(() => {
+    if (loadingSurveys) {
+      toast.loading('Memuat data survey...', { id: 'loading-surveys' });
+    } else {
+      toast.dismiss('loading-surveys');
+      if (surveyError) {
+        toast.error('Gagal memuat data survey');
+      }
+    }
+  }, [loadingSurveys, surveyError]);
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 

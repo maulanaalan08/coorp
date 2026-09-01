@@ -18,6 +18,7 @@ import Header from "../components/Header";
 import { useProjects } from "../hooks/useProjects";
 import { useRabGroups } from "../hooks/useRabGroups";
 import { useRabItems } from "../hooks/useRabItems";
+import toast from "react-hot-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -105,6 +106,14 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
 
   const visibleGroups = useMemo(() => filterGroups(groups, search.trim().toLowerCase()), [groups, search]);
 
+  React.useEffect(() => {
+    if (loadingProjects || loadingGroups || loadingItems) {
+      toast.loading('Memuat data RAB...', { id: 'loading-rab' });
+    } else {
+      toast.dismiss('loading-rab');
+    }
+  }, [loadingProjects, loadingGroups, loadingItems]);
+
   // ==========================================================
   // ADD GROUP & SUB-GROUP
   // ==========================================================
@@ -113,17 +122,19 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
   };
 
   const handleSaveGroup = async () => {
-    if (!groupModal.name.trim()) return alert("Nama wajib diisi.");
-    try {
-      await createGroup({
-        name: groupModal.name.trim(),
-        reference: groupModal.reference.trim() || null,
-        parentId: groupModal.parentId,
-      });
+    if (!groupModal.name.trim()) return toast.error("Nama wajib diisi.");
+    
+    toast.promise(createGroup({
+      name: groupModal.name.trim(),
+      reference: groupModal.reference.trim() || null,
+      parentId: groupModal.parentId,
+    }), {
+      loading: 'Menyimpan group...',
+      success: 'Group berhasil disimpan!',
+      error: 'Gagal menyimpan group.'
+    }).then(() => {
       setGroupModal(null);
-    } catch (error) {
-      alert(error.message);
-    }
+    }).catch(error => console.error(error));
   };
 
   // ==========================================================
@@ -131,17 +142,20 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
   // ==========================================================
   const handleDeleteGroup = async (id) => {
     if (!window.confirm("Hapus group ini? Semua sub-group dan baris pekerjaan di dalamnya akan ikut terhapus.")) return;
-    try {
-      await deleteGroup(id);
-    } catch (error) { alert(error.message); }
+    toast.promise(deleteGroup(id), {
+      loading: 'Menghapus group...',
+      success: 'Group berhasil dihapus!',
+      error: 'Gagal menghapus group.'
+    }).catch(error => console.error(error));
   };
 
   const deleteItem = async (id) => {
     if (!window.confirm("Hapus baris pekerjaan ini?")) return;
-    try {
-      await deleteRabItem(id);
-      await refreshGroups();
-    } catch (error) { alert(error.message); }
+    toast.promise(deleteRabItem(id).then(() => refreshGroups()), {
+      loading: 'Menghapus item...',
+      success: 'Item berhasil dihapus!',
+      error: 'Gagal menghapus item.'
+    }).catch(error => console.error(error));
   };
 
   const toggleSelection = (id) => {
@@ -158,13 +172,16 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
 
   const handleBulkDelete = async () => {
     if (selectedItemIds.length === 0) return;
-    if (!window.confirm(`Yakin ingin menghapus ${selectedItemIds.length} item terpilih?`)) return;
-
-    try {
-      await deleteBulk(selectedItemIds);
-      setSelectedItemIds([]); 
-      await refreshGroups();
-    } catch (error) { alert(error.message); }
+    if (!window.confirm(`Hapus ${selectedItemIds.length} item secara permanen?`)) return;
+    
+    toast.promise(deleteBulk(selectedItemIds).then(() => {
+      setSelectedItemIds([]);
+      return refreshGroups();
+    }), {
+      loading: 'Menghapus item terpilih...',
+      success: 'Berhasil menghapus item terpilih!',
+      error: 'Gagal menghapus item.'
+    }).catch(error => console.error(error));
   };
 
   // ==========================================================
@@ -220,31 +237,41 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
   const handleSaveEdit = async () => {
     const { item, pricingMode, isByOwner, isStip, overheadPercent, rapUnitPrice, sourceJobId } = editModal;
     if (pricingMode === "manual") {
-      try {
-        await updateRabItem(item.id, {
-            rapUnitPrice: isByOwner || isStip ? 0 : Number(rapUnitPrice),
-            overheadPercent: Number(overheadPercent),
-            isByOwner,
-            isStip,
-        });
+      const updatePromise = updateRabItem(item.id, {
+          rapUnitPrice: isByOwner || isStip ? 0 : Number(rapUnitPrice),
+          overheadPercent: Number(overheadPercent),
+          isByOwner,
+          isStip,
+      }).then(() => refreshGroups());
+      
+      toast.promise(updatePromise, {
+        loading: 'Menyimpan harga manual...',
+        success: 'Harga manual berhasil disimpan!',
+        error: 'Gagal menyimpan harga manual.'
+      }).then(() => {
         setEditModal(null);
-        await refreshGroups();
-      } catch (err) { alert("Gagal menyimpan harga manual: " + err.message); }
+      }).catch(err => console.error(err));
     } else if (pricingMode === "ahsp") {
-      if (!sourceJobId) return alert("Pilih Master Pekerjaan (AHSP) dari daftar!");
-      try {
-        const payload = { newJobTypeId: sourceJobId };
-        if (overheadPercent !== "") payload.customOverhead = Number(overheadPercent);
+      if (!sourceJobId) return toast.error("Pilih Master Pekerjaan (AHSP) dari daftar!");
+      const payload = { newJobTypeId: sourceJobId };
+      if (overheadPercent !== "") payload.customOverhead = Number(overheadPercent);
 
-        const res = await fetch(`${API_BASE}/rab-items/${item.id}/switch-job`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      const switchPromise = fetch(`${API_BASE}/rab-items/${item.id}/switch-job`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).then(res => {
         if (!res.ok) throw new Error("Gagal menghubungkan data AHSP.");
+        return refreshGroups();
+      });
+
+      toast.promise(switchPromise, {
+        loading: 'Menarik data Master AHSP...',
+        success: 'Berhasil menghubungkan data AHSP!',
+        error: 'Gagal menarik data Master AHSP.'
+      }).then(() => {
         setEditModal(null);
-        await refreshGroups();
-      } catch (err) { alert("Gagal menarik data Master AHSP: " + err.message); }
+      }).catch(err => console.error(err));
     }
   };
 
@@ -252,17 +279,22 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
   // BULK ACTIONS
   // ==========================================================
   const handleSaveBulkPrice = async () => {
-    if (!bulkPriceModal.rapUnitPrice && !bulkPriceModal.overheadPercent) return alert("Isi salah satu nilai!");
-    try {
-      await bulkPrice(
-          selectedItemIds,
-          bulkPriceModal.rapUnitPrice !== "" ? Number(bulkPriceModal.rapUnitPrice) : undefined,
-          bulkPriceModal.overheadPercent !== "" ? Number(bulkPriceModal.overheadPercent) : undefined
-      );
+    if (!bulkPriceModal.rapUnitPrice && !bulkPriceModal.overheadPercent) return toast.error("Isi salah satu nilai!");
+    
+    const bulkPricePromise = bulkPrice(
+        selectedItemIds,
+        bulkPriceModal.rapUnitPrice !== "" ? Number(bulkPriceModal.rapUnitPrice) : undefined,
+        bulkPriceModal.overheadPercent !== "" ? Number(bulkPriceModal.overheadPercent) : undefined
+    ).then(() => refreshGroups());
+    
+    toast.promise(bulkPricePromise, {
+      loading: 'Menyimpan harga massal...',
+      success: 'Harga massal berhasil disimpan!',
+      error: 'Gagal menyimpan harga massal.'
+    }).then(() => {
       setBulkPriceModal(null);
       setSelectedItemIds([]);
-      await refreshGroups();
-    } catch (e) { alert(e.message); }
+    }).catch(e => console.error(e));
   };
 
   const searchBulkSwitchJobs = async (query) => {
@@ -278,30 +310,42 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
   };
 
   const handleSaveBulkSwitch = async () => {
-    if (!bulkSwitchModal.sourceJobId) return alert("ID Master Pekerjaan wajib dipilih!");
-    try {
-      await bulkSwitchJob(
-          selectedItemIds,
-          bulkSwitchModal.sourceJobId,
-          bulkSwitchModal.overheadPercent !== "" ? Number(bulkSwitchModal.overheadPercent) : undefined
-      );
+    if (!bulkSwitchModal.sourceJobId) return toast.error("ID Master Pekerjaan wajib dipilih!");
+    
+    const bulkSwitchPromise = bulkSwitchJob(
+        selectedItemIds,
+        bulkSwitchModal.sourceJobId,
+        bulkSwitchModal.overheadPercent !== "" ? Number(bulkSwitchModal.overheadPercent) : undefined
+    ).then(() => refreshGroups());
+    
+    toast.promise(bulkSwitchPromise, {
+      loading: 'Mengubah master pekerjaan massal...',
+      success: 'Berhasil mengubah master pekerjaan!',
+      error: 'Gagal mengubah master pekerjaan.'
+    }).then(() => {
       setBulkSwitchModal(null);
       setSelectedItemIds([]);
-      await refreshGroups();
-    } catch (e) { alert(e.message); }
+    }).catch(e => console.error(e));
   };
 
   const handleSaveBulkName = async () => {
-    if (!bulkNameModal.name || !bulkNameModal.rapUnitPrice) return alert("Nama item dan harga baru wajib diisi!");
-    try {
-      const res = await fetch(`${API_BASE}/projects/${projectId}/rab-items/bulk-price-by-name`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: bulkNameModal.name, newUnitPrice: Number(bulkNameModal.rapUnitPrice) })
-      });
+    if (!bulkNameModal.name || !bulkNameModal.rapUnitPrice) return toast.error("Nama item dan harga baru wajib diisi!");
+    
+    const sapuJagatPromise = fetch(`${API_BASE}/projects/${projectId}/rab-items/bulk-price-by-name`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: bulkNameModal.name, newUnitPrice: Number(bulkNameModal.rapUnitPrice) })
+    }).then(res => {
       if (!res.ok) throw new Error("Gagal Sapu Jagat.");
+      return refreshGroups();
+    });
+    
+    toast.promise(sapuJagatPromise, {
+      loading: 'Menyapu jagat...',
+      success: 'Berhasil mengubah harga massal by name!',
+      error: 'Gagal melakukan Sapu Jagat.'
+    }).then(() => {
       setBulkNameModal(null);
-      await refreshGroups();
-    } catch (e) { alert(e.message); }
+    }).catch(e => console.error(e));
   };
 
   // ==========================================================
@@ -318,38 +362,46 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
   // ==========================================================
   const handleSyncFinance = async () => {
     if (!window.confirm("Yakin ingin mengirim RAB ini ke Finance? Proses ini akan membuat daftar Procurement dan mengunci RAB.")) return;
-    try {
-      const res = await fetch(`${API_BASE}/projects/${projectId}/sync-finance`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+    
+    const syncPromise = fetch(`${API_BASE}/projects/${projectId}/sync-finance`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    }).then(async res => {
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || "Gagal mengirim data ke Finance.");
       }
-      alert("Berhasil dikirim ke Finance! RAB sekarang terkunci.");
-      window.location.reload(); 
-    } catch (err) {
-      alert(err.message);
-    }
+    });
+
+    toast.promise(syncPromise, {
+      loading: 'Mengirim RAB ke Finance...',
+      success: 'Berhasil dikirim ke Finance! RAB sekarang terkunci.',
+      error: 'Gagal mengirim RAB ke Finance.'
+    }).then(() => {
+      setTimeout(() => window.location.reload(), 1500); 
+    }).catch(err => console.error(err));
   };
 
   const handleCancelFinance = async () => {
     if (!window.confirm("Yakin ingin membatalkan kiriman ke Finance? Ini akan menghapus data di dasbor Finance dan membuka kunci RAB.")) return;
-    try {
-      const res = await fetch(`${API_BASE}/projects/${projectId}/cancel-finance`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+    
+    const cancelPromise = fetch(`${API_BASE}/projects/${projectId}/cancel-finance`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    }).then(async res => {
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || "Gagal membatalkan sinkronisasi.");
       }
-      alert("Batal kirim berhasil. RAB kembali terbuka (DRAFT).");
-      window.location.reload();
-    } catch (err) {
-      alert(err.message);
-    }
+    });
+
+    toast.promise(cancelPromise, {
+      loading: 'Membatalkan kiriman ke Finance...',
+      success: 'Batal kirim berhasil. RAB kembali terbuka (DRAFT).',
+      error: 'Gagal membatalkan sinkronisasi.'
+    }).then(() => {
+      setTimeout(() => window.location.reload(), 1500);
+    }).catch(err => console.error(err));
   };
 
   // ==========================================================
@@ -427,15 +479,15 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
                 Hapus Terpilih
               </button>
               
-              <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => selectedItemIds.length ? setBulkPriceModal({ rapUnitPrice: "", overheadPercent: "" }) : alert("Pilih baris yang akan diedit harganya terlebih dahulu!")}>
+              <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => selectedItemIds.length ? setBulkPriceModal({ rapUnitPrice: "", overheadPercent: "" }) : toast.error("Pilih baris yang akan diedit harganya terlebih dahulu!")}>
                 Edit Harga Terpilih
               </button>
               
-              <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-success"]].join(" ")} onClick={() => selectedItemIds.length ? setBulkSwitchModal({ sourceJobId: "", switchQuery: "", switchResults: [], overheadPercent: "" }) : alert("Pilih baris yang akan disuntik AHSP terlebih dahulu!")}>
+              <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-success"]].join(" ")} onClick={() => selectedItemIds.length ? setBulkSwitchModal({ sourceJobId: "", switchQuery: "", switchResults: [], overheadPercent: "" }) : toast.error("Pilih baris yang akan disuntik AHSP terlebih dahulu!")}>
                 Suntik AHSP Terpilih
               </button>
               
-              <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-primary"]].join(" ")} onClick={() => projectId ? setBulkNameModal({ name: "", rapUnitPrice: "" }) : alert("Pilih project terlebih dahulu!")}>
+              <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-primary"]].join(" ")} onClick={() => projectId ? setBulkNameModal({ name: "", rapUnitPrice: "" }) : toast.error("Pilih project terlebih dahulu!")}>
                 Sapu Jagat (By Nama)
               </button>
             </div>
