@@ -3,6 +3,7 @@ import { useTimeSchedule } from "../hooks/useTimeSchedule";
 import { timeScheduleService } from "../services/timeScheduleService";
 import { formatWeight } from "../services/utils";
 import TimeScheduleTable from "../components/TimeScheduleTable";
+import ProjectSelector from "../components/ProjectSelector";
 import "../styles/TimeSchedulePage.css";
 import toast from "react-hot-toast";
 
@@ -115,11 +116,14 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
 
       <div className="tsp-card tsp-project-card">
         <h2 className="tsp-card-title">Pilih Project</h2>
-        <div className="rab-project-picker">
-          <select className="rab-project-select" value={projectId || ""} onChange={handleProjectChange} disabled={loadingProjects}>
-            <option value="">{loadingProjects ? "Memuat project..." : "-- pilih project --"}</option>
-            {projectList.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+        <ProjectSelector 
+          projectId={projectId}
+          projectList={projectList}
+          loading={loadingProjects}
+          onChange={handleProjectChange}
+        />
+        <div style={{ marginTop: '16px' }}>
+          {projectError && <p className="tsp-error">{projectError}</p>}
         </div>
       </div>
 

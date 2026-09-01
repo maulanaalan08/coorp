@@ -13,6 +13,7 @@ import {
   Plus,
   Save,
 } from "lucide-react";
+import ProjectSelector from "../components/ProjectSelector";
 import styles from "../styles/RabBudgeting.module.css";
 import Header from "../components/Header";
 import { useProjects } from "../hooks/useProjects";
@@ -38,8 +39,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
   // CUSTOM HOOKS
   // ==========================================================
   const { projects: projectList, loading: loadingProjects } = useProjects();
-  const { rabGroups: groups, loadingGroups: loading, errorGroups: fetchError, refreshGroups, createGroup, deleteGroup } = useRabGroups(projectId);
-  const { deleteRabItem, updateRabItem, deleteBulk, bulkPrice, bulkSwitchJob } = useRabItems(projectId);
+  const { rabGroups: groups, loadingGroups, errorGroups: fetchError, refreshGroups, createGroup, deleteGroup } = useRabGroups(projectId);
+  const { deleteRabItem, updateRabItem, deleteBulk, bulkPrice, bulkSwitchJob, loading: loadingItems } = useRabItems(projectId);
 
   const project = useMemo(() => projectList.find(p => p.id === projectId), [projectList, projectId]);
 
@@ -106,7 +107,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
 
   const visibleGroups = useMemo(() => filterGroups(groups, search.trim().toLowerCase()), [groups, search]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (loadingProjects || loadingGroups || loadingItems) {
       toast.loading('Memuat data RAB...', { id: 'loading-rab' });
     } else {
@@ -421,17 +422,13 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
           <h2 className={styles["rab-title"]}>RAB &amp; Budgeting</h2>
           <p className={styles["rab-subtitle"]}>Rencana Anggaran Biaya (RAB) vs Rencana Anggaran Pelaksanaan (RAP)</p>
         </div>
-        <div className={styles["rab-project-picker"]}>
-          <select
-            className={styles["rab-project-select"]}
-            value={projectId || ""}
-            onChange={(event) => setProjectId(event.target.value || null)}
-            disabled={loadingProjects}
-          >
-            <option value="">{loadingProjects ? "Memuat project..." : "-- pilih project --"}</option>
-            {projectList.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
-          </select>
-          <ChevronDown size={15} className={styles["rab-project-select-icon"]} />
+        <div style={{ minWidth: '300px' }}>
+          <ProjectSelector 
+            projectId={projectId}
+            projectList={projectList}
+            loading={loadingProjects}
+            onChange={(e) => setProjectId(e.target.value || null)}
+          />
         </div>
       </header>
 
@@ -488,7 +485,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
               </button>
               
               <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-primary"]].join(" ")} onClick={() => projectId ? setBulkNameModal({ name: "", rapUnitPrice: "" }) : toast.error("Pilih project terlebih dahulu!")}>
-                Sapu Jagat (By Nama)
+                Edit Harga (By Nama)
               </button>
             </div>
 
@@ -523,7 +520,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
             </div>
 
             <div className={[styles["rab-plate"], styles["rab-tree-plate"]].join(" ")}>
-              {loading ? (
+              {loadingGroups ? (
                 <p className={styles["rab-state-message"]}>Memuat data RAB...</p>
               ) : fetchError ? (
                 <p className={[styles["rab-state-message"], styles["rab-state-error"]].join(" ")}>{fetchError}</p>

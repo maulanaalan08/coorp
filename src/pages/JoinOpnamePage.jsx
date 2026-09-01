@@ -2,6 +2,7 @@ import React from "react";
 import { useJoinOpname } from "../hooks/useJoinOpname";
 import { formatPercent, formatDate, formatNumber, toInputDate } from "../services/utils";
 import JoinOpnameTable from "../components/JoinOpnameTable";
+import ProjectSelector from "../components/ProjectSelector";
 import { Image } from "lucide-react";
 import "../styles/JoinOpname.css"; // Menggunakan CSS bawaan tanpa modifikasi
 import toast from "react-hot-toast";
@@ -39,16 +40,12 @@ function JoinOpnamePage({ initialProjectId = null }) {
       </div>
 
       <div className="jo-card jo-project-card">
-        <div className="jo-section-title">Pilih Project</div>
-        <div className="rab-project-picker">
-          <select className="rab-project-select" value={projectId || ""} onChange={handleProjectChange} disabled={loadingProjects}>
-            <option value="">{loadingProjects ? "Memuat project..." : "-- pilih project --"}</option>
-            {projectList.map((project) => (
-              <option key={project.id} value={project.id}>{project.name}</option>
-            ))}
-          </select>
-          <span className="rab-project-select-icon">▼</span>
-        </div>
+        <ProjectSelector 
+          projectId={projectId}
+          projectList={projectList}
+          loading={loadingProjects}
+          onChange={handleProjectChange}
+        />
         {projectError && <div className="jo-error-text">{projectError}</div>}
       </div>
 

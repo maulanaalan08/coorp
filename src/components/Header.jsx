@@ -11,11 +11,6 @@ const Header = () => {
       </div>
 
       <div className={styles.navbarActions}>
-        <div className={styles.searchBar}>
-          <Search size={18} className={styles.textGray} />
-          <input type="text" placeholder="Search projects..." />
-        </div>
-
         <button className={styles.iconBtn} type="button">
           <Bell size={20} />
         </button>

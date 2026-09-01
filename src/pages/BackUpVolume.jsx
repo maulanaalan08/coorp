@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import ProjectSelector from '../components/ProjectSelector';
 import styles from '../styles/BackUpVolume.module.css';
 import Header from '../components/Header';
 import { useProjects } from '../hooks/useProjects';
 import { useBvItems } from '../hooks/useBvItems';
 import { groupService } from '../services/groupService';
 import { hspkService } from '../services/hspkService';
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { Pencil, Trash2, Plus, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
@@ -54,28 +55,20 @@ function GroupModal({ isOpen, onClose, projectId, parentId, editGroup, onSuccess
     <div className={styles.modalOverlay}>
       <div className={styles.modalBox} style={{ maxWidth: 440 }}>
         <div className={styles.modalHeader}>
-          <h3>{editGroup ? 'Edit Group/Sub-Group' : parentId ? 'Tambah Sub-Group Pekerjaan' : 'Tambah Group Pekerjaan'}</h3>
+          <h3>{editGroup ? 'Edit Group' : 'Tambah Group Pekerjaan'}</h3>
           <button type="button" className={styles.closeBtn} onClick={onClose}>✕</button>
         </div>
         {error && <div style={{ color: '#ff6b6b', background: '#3a1c1c', padding: 8, borderRadius: 3, marginBottom: 10, fontSize: 11 }}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className={styles.formGroup}>
-            <label>Nama</label>
+            <label>Nama Group</label>
             <input
               type="text"
-              placeholder="mis. PEKERJAAN PASANGAN"
+              placeholder="mis. Pekerjaan Persiapan"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Referensi (opsional)</label>
-            <input
-              type="text"
-              placeholder="mis. III / A"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
+              autoFocus
             />
           </div>
           <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -460,7 +453,7 @@ export default function BackUpVolume() {
   const { projects, loading: loadingProjects } = useProjects();
   const [selectedProjectId, setSelectedProjectId] = useState('');
 
-  const { bvItems, loading: loadingBv, refresh, deleteBvItem, deleteBulk, linkToRab, linkToRabBulk, syncBvItem } = useBvItems(selectedProjectId);
+  const { bvItems, loading: loadingBv, refresh, deleteBvItem, deleteBulk, linkToRab, linkToRabBulk, syncBvItem, syncBulk } = useBvItems(selectedProjectId);
 
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
@@ -545,14 +538,42 @@ export default function BackUpVolume() {
   };
 
   const handleToggleCheck = (id) => {
-    setCheckedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+    setCheckedIds(prev => {
+      const isChecked = prev.includes(id);
+      let newChecked = isChecked ? prev.filter(i => i !== id) : [...prev, id];
+      
+      const item = bvItems.find(i => i.id === id);
+      if (item && (!item.parentBvItemId || item.isHeaderOnly)) {
+        const children = bvItems.filter(i => i.parentBvItemId === id).map(i => i.id);
+        if (isChecked) {
+          newChecked = newChecked.filter(i => !children.includes(i));
+        } else {
+          newChecked = [...new Set([...newChecked, ...children])];
+        }
+      }
+      return newChecked;
+    });
   };
 
-  const handleToggleCheckAll = () => {
-    if (checkedIds.length === bvItems.length) {
-      setCheckedIds([]);
+  const getAllIdsFromTable = (items) => {
+    let ids = [];
+    items.forEach(it => {
+      ids.push(it.id);
+      if (it.children && it.children.length > 0) {
+        ids = ids.concat(getAllIdsFromTable(it.children));
+      }
+    });
+    return ids;
+  };
+
+  const handleToggleCheckAll = (itemsInTable) => {
+    const tableItemIds = getAllIdsFromTable(itemsInTable);
+    const isAllChecked = tableItemIds.length > 0 && tableItemIds.every(id => checkedIds.includes(id));
+    
+    if (isAllChecked) {
+      setCheckedIds(prev => prev.filter(id => !tableItemIds.includes(id)));
     } else {
-      setCheckedIds(bvItems.map(i => i.id));
+      setCheckedIds(prev => [...new Set([...prev, ...tableItemIds])]);
     }
   };
 
@@ -588,6 +609,22 @@ export default function BackUpVolume() {
     });
   };
 
+  const handleBulkSync = async () => {
+    if (checkedIds.length === 0) return;
+    if (!window.confirm(`Sync ${checkedIds.length} item terpilih ke RAB?`)) return;
+    
+    toast.promise(syncBulk(checkedIds), {
+      loading: 'Mensinkronkan item ke RAB...',
+      success: 'Berhasil mensinkronkan item ke RAB!',
+      error: 'Gagal mensinkronkan item.'
+    }).then(() => {
+      setCheckedIds([]);
+      refresh();
+    }).catch(err => {
+      console.error(err);
+    });
+  };
+
   useEffect(() => {
     if (loadingBv || loadingGroups) {
       toast.loading('Memuat data Back Up Volume...', { id: 'loading-bv' });
@@ -597,15 +634,18 @@ export default function BackUpVolume() {
   }, [loadingBv, loadingGroups]);
 
   // SESUAI REQUEST: Disesuaikan dengan struktur tableHeader yang diberikan
-  const renderTableHeader = () => (
+  const renderTableHeader = (itemsInTable = []) => {
+    const tableItemIds = getAllIdsFromTable(itemsInTable);
+    const isAllChecked = tableItemIds.length > 0 && tableItemIds.every(id => checkedIds.includes(id));
+
+    return (
     <thead>
       <tr>
         <th rowSpan={2} style={{ width: 40, textAlign: 'center', verticalAlign: 'middle' }}>
           <input
             type="checkbox"
-            id="checkAllBv"
-            onChange={handleToggleCheckAll}
-            checked={checkedIds.length > 0 && checkedIds.length === bvItems.length}
+            onChange={() => handleToggleCheckAll(itemsInTable)}
+            checked={isAllChecked}
           />
         </th>
         <th rowSpan={2}>NO</th>
@@ -634,7 +674,7 @@ export default function BackUpVolume() {
         <th>Sat.</th>
       </tr>
     </thead>
-  );
+  )};
 
   const renderItemRows = (items, counterObj) => {
     return items.map((it) => {
@@ -797,48 +837,52 @@ export default function BackUpVolume() {
         <div className={styles.headerTitle}>
           <h2 style={{ fontFamily: "'Fraunces', serif" }}>BV — BACK UP VOLUME</h2>
           <p>{selectedProject ? `${selectedProject.name} (${selectedProject.discipline} ${selectedProject.hspkPeriod})` : 'Kelola struktur Group Pekerjaan, Sub-Group, serta rincian dimensi volume.'}</p>
-        </div>
-        <div className={styles.headerActions}>
-          <button className={styles.btnPrimary} onClick={() => handleOpenAddGroup(null)} disabled={!selectedProjectId}>
-            + Tambah Group Pekerjaan
-          </button>
-          <button className={styles.btnOutline} onClick={() => handleOpenAddGroup(null)} disabled={!selectedProjectId}>
-            + Tambah Sub-Group Pekerjaan
-          </button>
+          <div className={styles.headerActions}>
+            <button className={styles.btnPrimary} onClick={() => handleOpenAddGroup(null)} disabled={!selectedProjectId}>
+              + Tambah Group Pekerjaan
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className={styles.projectCard}>
-        <div className={styles.selectorLabel}>PILIH PROJECT</div>
-        <select
-          className={styles.selectProject}
-          value={selectedProjectId}
-          onChange={(e) => setSelectedProjectId(e.target.value)}
-        >
-          <option value="">— Pilih Project —</option>
-          {loadingProjects ? (
-            <option disabled>Memuat projects...</option>
-          ) : (
-            projects.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.name} — {p.client?.name || '-'} ({p.discipline} {p.hspkPeriod})
-              </option>
-            ))
-          )}
-        </select>
-      </div>
+      <ProjectSelector
+        projectId={selectedProjectId}
+        projectList={projects.map(p => ({
+          ...p,
+          displayName: `${p.name} — ${p.client?.name || '-'} (${p.discipline} ${p.hspkPeriod})`
+        }))}
+        loading={loadingProjects}
+        onChange={(e) => setSelectedProjectId(e.target.value)}
+      />
 
       {checkedIds.length > 0 && (
         <div style={{ padding: '10px 14px', background: '#1c1c1c', border: '1px dashed #d4af37', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <span style={{ fontWeight: 'bold', color: '#f3e5ab' }}>
-            ✅ {checkedIds.length} Item Terpilih
+            {checkedIds.length} Item Terpilih
           </span>
           <button type="button" className={styles.btnDanger} onClick={handleBulkDelete}>
-            🗑️ Hapus Massal
+            <Trash2 size={16} style={{ marginRight: 4 }} />
+            Hapus Massal
           </button>
-          <button type="button" className={styles.btnGreen} onClick={handleBulkLink}>
-            🔗 Link ke RAB Massal
-          </button>
+          {(() => {
+             const selectedItems = bvItems.filter(i => checkedIds.includes(i.id));
+             const allBelumSinkron = selectedItems.length > 0 && selectedItems.every(i => i.linkStatus === 'BELUM_SINKRON');
+             
+             if (allBelumSinkron) {
+               return (
+                  <button type="button" className={styles.btnPrimary} onClick={handleBulkSync}>
+                    <RefreshCw size={16} style={{ marginRight: 4 }} />
+                    Sync RAB Massal
+                  </button>
+               );
+             } else {
+               return (
+                  <button type="button" className={styles.btnPrimary} onClick={handleBulkLink}>
+                    Link RAB Massal
+                  </button>
+               );
+             }
+          })()}
         </div>
       )}
 
@@ -861,17 +905,14 @@ export default function BackUpVolume() {
                 <div key={g.id} className={styles.groupBlock}>
                   <div className={styles.groupHead}>
                     <span>{ROMAN[idx] || idx + 1}. {g.name}</span>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
                       <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(g.id, null)} title="Tambah Baris">
                         <Plus size={14} /> Baris
-                      </button>
-                      <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddGroup(g.id)} title="Tambah Sub-Group">
-                        <Plus size={14} /> Sub-Group
                       </button>
                       <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditGroup(g)} title="Edit">
                         <Pencil size={14} />
                       </button>
-                      <button type="button" className={styles.btnDanger} onClick={() => handleDeleteGroup(g.id)} title="Hapus">
+                      <button type="button" className={[styles.btnSmall, styles.btnDanger].join(' ')} onClick={() => handleDeleteGroup(g.id)} title="Hapus">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -897,7 +938,7 @@ export default function BackUpVolume() {
                         </div>
                         {subGroupItems.length > 0 ? (
                           <table className={styles.bvTable}>
-                            {renderTableHeader()}
+                            {renderTableHeader(subGroupItems)}
                             <tbody>{renderItemRows(subGroupItems, counter)}</tbody>
                           </table>
                         ) : (
@@ -909,7 +950,7 @@ export default function BackUpVolume() {
 
                   {groupItems.length > 0 && (
                     <table className={styles.bvTable}>
-                      {renderTableHeader()}
+                      {renderTableHeader(groupItems)}
                       <tbody>{renderItemRows(groupItems, counter)}</tbody>
                     </table>
                   )}

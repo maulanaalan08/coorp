@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import styles from "../styles/FinancePage.module.css";
 import Header from "../components/Header";
+import ProjectSelector from "../components/ProjectSelector";
 import { useProjects } from "../hooks/useProjects";
 import { useRabGroups } from "../hooks/useRabGroups";
 import { useMaterialRequests } from "../hooks/useMaterialRequests";
@@ -177,23 +178,13 @@ const FinancePage = () => {
             Analyze itemized profit/loss and manage material procurement.
           </p>
         </div>
-        <div className={styles.projectPicker}>
-          <select
-            className={styles.projectSelect}
-            value={projectId || ""}
-            onChange={(event) => setProjectId(event.target.value || null)}
-            disabled={loadingProjects}
-          >
-            <option value="">
-              {loadingProjects ? "Loading projects..." : "-- Select a Project --"}
-            </option>
-            {projectList.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={15} className={styles.selectIcon} />
+        <div style={{ minWidth: '300px' }}>
+          <ProjectSelector 
+            projectId={projectId}
+            projectList={projectList}
+            loading={loadingProjects}
+            onChange={(e) => setProjectId(e.target.value || null)}
+          />
         </div>
       </header>
 

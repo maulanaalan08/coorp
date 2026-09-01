@@ -36,6 +36,6 @@ export const complaintService = {
   },
 
   downloadPdf: (id) => {
-    window.open(`${API_URL}/complaints/${id}/pdf/download`, '_blank');
+    window.open(`${API_URL}/complaints/${id}/pdf/view`, '_blank');
   }
 };

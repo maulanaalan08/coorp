@@ -235,3 +235,137 @@
   border: 1px solid #ef4444;
   border-radius: 6px;
 }
+.complaint-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.page-subtitle {
+  color: #9ca3af;
+  font-size: 14px;
+  margin-top: -16px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #d4af37, #b89326);
+  color: #000;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #e8c874, #d4af37);
+}
+
+.complaint-card {
+  background-color: #161513;
+  border: 1px solid #363024;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.status-badge.done {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid #10b981;
+}
+
+.status-badge.ongoing {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid #f59e0b;
+}
+
+.complaint-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.complaint-table th, .complaint-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #2a261e;
+  font-size: 13px;
+}
+
+.complaint-table th {
+  color: #9ca3af;
+  font-weight: 600;
+  border-bottom: 2px solid #363024;
+}
+
+.photo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(212, 175, 55, 0.1);
+  color: #d4af37;
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.photo-link:hover {
+  background: rgba(212, 175, 55, 0.2);
+}
+
+.photo-link.after {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.photo-link.after:hover {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.muted {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #161513;
+  border: 1px solid #363024;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+}
+

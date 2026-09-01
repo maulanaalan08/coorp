@@ -47,7 +47,8 @@ export function useJoinOpname(initialProjectId) {
       const json = await joinOpnameService.getProjects();
       const projects = Array.isArray(json) ? json : (json?.data || json?.projects || []);
       setProjectList(projects);
-      if (!projectId && projects.length > 0) setProjectId(projects[0].id);
+      // Auto-selection dihilangkan atas permintaan user
+      // if (!projectId && projects.length > 0) setProjectId(projects[0].id);
     } catch (err) {
       setProjectError(err.message);
     } finally {

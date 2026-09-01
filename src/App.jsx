@@ -18,7 +18,23 @@ function App() {
 
   return (
     <div style={{ display: "flex", width: "100vw", minHeight: "100vh", backgroundColor: "#0c0b09" }}>
-      <Toaster position="top-right" />
+      <Toaster 
+        position="top-right" 
+        toastOptions={{
+          style: {
+            background: '#1a1814',
+            color: '#fff',
+            border: '1px solid #d4af37',
+            padding: '16px',
+          },
+          success: {
+            iconTheme: {
+              primary: '#d4af37',
+              secondary: '#1a1814',
+            },
+          },
+        }}
+      />
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main style={{ flex: 1, marginLeft: "260px", overflowY: "auto" }}>

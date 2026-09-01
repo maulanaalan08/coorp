@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import ProjectSelector from '../components/ProjectSelector';
 import styles from '../styles/DataSurvey.module.css';
 import Header from '../components/Header';
 import {
@@ -679,25 +680,15 @@ const DataSurvey = () => {
       </div>
 
       {/* PROJECT SELECTOR */}
-      <div className={styles.projectSelector}>
-        <div className={styles.selectorLabel}>Pilih Project</div>
-        <select
-          className={styles.selectProject}
-          value={selectedProjectId}
-          onChange={(e) => setSelectedProjectId(e.target.value)}
-        >
-          <option value="">— Pilih Project —</option>
-          {loadingProjects ? (
-            <option disabled>Memuat projects...</option>
-          ) : (
-            projects.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.name} — {p.client?.name || '-'} ({p.discipline} {p.hspkPeriod})
-              </option>
-            ))
-          )}
-        </select>
-      </div>
+      <ProjectSelector
+        projectId={selectedProjectId}
+        projectList={projects.map(p => ({
+          ...p,
+          displayName: `${p.name} — ${p.client?.name || '-'} (${p.discipline} ${p.hspkPeriod})`
+        }))}
+        loading={loadingProjects}
+        onChange={(e) => setSelectedProjectId(e.target.value)}
+      />
 
       {/* STATS */}
       {selectedProjectId && (

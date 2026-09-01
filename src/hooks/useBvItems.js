@@ -97,6 +97,16 @@ export const useBvItems = (projectId) => {
     fetchItems();
   }, [fetchItems]);
 
+  const syncBulk = useCallback(async (ids) => {
+    try {
+      const res = await bvService.syncBulk(ids);
+      await fetchItems();
+      return res;
+    } catch (err) {
+      throw new Error(err.message || 'Gagal mensinkronkan item massal');
+    }
+  }, [fetchItems]);
+
   return {
     bvItems,
     loading,
@@ -109,5 +119,6 @@ export const useBvItems = (projectId) => {
     linkToRab,
     linkToRabBulk,
     syncBvItem, // 👇 EXPORT FUNGSI DI SINI 👇
+    syncBulk,
   };
 };
