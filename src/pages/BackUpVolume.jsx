@@ -459,7 +459,7 @@ export default function BackUpVolume() {
   const { projects, loading: loadingProjects } = useProjects();
   const [selectedProjectId, setSelectedProjectId] = useState('');
 
-  const { bvItems, loading: loadingBv, refresh, deleteBvItem, deleteBulk, linkToRab, linkToRabBulk } = useBvItems(selectedProjectId);
+  const { bvItems, loading: loadingBv, refresh, deleteBvItem, deleteBulk, linkToRab, linkToRabBulk, syncBvItem } = useBvItems(selectedProjectId);
 
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
@@ -665,23 +665,57 @@ export default function BackUpVolume() {
             <td className="num">{it.isHeaderOnly ? '' : Number(it.totalVolume || 0).toFixed(2)}</td>
             <td>{it.paymentUnit || ''}</td>
             <td>{renderCleanLink(it.ecommerceLink)}</td>
+            {/* KOLOM STATUS */}
             <td>
               {it.isHeaderOnly ? '' : (
-                <span className={it.linkStatus === 'SUDAH_DILINK' ? styles.badgeSinkron : styles.badgeBelum}>
-                  {it.linkStatus === 'SUDAH_DILINK' ? 'Sudah di-link' : 'Belum di-link'}
+                <span className={
+                  it.linkStatus === 'SUDAH_DILINK' ? styles.badgeSinkron : 
+                  it.linkStatus === 'BELUM_SINKRON' ? styles.badgeWarning : /* Tambahkan style.badgeWarning di CSS Anda (misal warna kuning/oranye) */
+                  styles.badgeBelum
+                }>
+                  {
+                    it.linkStatus === 'SUDAH_DILINK' ? 'Sudah di-link' : 
+                    it.linkStatus === 'BELUM_SINKRON' ? 'Perlu Sync' : 
+                    'Belum di-link'
+                  }
                 </span>
               )}
             </td>
+
+            {/* KOLOM AKSI */}
             <td>
               <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
                 <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditBv(it)} title="Edit">
                   <Pencil size={14} />
                 </button>
+                
+                {/* TAMPILKAN TOMBOL LINK JIKA BELUM PERNAH DILINK */}
                 {(!it.linkStatus || it.linkStatus === 'BELUM_DILINK') && (
                   <button type="button" className={styles.btnGreen} onClick={() => linkToRab(it.id, { includeChildren: true })}>
                     Link
                   </button>
                 )}
+
+                {/* 👇 TAMPILKAN TOMBOL SYNC JIKA STATUSNYA BELUM_SINKRON 👇 */}
+                {it.linkStatus === 'BELUM_SINKRON' && (
+                  <button 
+                    type="button" 
+                    className={styles.btnOutline} 
+                    style={{ borderColor: '#e2c044', color: '#e2c044', fontSize: '11px', padding: '4px 8px' }} 
+                    onClick={async () => {
+                      try {
+                        await syncBvItem(it.id);
+                        alert("Berhasil disinkronkan ke RAB");
+                      } catch (err) {
+                        alert(err.message);
+                      }
+                    }} 
+                    title="Dimensi/Volume berubah, sinkronkan ke RAB"
+                  >
+                    Sync Ulang
+                  </button>
+                )}
+
                 {!it.parentBvItemId && (
                   <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(it.groupId, it.id)} title="Tambah Sub">
                     <Plus size={14} /> Sub

@@ -44,4 +44,10 @@ export const bvService = {
       method: 'POST',
       body: JSON.stringify({ itemIds }),
     }),
+    
+    // 👇 TAMBAHKAN ENDPOINT SYNC DI SINI 👇
+  syncToRab: (id) =>
+    fetchAPI(`/bv-items/${id}/sync`, {
+      method: 'POST',
+    }),
 };

@@ -81,6 +81,17 @@ export const useBvItems = (projectId) => {
       throw new Error(err.message || 'Gagal menautkan massal ke RAB');
     }
   }, [fetchItems]);
+  
+  // 👇 TAMBAHKAN FUNGSI INI 👇
+  const syncBvItem = useCallback(async (id) => {
+    try {
+      const res = await bvService.syncToRab(id);
+      await fetchItems(); // Refresh data otomatis setelah sync
+      return res;
+    } catch (err) {
+      throw new Error(err.message || 'Gagal sinkronisasi ke RAB');
+    }
+  }, [fetchItems]);
 
   useEffect(() => {
     fetchItems();
@@ -97,5 +108,6 @@ export const useBvItems = (projectId) => {
     deleteBulk,
     linkToRab,
     linkToRabBulk,
+    syncBvItem, // 👇 EXPORT FUNGSI DI SINI 👇
   };
 };
