@@ -12,6 +12,7 @@ import TimeSchedulePage from "./pages/TimeSchedulePage";
 import JoinOpnamePage from "./pages/JoinOpnamePage";
 import ComplaintPage from "./pages/ComplaintPage";
 import FinancePage from "./pages/FinancePage";
+import { Bot } from "lucide-react";
 
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -54,6 +55,34 @@ function App() {
         {activeTab === "join-opname" && <JoinOpnamePage />}
         {activeTab === "complain" && <ComplaintPage />}
       </main>
+
+      {/* Floating Chatbot Placeholder */}
+      <button 
+        type="button" 
+        onClick={() => alert("Chatbot feature coming soon!")}
+        style={{
+          position: "fixed",
+          bottom: "30px",
+          right: "30px",
+          width: "60px",
+          height: "60px",
+          borderRadius: "50%",
+          backgroundColor: "#d4af37",
+          color: "#0c0b09",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          boxShadow: "0 4px 12px rgba(212, 175, 55, 0.4)",
+          border: "none",
+          cursor: "pointer",
+          zIndex: 9999,
+          transition: "transform 0.2s ease",
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.1)"}
+        onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+      >
+        <Bot size={32} />
+      </button>
     </div>
   );
 }

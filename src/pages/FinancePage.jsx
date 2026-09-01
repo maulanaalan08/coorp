@@ -173,9 +173,9 @@ const FinancePage = () => {
           <p className={styles.eyebrow}>
             {project?.name ? `Project: ${project.name}` : "Financial Overview"}
           </p>
-          <h2 className={styles.title}>Finance & Margins</h2>
+          <h2 className={styles.title}>Kebutuhan Material</h2>
           <p className={styles.subtitle}>
-            Analyze itemized profit/loss and manage material procurement.
+            Kelola pengadaan dan kebutuhan material (Purchasing).
           </p>
         </div>
         <div style={{ minWidth: '300px' }}>

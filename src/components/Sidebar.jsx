@@ -18,7 +18,10 @@ import {
   ChevronRight,
   Layers,
   Wrench,
-  PieChart
+  PieChart,
+  ShoppingCart,
+  Package,
+  MapPin
 } from "lucide-react";
 
 import CreateProjectModal from "./CreateProjectModal";
@@ -29,13 +32,18 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   // DROPDOWN MENU STATE
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(false);
   const [isPelaksanaanOpen, setIsPelaksanaanOpen] = useState(false);
+  const [isFinanceOpen, setIsFinanceOpen] = useState(false);
+  const [isPurchasingOpen, setIsPurchasingOpen] = useState(false);
 
   useEffect(() => {
-    if (["data-survey", "bv", "rab", "finance"].includes(activeTab)) {
+    if (["data-survey", "bv", "rab"].includes(activeTab)) {
       setIsPerencanaanOpen(true);
     }
-    if (["time-schedule", "join-opname", "complain"].includes(activeTab)) {
+    if (["time-schedule", "join-opname", "complain", "item-tracking"].includes(activeTab)) {
       setIsPelaksanaanOpen(true);
+    }
+    if (["finance", "pembelian-siap-pakai"].includes(activeTab)) {
+      setIsFinanceOpen(true);
     }
   }, [activeTab]);
 
@@ -113,50 +121,99 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
                   <span>RAB & Budgeting</span>
                 </a>
               </li>
-              <li className={`${styles['sub-nav-item']} ${activeTab === "finance" ? styles.active : ""}`}>
-                <a href="#finance" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "finance")}>
-                  <PieChart className={styles['nav-icon']} size={18} />
-                  <span>Finance & Margins</span>
-                </a>
-              </li>
-            </ul>
-          </li>
+              </ul>
+            </li>
 
-          {/* 2. DROPDOWN PELAKSANAAN */}
-          <li className={`${styles['nav-item']} ${styles['has-dropdown']}`}>
-            <button
-              className={`${styles['nav-link']} ${styles['dropdown-toggle']} ${isPelaksanaanOpen ? styles['dropdown-open'] : ""}`}
-              onClick={() => setIsPelaksanaanOpen(!isPelaksanaanOpen)}
-              type="button"
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <Wrench className={styles['nav-icon']} />
-                <span>Pelaksana</span>
-              </div>
-              {isPelaksanaanOpen ? <ChevronDown size={16} className={styles.chevron} /> : <ChevronRight size={16} className={styles.chevron} />}
-            </button>
+            {/* 2. DROPDOWN PELAKSANAAN */}
+            <li className={`${styles['nav-item']} ${styles['has-dropdown']}`}>
+              <button
+                className={`${styles['nav-link']} ${styles['dropdown-toggle']} ${isPelaksanaanOpen ? styles['dropdown-open'] : ""}`}
+                onClick={() => setIsPelaksanaanOpen(!isPelaksanaanOpen)}
+                type="button"
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <Wrench className={styles['nav-icon']} />
+                  <span>Pelaksana</span>
+                </div>
+                {isPelaksanaanOpen ? <ChevronDown size={16} className={styles.chevron} /> : <ChevronRight size={16} className={styles.chevron} />}
+              </button>
 
-            <ul className={`${styles['sub-nav-list']} ${isPelaksanaanOpen ? styles.open : ""}`}>
-              <li className={`${styles['sub-nav-item']} ${activeTab === "time-schedule" ? styles.active : ""}`}>
-                <a href="#time-schedule" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "time-schedule")}>
-                  <History className={styles['nav-icon']} size={18} />
-                  <span>Time Schedule</span>
-                </a>
-              </li>
-              <li className={`${styles['sub-nav-item']} ${activeTab === "join-opname" ? styles.active : ""}`}>
-                <a href="#join-opname" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "join-opname")}>
-                  <ClipboardCheck className={styles['nav-icon']} size={18} />
-                  <span>Join Opname</span>
-                </a>
-              </li>
-              <li className={`${styles['sub-nav-item']} ${activeTab === "complain" ? styles.active : ""}`}>
-                <a href="#complain" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "complain")}>
-                  <ClipboardCheck className={styles['nav-icon']} size={18} />
-                  <span>Complain</span>
-                </a>
-              </li>
-            </ul>
-          </li>
+              <ul className={`${styles['sub-nav-list']} ${isPelaksanaanOpen ? styles.open : ""}`}>
+                <li className={`${styles['sub-nav-item']} ${activeTab === "time-schedule" ? styles.active : ""}`}>
+                  <a href="#time-schedule" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "time-schedule")}>
+                    <History className={styles['nav-icon']} size={18} />
+                    <span>Time Schedule</span>
+                  </a>
+                </li>
+                <li className={`${styles['sub-nav-item']} ${activeTab === "join-opname" ? styles.active : ""}`}>
+                  <a href="#join-opname" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "join-opname")}>
+                    <ClipboardCheck className={styles['nav-icon']} size={18} />
+                    <span>Join Opname</span>
+                  </a>
+                </li>
+                <li className={`${styles['sub-nav-item']} ${activeTab === "complain" ? styles.active : ""}`}>
+                  <a href="#complain" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "complain")}>
+                    <ClipboardCheck className={styles['nav-icon']} size={18} />
+                    <span>Complain</span>
+                  </a>
+                </li>
+                <li className={`${styles['sub-nav-item']} ${activeTab === "item-tracking" ? styles.active : ""}`}>
+                  <a href="#item-tracking" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "item-tracking")}>
+                    <MapPin className={styles['nav-icon']} size={18} />
+                    <span>Item Tracking</span>
+                  </a>
+                </li>
+              </ul>
+            </li>
+
+            {/* 3. DROPDOWN FINANCE */}
+            <li className={`${styles['nav-item']} ${styles['has-dropdown']}`}>
+              <button
+                className={`${styles['nav-link']} ${styles['dropdown-toggle']} ${isFinanceOpen ? styles['dropdown-open'] : ""}`}
+                onClick={() => setIsFinanceOpen(!isFinanceOpen)}
+                type="button"
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <PieChart className={styles['nav-icon']} />
+                  <span>Finance</span>
+                </div>
+                {isFinanceOpen ? <ChevronDown size={16} className={styles.chevron} /> : <ChevronRight size={16} className={styles.chevron} />}
+              </button>
+
+              <ul className={`${styles['sub-nav-list']} ${isFinanceOpen ? styles.open : ""}`}>
+                <li className={`${styles['sub-nav-item']} ${activeTab === "finance" ? styles.active : ""}`}>
+                  <a href="#finance" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "finance")}>
+                    <Wallet className={styles['nav-icon']} size={18} />
+                    <span>Kebutuhan Material</span>
+                  </a>
+                </li>
+                <li className={`${styles['sub-nav-item']} ${activeTab === "pembelian-siap-pakai" ? styles.active : ""}`}>
+                  <a href="#pembelian-siap-pakai" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "pembelian-siap-pakai")}>
+                    <Package className={styles['nav-icon']} size={18} />
+                    <span>Pembelian Siap Pakai</span>
+                  </a>
+                </li>
+              </ul>
+            </li>
+
+            {/* 4. DROPDOWN PURCHASING */}
+            <li className={`${styles['nav-item']} ${styles['has-dropdown']}`}>
+              <button
+                className={`${styles['nav-link']} ${styles['dropdown-toggle']} ${isPurchasingOpen ? styles['dropdown-open'] : ""}`}
+                onClick={() => setIsPurchasingOpen(!isPurchasingOpen)}
+                type="button"
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <ShoppingCart className={styles['nav-icon']} />
+                  <span>Purchasing</span>
+                </div>
+                {isPurchasingOpen ? <ChevronDown size={16} className={styles.chevron} /> : <ChevronRight size={16} className={styles.chevron} />}
+              </button>
+
+              <ul className={`${styles['sub-nav-list']} ${isPurchasingOpen ? styles.open : ""}`}>
+                {/* Kosong untuk saat ini, bisa diisi menu purchasing nantinya */}
+              </ul>
+            </li>
 
           {/* AI DOCUMENT GENERATOR */}
           <li className={`${styles['nav-item']} ${activeTab === "ai-docs" ? styles.active : ""}`}>
