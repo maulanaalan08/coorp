@@ -2,6 +2,7 @@ import React from "react";
 import { useJoinOpname } from "../hooks/useJoinOpname";
 import { formatPercent, formatDate, formatNumber, toInputDate } from "../services/utils";
 import JoinOpnameTable from "../components/JoinOpnameTable";
+import { Image } from "lucide-react";
 import "../styles/JoinOpname.css"; // Menggunakan CSS bawaan tanpa modifikasi
 
 function JoinOpnamePage({ initialProjectId = null }) {
@@ -17,7 +18,7 @@ function JoinOpnamePage({ initialProjectId = null }) {
     <div className="join-opname-page">
       <div className="join-opname-header">
         <div>
-          <h1>Join Opname</h1>
+          <h1>RAP Join Opname</h1>
           <p>Input progress aktual pekerjaan lapangan beserta foto dokumentasi.</p>
         </div>
         <div className="join-opname-header-badge">
@@ -133,15 +134,28 @@ function JoinOpnamePage({ initialProjectId = null }) {
                                 <small>Vol: {formatNumber(breakdown?.volume || 0)}</small>
                                 
                                 {/* Fungsi untuk melihat foto aktual lapangan jika URL tersedia */}
-                                {breakdown?.photoUrl && (
-                                  <a 
-                                    href={`http://localhost:4000${breakdown.photoUrl}`} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    style={{ fontSize: '10px', color: '#b9a35a', textDecoration: 'underline', marginTop: '2px' }}
+                                {breakdown?.photoUrls && breakdown.photoUrls.length > 0 && (
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      handleDateChange({ target: { value: toInputDate(day.date) } });
+                                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    className="jo-btn jo-btn-secondary"
+                                    style={{ 
+                                      display: 'inline-flex', 
+                                      alignItems: 'center', 
+                                      gap: '4px', 
+                                      padding: '2px 6px', 
+                                      fontSize: '10px', 
+                                      marginTop: '4px',
+                                      border: 'none',
+                                      cursor: 'pointer'
+                                    }}
                                   >
-                                    Lihat Foto Aktual
-                                  </a>
+                                    <Image size={12} />
+                                    Lihat Foto
+                                  </button>
                                 )}
                                 
                               </div>

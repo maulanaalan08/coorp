@@ -29,8 +29,8 @@ export function useJoinOpname(initialProjectId) {
       const breakdown = (item.dailyBreakdown || []).find((day) => toInputDate(day.date) === date);
       result[item.rabItemId] = {
         percent: breakdown ? String(breakdown.progress ?? 0) : "0",
-        file: null,
-        existingPhotoUrl: breakdown?.photoUrl || null // Tangkap URL foto yang sudah ada[cite: 15]
+        files: null,
+        existingPhotoUrls: breakdown?.photoUrls || []
       };
     });
     return result;
@@ -90,10 +90,10 @@ export function useJoinOpname(initialProjectId) {
     }));
   };
 
-  const handleFileChange = (rabItemId, file) => {
+  const handleFileChange = (rabItemId, files) => {
     setProgressInputs((prev) => ({
       ...prev,
-      [rabItemId]: { ...prev[rabItemId], file: file }
+      [rabItemId]: { ...prev[rabItemId], files: files }
     }));
   };
 
@@ -110,7 +110,7 @@ export function useJoinOpname(initialProjectId) {
 
     setBusyItems((prev) => ({ ...prev, [item.rabItemId]: true }));
     try {
-      await joinOpnameService.updateProgress(item.rabItemId, selectedDate, progress, inputData.file);
+      await joinOpnameService.updateProgress(item.rabItemId, selectedDate, progress, inputData.files);
       showNotice("success", `Progress "${item.name}" berhasil disimpan.`);
       await fetchJoinOpname(projectId);
     } catch (err) {

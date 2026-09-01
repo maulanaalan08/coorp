@@ -1,6 +1,6 @@
 import React from 'react';
 import { formatCurrency, formatNumber, formatPercent, formatDate } from '../services/utils';
-import { Save } from 'lucide-react';
+import { Save, Image } from 'lucide-react';
 
 export default function JoinOpnameTable({ groupedItems, progressInputs, busyItems, selectedDate, handleProgressChange, handleFileChange, handleSaveProgress }) {
   return (
@@ -12,7 +12,7 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
             <th>Pekerjaan</th>
             <th>Satuan</th>
             <th>Volume</th>
-            <th>Nilai RAB</th>
+            <th>Nilai RAP</th>
             <th>Bobot</th>
             <th>Progress Rekap</th>
             <th>Status</th>
@@ -27,7 +27,7 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
                 <td colSpan={10}>{groupName}</td>
               </tr>
               {groupItems.map((item) => {
-                const inputData = progressInputs[item.rabItemId] || { percent: "0", file: null, existingPhotoUrl: null };
+                const inputData = progressInputs[item.rabItemId] || { percent: "0", files: null, existingPhotoUrls: [] };
                 const busy = !!busyItems[item.rabItemId];
 
                 return (
@@ -41,7 +41,7 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
                     </td>
                     <td>{item.paymentUnit || "-"}</td>
                     <td>{formatNumber(item.volume)}</td>
-                    <td>{formatCurrency(item.rabTotalPrice)}</td>
+                    <td className="jo-sticky-col jo-col-price">{formatCurrency(item.rapTotalPrice)}</td>
                     <td>{formatPercent(item.weight)}%</td>
                     <td><strong>{formatPercent(item.rekapProgress)}%</strong></td>
                     <td>
@@ -67,15 +67,36 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
                           {/* File input untuk foto progres */}
                           <input 
                             type="file" 
+                            multiple
                             accept="image/*" 
-                            onChange={(e) => handleFileChange(item.rabItemId, e.target.files[0])}
+                            onChange={(e) => handleFileChange(item.rabItemId, e.target.files)}
                             disabled={busy}
                             style={{ fontSize: '10px' }}
                           />
-                          {inputData.existingPhotoUrl && (
-                            <a href={`http://localhost:4000${inputData.existingPhotoUrl}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '10px', color: '#b9a35a' }}>
-                              Lihat Foto Aktual
-                            </a>
+                          {inputData.existingPhotoUrls && inputData.existingPhotoUrls.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {inputData.existingPhotoUrls.map((url, i) => (
+                                <a 
+                                  key={i}
+                                  href={`http://localhost:4000${url}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="jo-btn jo-btn-secondary"
+                                  style={{ 
+                                    display: 'inline-flex', 
+                                    alignItems: 'center', 
+                                    gap: '4px', 
+                                    padding: '2px 6px', 
+                                    fontSize: '10px', 
+                                    marginTop: '4px',
+                                    textDecoration: 'none'
+                                  }}
+                                >
+                                  <Image size={12} />
+                                  Foto {i + 1}
+                                </a>
+                              ))}
+                            </div>
                           )}
                         </div>
                       )}

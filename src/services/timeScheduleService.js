@@ -13,7 +13,7 @@ export const timeScheduleService = {
   },
 
   getSchedule: async (projectId) => {
-    const res = await fetch(`${API_BASE_URL}/projects/${projectId}/time-schedule`);
+    const res = await fetch(`${API_BASE_URL}/projects/${projectId}/rap-time-schedule`);
     return handleResponse(res);
   },
 
@@ -27,7 +27,7 @@ export const timeScheduleService = {
   },
 
   updateItemSchedule: async (rabItemId, startWeek, endWeek) => {
-    const res = await fetch(`${API_BASE_URL}/rab-items/${rabItemId}/schedule`, {
+    const res = await fetch(`${API_BASE_URL}/rap-items/${rabItemId}/schedule`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ startWeek, endWeek }),
@@ -36,7 +36,7 @@ export const timeScheduleService = {
   },
 
   deleteItemSchedule: async (rabItemId) => {
-    const res = await fetch(`${API_BASE_URL}/rab-items/${rabItemId}/schedule`, {
+    const res = await fetch(`${API_BASE_URL}/rap-items/${rabItemId}/schedule`, {
       method: "DELETE",
     });
     return handleResponse(res);

@@ -79,7 +79,7 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
     <div className="tsp-page">
       <header className="tsp-header">
         <div>
-          <h1 className="tsp-title">Time Schedule Proyek</h1>
+          <h1 className="tsp-title">RAP Time Schedule Proyek</h1>
           <p className="tsp-subtitle">Kelola jadwal pelaksanaan dan pantau progres melalui Kurva S.</p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -134,16 +134,6 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
                 </button>
               </div>
             </div>
-          </div>
-
-          {/* ==============================================
-              SUMMARY GRID
-          ============================================== */}
-          <div className="tsp-summary-grid">
-            <div className="tsp-card tsp-summary-card"><span className="tsp-summary-label">Jumlah Item</span><span className="tsp-summary-value">{items.length}</span></div>
-            <div className="tsp-card tsp-summary-card"><span className="tsp-summary-label">Sudah Dijadwalkan</span><span className="tsp-summary-value">{scheduledCount}</span></div>
-            <div className="tsp-card tsp-summary-card"><span className="tsp-summary-label">Jumlah Minggu</span><span className="tsp-summary-value">{maxWeek}</span></div>
-            <div className="tsp-card tsp-summary-card"><span className="tsp-summary-label">Progress Terakhir</span><span className="tsp-summary-value">{formatWeight(lastProgress)}%</span></div>
           </div>
 
           <div className="tsp-card tsp-gantt-card">

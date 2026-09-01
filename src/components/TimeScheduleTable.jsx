@@ -2,6 +2,15 @@ import React from 'react';
 import { formatCurrency, formatWeight, formatDate } from '../services/utils';
 import { Save, Trash2 } from 'lucide-react';
 
+const formatDateShort = (dateString) => {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}/${mm}/${yy}`;
+};
+
 export default function TimeScheduleTable({
   items, groupedItems, weekRange, weekDates, editDrafts, setEditDrafts, busyItems, handleSaveItemSchedule, handleDeleteItemSchedule
 }) {
@@ -36,10 +45,10 @@ export default function TimeScheduleTable({
         <thead>
           <tr>
             <th className="tsp-sticky-col tsp-col-name">Nama Pekerjaan</th>
-            <th className="tsp-col-unit">Satuan</th>
-            <th className="tsp-col-volume">Volume</th>
-            <th className="tsp-col-price">Nilai RAB</th>
-            <th className="tsp-col-weight">Bobot</th>
+            <th className="tsp-sticky-col tsp-col-unit">Satuan</th>
+            <th className="tsp-sticky-col tsp-col-volume">Volume</th>
+            <th className="tsp-sticky-col tsp-col-price">Nilai RAP</th>
+            <th className="tsp-sticky-col tsp-col-weight">Bobot</th>
             <th className="tsp-sticky-col tsp-col-range">Rentang Minggu</th>
             <th className="tsp-sticky-col tsp-col-action">Aksi</th>
             {weekRange.map((w) => {
@@ -47,7 +56,7 @@ export default function TimeScheduleTable({
               return (
                 <th key={w} className="tsp-week-col">
                   <div>Minggu {w}</div>
-                  {wd && (wd.start || wd.end) && <div className="tsp-week-date">{formatDate(wd.start)} - {formatDate(wd.end)}</div>}
+                  {wd && (wd.start || wd.end) && <div className="tsp-week-date">{formatDateShort(wd.start)} - {formatDateShort(wd.end)}</div>}
                 </th>
               );
             })}
@@ -77,10 +86,10 @@ export default function TimeScheduleTable({
                         {item.isStip && <span className="tsp-stip-tag">Stip</span>}
                       </div>
                     </td>
-                    <td className="tsp-col-unit">{item.paymentUnit || "-"}</td>
-                    <td className="tsp-col-volume">{item.volume ?? 0}</td>
-                    <td className="tsp-col-price">{formatCurrency(item.rabTotalPrice)}</td>
-                    <td className="tsp-col-weight">{formatWeight(item.weight)}%</td>
+                    <td className="tsp-sticky-col tsp-col-unit">{item.paymentUnit || "-"}</td>
+                    <td className="tsp-sticky-col tsp-col-volume">{item.volume ?? 0}</td>
+                    <td className="tsp-sticky-col tsp-col-price">{formatCurrency(item.rapTotalPrice)}</td>
+                    <td className="tsp-sticky-col tsp-col-weight">{formatWeight(item.weight)}%</td>
                     <td className="tsp-sticky-col tsp-col-range">
                       {disabled ? <span className="tsp-muted">Tidak dapat diedit</span> : (
                         <div className="tsp-range-inputs">

@@ -19,12 +19,15 @@ export const joinOpnameService = {
     return handleResponse(response);
   },
 
-  updateProgress: async (rabItemId, date, progressPercent, file) => {
+  updateProgress: async (rabItemId, date, progressPercent, files = null) => {
     const formData = new FormData();
     formData.append("date", date);
     formData.append("progressPercent", progressPercent);
-    if (file) {
-      formData.append("foto", file); // Sesuai dengan konfigurasi multer backend[cite: 15]
+
+    if (files && files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        formData.append("foto", files[i]);
+      }
     }
 
     const response = await fetch(buildApiUrl(API_BASE_URL, `/rab-items/${rabItemId}/progress`), {
