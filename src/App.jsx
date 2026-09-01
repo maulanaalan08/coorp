@@ -10,6 +10,7 @@ import RabBudgeting from "./pages/RabBudgeting";
 import TimeSchedulePage from "./pages/TimeSchedulePage";
 import JoinOpnamePage from "./pages/JoinOpnamePage";
 import ComplaintPage from "./pages/ComplaintPage";
+import FinancePage from "./pages/FinancePage";
 
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -30,6 +31,7 @@ function App() {
         {activeTab === "data-survey" && <DataSurvey />}
         {(activeTab === "bv" || activeTab === "backup-volume") && <BackUpVolume />}
         {activeTab === "rab" && <RabBudgeting />}
+        {activeTab === "finance" && <FinancePage />}
         {activeTab === "time-schedule" && <TimeSchedulePage />}
         {activeTab === "join-opname" && <JoinOpnamePage />}
         {activeTab === "complain" && <ComplaintPage />}

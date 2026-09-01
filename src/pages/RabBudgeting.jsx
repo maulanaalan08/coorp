@@ -314,6 +314,45 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
   const viewRab = () => projectId && window.open(`${API_BASE}/projects/${projectId}/rab-items/view`, "_blank");
 
   // ==========================================================
+  // SYNC FINANCE
+  // ==========================================================
+  const handleSyncFinance = async () => {
+    if (!window.confirm("Yakin ingin mengirim RAB ini ke Finance? Proses ini akan membuat daftar Procurement dan mengunci RAB.")) return;
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/sync-finance`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Gagal mengirim data ke Finance.");
+      }
+      alert("Berhasil dikirim ke Finance! RAB sekarang terkunci.");
+      window.location.reload(); 
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleCancelFinance = async () => {
+    if (!window.confirm("Yakin ingin membatalkan kiriman ke Finance? Ini akan menghapus data di dasbor Finance dan membuka kunci RAB.")) return;
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/cancel-finance`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Gagal membatalkan sinkronisasi.");
+      }
+      alert("Batal kirim berhasil. RAB kembali terbuka (DRAFT).");
+      window.location.reload();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // ==========================================================
   // RENDER
   // ==========================================================
   return (
@@ -360,6 +399,16 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
               <button className={styles["rab-btn"]} onClick={scheduleExport}>⬇ Export Schedule</button>
               <button className={styles["rab-btn"]} onClick={exportFullExcel}>⬇ Export Lengkap</button>
               <button className={styles["rab-btn"]} onClick={viewRab}>👁 View RAB</button>
+              
+              {project?.rabStatus === "LOCKED" ? (
+                <button className={[styles["rab-btn"], styles["rab-btn-danger"]].join(" ")} onClick={handleCancelFinance} type="button">
+                  Batal Kirim Finance
+                </button>
+              ) : (
+                <button className={[styles["rab-btn"], styles["rab-btn-success"]].join(" ")} onClick={handleSyncFinance} type="button">
+                  Kirim ke Finance
+                </button>
+              )}
 
               <button className={[styles["rab-btn"], styles["rab-refresh-btn"]].join(" ")} onClick={refreshGroups} type="button">
                 <RefreshCw size={15} /> Refresh

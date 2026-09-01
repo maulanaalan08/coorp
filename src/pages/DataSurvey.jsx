@@ -3,7 +3,7 @@ import styles from '../styles/DataSurvey.module.css';
 import Header from '../components/Header';
 import {
   Plus, FileDown, Eye, Trash2, ChevronDown, ChevronUp,
-  X, Map, RefreshCw, Camera
+  X, Map, RefreshCw, Camera, Edit
 } from 'lucide-react';
 import { useProjects } from '../hooks/useProjects';
 import { useSurveys } from '../hooks/useSurveys';
@@ -64,6 +64,13 @@ function AreaFormCard({ area, index, onChange, onRemove }) {
     const photos = area.photosFiles.filter((_, i) => i !== pi);
     onChange(index, { ...area, photosFiles: photos });
   };
+
+  const removeExistingPhoto = (pi) => {
+    const urls = area.existingPhotoUrls.filter((_, i) => i !== pi);
+    onChange(index, { ...area, existingPhotoUrls: urls });
+  };
+
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
   return (
     <div className={styles.areaFormCard}>
@@ -171,7 +178,7 @@ function AreaFormCard({ area, index, onChange, onRemove }) {
       <div style={{ marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <span style={{ fontSize: '0.72rem', color: '#7d6733', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.06em' }}>
-            FOTO ({area.photosFiles?.length || 0}/20)
+            FOTO ({(area.photosFiles?.length || 0) + (area.existingPhotoUrls?.length || 0)}/20)
           </span>
           <button type="button" className={styles.btnIcon} onClick={() => fileInputRef.current?.click()} style={{ padding: '4px 10px', fontSize: '0.72rem' }}>
             <Camera size={12} /> Pilih Foto
@@ -185,13 +192,30 @@ function AreaFormCard({ area, index, onChange, onRemove }) {
           hidden
           onChange={handlePhotoSelect}
         />
-        {area.photosFiles?.length > 0 && (
+        {((area.photosFiles?.length > 0) || (area.existingPhotoUrls?.length > 0)) && (
           <div className={styles.photoGrid}>
-            {area.photosFiles.map((file, pi) => (
-              <div key={pi} style={{ position: 'relative' }}>
+            {area.existingPhotoUrls?.map((url, pi) => (
+              <div key={`exist-${pi}`} style={{ position: 'relative' }}>
+                <img
+                  src={`${API_BASE}${url}`}
+                  alt={`foto lama ${pi + 1}`}
+                  className={styles.photoThumb}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeExistingPhoto(pi)}
+                  style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(239,68,68,0.9)', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  title="Hapus foto ini"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+            {area.photosFiles?.map((file, pi) => (
+              <div key={`new-${pi}`} style={{ position: 'relative' }}>
                 <img
                   src={URL.createObjectURL(file)}
-                  alt={`foto ${pi + 1}`}
+                  alt={`foto baru ${pi + 1}`}
                   className={styles.photoThumb}
                 />
                 <button
@@ -222,13 +246,44 @@ function AreaFormCard({ area, index, onChange, onRemove }) {
 // ================================================================
 // MODAL BUAT/EDIT SURVEY
 // ================================================================
-function SurveyModal({ isOpen, onClose, projectId, onSuccess }) {
+function SurveyModal({ isOpen, onClose, projectId, onSuccess, initialData }) {
   const [surveyDate, setSurveyDate] = useState('');
   const [surveyorName, setSurveyorName] = useState('');
   const [notes, setNotes] = useState('');
   const [areas, setAreas] = useState([emptyArea()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setSurveyDate(initialData.surveyDate ? new Date(initialData.surveyDate).toISOString().split('T')[0] : '');
+        setSurveyorName(initialData.surveyorName || '');
+        setNotes(initialData.notes || '');
+        if (initialData.areas && initialData.areas.length > 0) {
+          setAreas(initialData.areas.map(a => ({
+            id: a.id,
+            areaName: a.areaName || '',
+            analisa: a.analisa || '',
+            penanganan: a.penanganan || '',
+            informasiTambahan: a.informasiTambahan || '',
+            photoCaption: a.photoCaption || '',
+            dimensions: a.dimensions && a.dimensions.length > 0 ? a.dimensions : [],
+            existingPhotoUrls: a.photos ? a.photos.map(p => p.url) : [],
+            photosFiles: []
+          })));
+        } else {
+          setAreas([emptyArea()]);
+        }
+      } else {
+        setSurveyDate('');
+        setSurveyorName('');
+        setNotes('');
+        setAreas([emptyArea()]);
+      }
+      setError(null);
+    }
+  }, [isOpen, initialData]);
 
   const handleAreaChange = (index, updated) => {
     setAreas(prev => prev.map((a, i) => i === index ? updated : a));
@@ -264,6 +319,7 @@ function SurveyModal({ isOpen, onClose, projectId, onSuccess }) {
         surveyorName: surveyorName.trim(),
         notes: notes.trim() || null,
         areas: areas.map(area => ({
+          id: area.id,
           areaName: area.areaName.trim(),
           analisa: area.analisa.trim() || null,
           penanganan: area.penanganan.trim() || null,
@@ -277,6 +333,7 @@ function SurveyModal({ isOpen, onClose, projectId, onSuccess }) {
               lebar: d.lebar ? parseFloat(d.lebar) : null,
               tinggi: d.tinggi ? parseFloat(d.tinggi) : null,
             })),
+          existingPhotoUrls: area.existingPhotoUrls || [],
         })),
       };
 
@@ -289,7 +346,11 @@ function SurveyModal({ isOpen, onClose, projectId, onSuccess }) {
         });
       });
 
-      await surveyService.create(projectId, formData);
+      if (initialData) {
+        await surveyService.update(initialData.id, formData);
+      } else {
+        await surveyService.create(projectId, formData);
+      }
       onSuccess();
       onClose();
       // reset
@@ -310,7 +371,7 @@ function SurveyModal({ isOpen, onClose, projectId, onSuccess }) {
     <div className={styles.modalOverlay}>
       <div className={styles.modalBox}>
         <div className={styles.modalHeader}>
-          <h3>Buat Laporan Survey Baru</h3>
+          <h3>{initialData ? 'Edit Laporan Survey' : 'Buat Laporan Survey Baru'}</h3>
           <button type="button" className={styles.closeBtn} onClick={onClose} disabled={saving}>
             <X size={18} />
           </button>
@@ -397,7 +458,7 @@ function SurveyModal({ isOpen, onClose, projectId, onSuccess }) {
 // ================================================================
 // SUB-KOMPONEN: BARIS SURVEY DENGAN EXPAND DETAIL
 // ================================================================
-function SurveyRow({ survey, onDelete }) {
+function SurveyRow({ survey, onDelete, onEdit }) {
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -436,6 +497,13 @@ function SurveyRow({ survey, onDelete }) {
             >
               {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               {expanded ? 'Tutup' : 'Detail'}
+            </button>
+            <button
+              className={styles.btnIcon}
+              type="button"
+              onClick={() => onEdit(survey)}
+            >
+              <Edit size={14} /> Edit
             </button>
             <a
               href={surveyService.getPdfViewUrl(survey.id)}
@@ -554,6 +622,7 @@ const DataSurvey = () => {
   const { projects, loading: loadingProjects } = useProjects();
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSurvey, setEditingSurvey] = useState(null);
 
   const { surveys, loading: loadingSurveys, error: surveyError, refresh, deleteSurvey } = useSurveys(selectedProjectId);
 
@@ -573,7 +642,7 @@ const DataSurvey = () => {
           <button
             className={styles.btnGold}
             type="button"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => { setEditingSurvey(null); setIsModalOpen(true); }}
             disabled={!selectedProjectId}
             title={!selectedProjectId ? 'Pilih project terlebih dahulu' : 'Buat survey baru'}
           >
@@ -694,6 +763,7 @@ const DataSurvey = () => {
                     key={survey.id}
                     survey={survey}
                     onDelete={deleteSurvey}
+                    onEdit={() => { setEditingSurvey(survey); setIsModalOpen(true); }}
                   />
                 ))
               )}
@@ -705,9 +775,10 @@ const DataSurvey = () => {
       {/* MODAL BUAT SURVEY */}
       <SurveyModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => { setIsModalOpen(false); setEditingSurvey(null); }}
         projectId={selectedProjectId}
         onSuccess={refresh}
+        initialData={editingSurvey}
       />
     </div>
   );

@@ -17,7 +17,8 @@ import {
   ChevronDown,
   ChevronRight,
   Layers,
-  Wrench
+  Wrench,
+  PieChart
 } from "lucide-react";
 
 import CreateProjectModal from "./CreateProjectModal";
@@ -30,7 +31,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   const [isPelaksanaanOpen, setIsPelaksanaanOpen] = useState(false);
 
   useEffect(() => {
-    if (["data-survey", "bv", "rab"].includes(activeTab)) {
+    if (["data-survey", "bv", "rab", "finance"].includes(activeTab)) {
       setIsPerencanaanOpen(true);
     }
     if (["time-schedule", "join-opname", "complain"].includes(activeTab)) {
@@ -110,6 +111,12 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
                 <a href="#rab" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "rab")}>
                   <Wallet className={styles['nav-icon']} size={18} />
                   <span>RAB & Budgeting</span>
+                </a>
+              </li>
+              <li className={`${styles['sub-nav-item']} ${activeTab === "finance" ? styles.active : ""}`}>
+                <a href="#finance" className={styles['sub-nav-link']} onClick={(e) => handleNavigation(e, "finance")}>
+                  <PieChart className={styles['nav-icon']} size={18} />
+                  <span>Finance & Margins</span>
                 </a>
               </li>
             </ul>
