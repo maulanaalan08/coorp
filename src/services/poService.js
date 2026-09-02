@@ -13,29 +13,47 @@ const getAuthHeaders = () => {
 export const poService = {
   // Ambil daftar supplier
   getSuppliers: () => {
-    return fetchAPI('/suppliers', {
+    return fetchAPI('/finance/suppliers', {
       headers: getAuthHeaders()
+    });
+  },
+
+  // Tambah supplier baru
+  createSupplier: (supplierData) => {
+    return fetchAPI('/finance/suppliers', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(supplierData),
     });
   },
 
   // Ambil daftar PO
   getPOs: () => {
-    return fetchAPI('/po', {
+    return fetchAPI('/finance/po', {
       headers: getAuthHeaders()
     });
   },
 
   // Ambil detail 1 PO untuk dicetak
   getPOById: (id) => {
-    return fetchAPI(`/po/${id}`, {
+    return fetchAPI(`/finance/po/${id}`, {
       headers: getAuthHeaders()
     });
   },
 
   // Buat PO baru
   createPO: (poData) => {
-    return fetchAPI('/po', {
+    return fetchAPI('/finance/po', {
       method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(poData),
+    });
+  },
+
+  // Edit PO
+  updatePO: (id, poData) => {
+    return fetchAPI(`/finance/po/${id}`, {
+      method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(poData),
     });
@@ -44,7 +62,7 @@ export const poService = {
   // Approve PO
   approvePO: (id) => {
     // Berdasarkan request user: aksi approve merubah status menjadi approve
-    return fetchAPI(`/po/${id}/approve`, {
+    return fetchAPI(`/finance/po/${id}/approve`, {
       method: 'PUT',
       headers: getAuthHeaders(),
     });
