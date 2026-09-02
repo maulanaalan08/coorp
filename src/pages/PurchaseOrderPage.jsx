@@ -3,14 +3,14 @@ import { Search, CheckCircle, Printer, ShoppingCart, Plus, Package, Edit } from 
 import styles from '../styles/PurchaseOrderPage.module.css';
 import Header from '../components/Header';
 import { usePO } from '../hooks/usePO';
-import { useMaterialRequests } from '../hooks/useMaterialRequests';
+import { useMaterialRequests, useFinanceMaterialRequests } from '../hooks/useMaterialRequests';
 import { useProjects } from '../hooks/useProjects';
 import ProjectSelector from '../components/ProjectSelector';
 import { poService } from '../services/poService';
 import PurchaseOrderModal from '../components/PurchaseOrderModal';
 import toast from 'react-hot-toast';
 
-const fmtRp = (n) => 
+const fmtRp = (n) =>
   "Rp " + Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 });
 
 const PurchaseOrderPage = () => {
@@ -23,7 +23,16 @@ const PurchaseOrderPage = () => {
 
   const { projects: projectList, loading: loadingProjects } = useProjects();
   const { mrItems, loadingMr, refreshMaterialRequests } = useMaterialRequests(projectId);
+  const { requests: financeMRs, loading: loadingFinanceMR, refreshFinanceMR } = useFinanceMaterialRequests();
   const { pos, loading, error, approve, refreshPOs } = usePO();
+
+  // Gabungkan data dari finance endpoint (lebih kaya, split per toko)
+  // Filter berdasarkan project yang dipilih
+  const financeMrItems = useMemo(() => {
+    if (!projectId || !financeMRs.length) return [];
+    const matched = financeMRs.find(mr => mr.projectId === projectId);
+    return matched ? matched.items || [] : [];
+  }, [projectId, financeMRs]);
 
   const handleApprove = async (id) => {
     toast.promise(approve(id), {
@@ -48,16 +57,20 @@ const PurchaseOrderPage = () => {
     );
   }, [pos, search]);
 
+  // Gunakan data finance MR jika tersedia (lebih kaya, split per toko), fallback ke mrItems
+  const displayItems = financeMrItems.length > 0 ? financeMrItems : mrItems;
+  const hasFinanceData = financeMrItems.length > 0;
+
   // Grouping Material Request Items
   const groupedMrItems = useMemo(() => {
     const groups = {};
-    mrItems.forEach(item => {
+    displayItems.forEach(item => {
       const gName = item.groupName || 'Tanpa Group';
       if (!groups[gName]) groups[gName] = [];
       groups[gName].push(item);
     });
     return groups;
-  }, [mrItems]);
+  }, [displayItems]);
 
   // getItemPoStatus dihapus karena kita ambil langsung dari item.orderedVolume dan item.status
 
@@ -85,13 +98,14 @@ const PurchaseOrderPage = () => {
     setEditingPo(null);
     setSelectedItems([]);
     refreshMaterialRequests();
+    refreshFinanceMR();
     if (refreshPOs) refreshPOs();
   };
 
   return (
     <div className={styles.poWrapper}>
       <Header />
-      
+
       <header className={styles.financeHeader}>
         <div className={styles.headerMain}>
           <p className={styles.eyebrow}>Purchase Orders</p>
@@ -100,7 +114,7 @@ const PurchaseOrderPage = () => {
         </div>
         <div style={{ minWidth: '300px' }}>
           {activeTab === 'buat-po' && (
-            <ProjectSelector 
+            <ProjectSelector
               projectId={projectId}
               projectList={projectList}
               loading={loadingProjects}
@@ -115,13 +129,13 @@ const PurchaseOrderPage = () => {
 
       <main className={styles.content}>
         <div className={styles.tabs}>
-          <button 
+          <button
             className={`${styles.tabBtn} ${activeTab === 'buat-po' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('buat-po')}
           >
             <Package size={16} /> Buat PO Material
           </button>
-          <button 
+          <button
             className={`${styles.tabBtn} ${activeTab === 'riwayat-po' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('riwayat-po')}
           >
@@ -144,11 +158,11 @@ const PurchaseOrderPage = () => {
                 <h3>Pilih Project</h3>
                 <p>Silakan pilih project dari dropdown di atas untuk melihat kebutuhan material.</p>
               </div>
-            ) : loadingMr ? (
+            ) : (loadingMr || loadingFinanceMR) ? (
               <div className={styles.emptyState}>
                 <p>Memuat kebutuhan material...</p>
               </div>
-            ) : mrItems.length === 0 ? (
+            ) : displayItems.length === 0 ? (
               <div className={styles.emptyState}>
                 <p>Tidak ada material request untuk project ini.</p>
               </div>
@@ -164,9 +178,11 @@ const PurchaseOrderPage = () => {
                             <th style={{ width: '40px' }}>Pilih</th>
                             <th>ITEM MATERIAL</th>
                             <th>SATUAN</th>
-                            <th className={styles.cellRight}>ESTIMASI VOL (RAB)</th>
+                            <th className={styles.cellRight}>VOL</th>
                             <th className={styles.cellRight}>TELAH DI-ORDER</th>
-                            <th className={styles.cellRight}>HARGA SATUAN (RAB)</th>
+                            <th className={styles.cellRight}>HARGA SATUAN</th>
+                            {hasFinanceData && <th>SUPPLIER / TOKO</th>}
+                            {hasFinanceData && <th>NO. PO</th>}
                             <th style={{ textAlign: 'center' }}>STATUS PO</th>
                           </tr>
                         </thead>
@@ -176,8 +192,8 @@ const PurchaseOrderPage = () => {
                             return (
                               <tr key={item.id} className={isSelected ? styles.selectedRow : ''}>
                                 <td style={{ textAlign: 'center' }}>
-                                  <input 
-                                    type="checkbox" 
+                                  <input
+                                    type="checkbox"
                                     checked={isSelected}
                                     onChange={() => toggleSelectItem(item)}
                                     className={styles.checkbox}
@@ -188,12 +204,21 @@ const PurchaseOrderPage = () => {
                                 <td className={`${styles.cellMono} ${styles.cellRight}`}>{item.estimatedVolume}</td>
                                 <td className={`${styles.cellMono} ${styles.cellRight}`}>{item.orderedVolume || 0}</td>
                                 <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(item.pricePerUnit)}</td>
+                                {hasFinanceData && (
+                                  <td>
+                                    <span style={{ fontSize: '0.85rem' }}>{item.supplierName || '-'}</span>
+                                  </td>
+                                )}
+                                {hasFinanceData && (
+                                  <td>
+                                    <span className={styles.cellMono} style={{ fontSize: '0.8rem' }}>{item.poNumber || '-'}</span>
+                                  </td>
+                                )}
                                 <td style={{ textAlign: 'center' }}>
-                                  <span className={`${styles.statusBadge} ${
-                                    item.status === 'COMPLETED' ? styles.statusApproved : 
-                                    item.status === 'PARTIAL' ? styles.statusPending : 
-                                    styles.statusNone
-                                  }`}>
+                                  <span className={`${styles.statusBadge} ${item.status === 'COMPLETED' ? styles.statusApproved :
+                                      item.status === 'PARTIAL' ? styles.statusPending :
+                                        styles.statusNone
+                                    }`}>
                                     {item.status || 'PENDING'}
                                   </span>
                                 </td>
@@ -259,7 +284,7 @@ const PurchaseOrderPage = () => {
                         </tr>
                       ) : (
                         filteredPOs.map((po) => {
-                          const isApproved = po.status === 'approve' || po.status === 'Approved';
+                          const isApproved = po.status === 'APPROVED' || po.status === 'approve' || po.status === 'Approved';
 
                           return (
                             <tr key={po.id}>
@@ -290,37 +315,37 @@ const PurchaseOrderPage = () => {
                                 </span>
                               </td>
                               <td>
-                                  <div className={styles.actionCell}>
-                                    {!isApproved && (
-                                      <button 
-                                        className={styles.approveBtn}
-                                        onClick={() => handleApprove(po.id)}
-                                        title="Approve PO"
-                                      >
-                                        <CheckCircle size={16} />
-                                      </button>
-                                    )}
-                                    {!isApproved && (
-                                      <button 
-                                        className={styles.printBtn}
-                                        onClick={() => {
-                                          setEditingPo(po);
-                                          setIsPoModalOpen(true);
-                                        }}
-                                        title="Edit PO"
-                                        style={{ backgroundColor: '#2563eb' }}
-                                      >
-                                        <Edit size={16} />
-                                      </button>
-                                    )}
-                                    <button 
-                                      className={styles.printBtn}
-                                      onClick={() => handlePrint(po.id)}
-                                      title="Cetak PDF"
+                                <div className={styles.actionCell}>
+                                  {!isApproved && (
+                                    <button
+                                      className={styles.approveBtn}
+                                      onClick={() => handleApprove(po.id)}
+                                      title="Approve PO"
                                     >
-                                      <Printer size={16} />
+                                      <CheckCircle size={16} />
                                     </button>
-                                  </div>
+                                  )}
+                                  {!isApproved && (
+                                    <button
+                                      className={styles.printBtn}
+                                      onClick={() => {
+                                        setEditingPo(po);
+                                        setIsPoModalOpen(true);
+                                      }}
+                                      title="Edit PO"
+                                      style={{ backgroundColor: '#2563eb' }}
+                                    >
+                                      <Edit size={16} />
+                                    </button>
+                                  )}
+                                  <button
+                                    className={styles.printBtn}
+                                    onClick={() => handlePrint(po.id)}
+                                    title="Cetak PDF"
+                                  >
+                                    <Printer size={16} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -336,7 +361,7 @@ const PurchaseOrderPage = () => {
       </main>
 
       {(isPoModalOpen || editingPo) && (
-        <PurchaseOrderModal 
+        <PurchaseOrderModal
           selectedItems={selectedItems}
           projectId={projectId}
           editingPo={editingPo}

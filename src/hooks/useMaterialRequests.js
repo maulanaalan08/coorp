@@ -52,3 +52,51 @@ export const useMaterialRequests = (projectId) => {
     updateBulkMaterialRequests
   };
 };
+
+/**
+ * Hook khusus Dasbor Finance — data lebih kaya:
+ * - Semua MR dari semua project (tanpa perlu pilih project)
+ * - Item sudah di-split per toko/supplier
+ * - Ada info sisa volume, nomor PO, nama supplier
+ */
+export const useFinanceMaterialRequests = () => {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await financeService.getFinanceMaterialRequests();
+      setRequests(data || []);
+    } catch (err) {
+      setError(err.message || 'Gagal memuat data Finance Material Requests');
+      setRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateItem = async (itemId, data) => {
+    try {
+      const res = await financeService.updateMaterialRequestItem(itemId, data);
+      await fetchData(); // Refresh setelah update
+      return res;
+    } catch (err) {
+      throw new Error(err.message || 'Gagal update item');
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return {
+    requests,
+    loading,
+    error,
+    refreshFinanceMR: fetchData,
+    updateItem,
+  };
+};

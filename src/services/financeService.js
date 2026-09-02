@@ -1,9 +1,31 @@
 import { fetchAPI } from './api';
 
+// Helper to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
+
 export const financeService = {
-  // Ambil material requests untuk project tertentu
+  // Ambil material requests untuk project tertentu (endpoint lama)
   getMaterialRequests: (projectId) => {
     return fetchAPI(`/projects/${projectId}/material-requests`);
+  },
+
+  // Ambil SEMUA material requests dari Dasbor Finance (data lebih kaya, split per toko)
+  getFinanceMaterialRequests: () => {
+    return fetchAPI('/finance/material-requests', {
+      headers: getAuthHeaders()
+    });
+  },
+
+  // Update item MR (auto-save: isCompleted, orderedVolume, catatanFinance)
+  updateMaterialRequestItem: (itemId, data) => {
+    return fetchAPI(`/finance/material-requests/items/${itemId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
   },
 
   // Update bulk pesanan/catatan finance
