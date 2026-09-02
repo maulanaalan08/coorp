@@ -17,13 +17,24 @@ import DataSurvey from "./pages/DataSurvey";
 import RabBudgeting from "./pages/RabBudgeting";
 import TimeSchedulePage from "./pages/TimeSchedulePage";
 import JoinOpnamePage from "./pages/JoinOpnamePage";
-import ComplaintPage from "./pages/ComplaintPage";
 import FinancePage from "./pages/FinancePage";
+import PurchaseOrderPage from "./pages/PurchaseOrderPage";
+import ComplaintPage from "./pages/ComplaintPage";
+import PrintPOPage from "./pages/PrintPOPage";
 import { Bot } from "lucide-react";
 
 function App() {
   const { isAuthenticated, loginAuth, logoutAuth, user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
+
+  // Cek apakah mode khusus print PO (via URL parameter)
+  const urlParams = new URLSearchParams(window.location.search);
+  const printPoId = urlParams.get("print-po");
+
+  // Jika URL memiliki parameter print-po, langsung render halaman print tanpa layout biasa
+  if (printPoId) {
+    return <PrintPOPage poId={printPoId} />;
+  }
 
   // Tampilkan splash screen saat masih mengecek session (mencegah flash ke login)
   if (isLoading) {
@@ -85,6 +96,7 @@ function App() {
         {(activeTab === "bv" || activeTab === "backup-volume") && <BackUpVolume />}
         {activeTab === "rab" && <RabBudgeting />}
         {activeTab === "finance" && <FinancePage />}
+        {activeTab === "purchase-orders" && <PurchaseOrderPage />}
         {activeTab === "time-schedule" && <TimeSchedulePage />}
         {activeTab === "join-opname" && <JoinOpnamePage />}
         {activeTab === "complain" && <ComplaintPage />}

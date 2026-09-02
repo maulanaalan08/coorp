@@ -17,6 +17,7 @@ import { useProjects } from "../hooks/useProjects";
 import { useRabGroups } from "../hooks/useRabGroups";
 import { useMaterialRequests } from "../hooks/useMaterialRequests";
 import toast from "react-hot-toast";
+import CreatePOModal from "../components/CreatePOModal";
 
 const fmtRp = (n) =>
   "Rp " +
@@ -40,6 +41,11 @@ const FinancePage = () => {
   // Local state for edited inputs
   const [editedItems, setEditedItems] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // PO Modal state
+  const [isPOModalOpen, setIsPOModalOpen] = useState(false);
+  const [selectedComponentForPO, setSelectedComponentForPO] = useState(null);
+  const [selectedMrItemForPO, setSelectedMrItemForPO] = useState(null);
 
   // Sync editedItems when mrItems loads
   useEffect(() => {
@@ -103,6 +109,12 @@ const FinancePage = () => {
     }).finally(() => {
       setIsSaving(false);
     });
+  };
+
+  const handleOpenPOModal = (comp, mrItem, parentVolume) => {
+    setSelectedComponentForPO({ ...comp, parentVolume });
+    setSelectedMrItemForPO(mrItem);
+    setIsPOModalOpen(true);
   };
 
   // Flatten items for display
@@ -336,6 +348,7 @@ const FinancePage = () => {
                                           <th style={{ width: "120px" }}>VOL. DIBELI (PO)</th>
                                           <th style={{ width: "90px" }}>STATUS</th>
                                           <th>CATATAN FINANCE</th>
+                                          <th style={{ width: "100px", textAlign: "center" }}>AKSI</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -403,6 +416,20 @@ const FinancePage = () => {
                                                   <span style={{ color: "#666", fontStyle: "italic", fontSize: "11px" }}>Bukan Bahan/Alat</span>
                                                 )}
                                               </td>
+                                              <td style={{ textAlign: "center" }}>
+                                                {!isUpah && (
+                                                  <button
+                                                    className={styles.primaryBtn}
+                                                    style={{ padding: "4px 8px", fontSize: "12px", width: "100%" }}
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleOpenPOModal(c, mr, item.volume);
+                                                    }}
+                                                  >
+                                                    Buat PO
+                                                  </button>
+                                                )}
+                                              </td>
                                             </tr>
                                           );
                                         })}
@@ -441,6 +468,13 @@ const FinancePage = () => {
           </>
         )}
       </main>
+
+      <CreatePOModal 
+        isOpen={isPOModalOpen}
+        onClose={() => setIsPOModalOpen(false)}
+        selectedItem={selectedComponentForPO}
+        mrItem={selectedMrItemForPO}
+      />
     </div>
   );
 };

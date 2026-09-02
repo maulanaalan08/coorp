@@ -1,4 +1,4 @@
-﻿// src/components/Sidebar.jsx
+// src/components/Sidebar.jsx
 import { useState, useEffect } from "react";
 import styles from "../styles/Sidebar.module.css";
 
@@ -54,6 +54,9 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
     }
     if (["finance", "pembelian-siap-pakai"].includes(activeTab)) {
       setIsFinanceOpen(true);
+    }
+    if (["purchase-orders"].includes(activeTab)) {
+      setIsPurchasingOpen(true);
     }
   }, [activeTab]);
 
@@ -216,7 +219,11 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                 : <ChevronRight className={styles.chevron} size={14} />}
             </button>
             <ul className={`${styles["sub-nav-list"]} ${isPurchasingOpen ? styles.open : ""}`}>
-              {/* Menu purchasing ditambahkan di sini */}
+              <li className={`${styles["sub-nav-item"]} ${activeTab === "purchase-orders" ? styles.active : ""}`}>
+                <a href="#purchase-orders" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "purchase-orders")}>
+                  <ClipboardList size={14} /> Purchase Orders
+                </a>
+              </li>
             </ul>
           </li>
 

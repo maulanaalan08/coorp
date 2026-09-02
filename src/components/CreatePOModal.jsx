@@ -1,0 +1,193 @@
+import React, { useState, useEffect } from 'react';
+import { X, Save } from 'lucide-react';
+import styles from '../styles/CreatePOModal.module.css';
+import { usePO } from '../hooks/usePO';
+import toast from 'react-hot-toast';
+
+const CreatePOModal = ({ isOpen, onClose, selectedItem, mrItem }) => {
+  const { suppliers, createNewPO } = usePO();
+  
+  const [formData, setFormData] = useState({
+    nomorPO: '',
+    supplierId: '',
+    tanggalPO: new Date().toISOString().split('T')[0],
+    qty: '',
+    hargaDeal: '',
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Set default values when modal opens or selectedItem changes
+  useEffect(() => {
+    if (isOpen && selectedItem) {
+      // Prioritize mrItem's orderedVolume if available, otherwise fallback to item's calculation
+      const defaultQty = mrItem?.estimatedVolume 
+        ? Number(mrItem.estimatedVolume) 
+        : Number(selectedItem.coefficient || 0) * Number(selectedItem.parentVolume || 0);
+        
+      setFormData({
+        nomorPO: `PO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
+        supplierId: suppliers.length > 0 ? suppliers[0].id : '',
+        tanggalPO: new Date().toISOString().split('T')[0],
+        qty: defaultQty.toFixed(4),
+        hargaDeal: selectedItem.unitPrice || 0,
+      });
+    }
+  }, [isOpen, selectedItem, mrItem, suppliers]);
+
+  if (!isOpen || !selectedItem) return null;
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.supplierId) {
+      toast.error('Silakan pilih Toko/Supplier');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        mrItemId: mrItem?.id || null, // Link to Material Request if available
+        itemName: selectedItem.name,
+        nomorTransaksi: formData.nomorPO,
+        supplierId: formData.supplierId,
+        tanggalPO: formData.tanggalPO,
+        qty: Number(formData.qty),
+        hargaDeal: Number(formData.hargaDeal),
+      };
+
+      await createNewPO(payload);
+      toast.success('PO berhasil dibuat!');
+      onClose();
+    } catch (error) {
+      toast.error(error.message || 'Gagal menyimpan PO');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const subTotal = Number(formData.qty || 0) * Number(formData.hargaDeal || 0);
+
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.header}>
+          <h2>Buat Purchase Order (PO)</h2>
+          <button className={styles.closeButton} onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          <div className={styles.body}>
+            <div className={styles.formGroup}>
+              <label>Item Material</label>
+              <input type="text" value={selectedItem.name} disabled />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Nomor Transaksi PO</label>
+              <input 
+                type="text" 
+                name="nomorPO" 
+                value={formData.nomorPO} 
+                onChange={handleChange} 
+                required 
+                placeholder="Contoh: PO-2023-001"
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Toko / Supplier</label>
+              <select 
+                name="supplierId" 
+                value={formData.supplierId} 
+                onChange={handleChange}
+                required
+              >
+                <option value="" disabled>-- Pilih Supplier --</option>
+                {suppliers.map(sup => (
+                  <option key={sup.id} value={sup.id}>{sup.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Tanggal PO</label>
+              <input 
+                type="date" 
+                name="tanggalPO" 
+                value={formData.tanggalPO} 
+                onChange={handleChange} 
+                required 
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className={styles.formGroup}>
+                <label>Kuantitas (Qty)</label>
+                <input 
+                  type="number" 
+                  name="qty" 
+                  value={formData.qty} 
+                  onChange={handleChange} 
+                  step="any"
+                  min="0"
+                  required 
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Harga Deal per Satuan (Rp)</label>
+                <input 
+                  type="number" 
+                  name="hargaDeal" 
+                  value={formData.hargaDeal} 
+                  onChange={handleChange} 
+                  min="0"
+                  required 
+                />
+              </div>
+            </div>
+
+            <div className={styles.subtotalPreview}>
+              <span>Preview Subtotal:</span>
+              <strong>
+                Rp {subTotal.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+              </strong>
+            </div>
+          </div>
+
+          <div className={styles.footer}>
+            <button 
+              type="button" 
+              className={styles.cancelBtn} 
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
+              Batal
+            </button>
+            <button 
+              type="submit" 
+              className={styles.saveBtn}
+              disabled={isSubmitting}
+            >
+              <Save size={16} />
+              {isSubmitting ? 'Menyimpan...' : 'Simpan PO'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default CreatePOModal;
