@@ -1,6 +1,13 @@
 // src/App.jsx
 import React, { useState } from "react";
 import { Toaster } from 'react-hot-toast';
+
+// --- Komponen Autentikasi ---
+import { useAuth } from "./hooks/useAuth";
+import AuthPage from "./pages/AuthPage";
+import "./styles/Auth.css";
+
+// --- Komponen Layout & Halaman Dashboard ---
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import ProjectBoard from "./pages/ProjectBoard";
@@ -15,10 +22,29 @@ import FinancePage from "./pages/FinancePage";
 import { Bot } from "lucide-react";
 
 function App() {
+  const { isAuthenticated, loginAuth, logoutAuth, user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
 
+  // Tampilkan splash screen saat masih mengecek session (mencegah flash ke login)
+  if (isLoading) {
+    return (
+      <div className="auth-splash">
+        <div className="splash-logo">DIVES CORP.</div>
+        <div className="splash-spinner" />
+      </div>
+    );
+  }
+
+  // JIKA BELUM LOGIN: Tampilkan Halaman Login / Register
+  if (!isAuthenticated) {
+    return <AuthPage onLoginSuccess={loginAuth} />;
+  }
+
+  // JIKA SUDAH LOGIN: Tampilkan Layout Utama (Sidebar + Main Content)
   return (
     <div style={{ display: "flex", width: "100vw", minHeight: "100vh", backgroundColor: "#0c0b09" }}>
+
+      {/* Konfigurasi Notifikasi Toaster dari react-hot-toast */}
       <Toaster 
         position="top-right" 
         toastOptions={{
@@ -36,8 +62,16 @@ function App() {
           },
         }}
       />
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      
+      {/* Sidebar - Kita bisa passing prop onLogout agar user bisa keluar dari menu sidebar */}
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        onLogout={logoutAuth} 
+        user={user} 
+      />
 
+      {/* Konten Utama berdasarkan tab yang aktif */}
       <main style={{ flex: 1, marginLeft: "260px", overflowY: "auto" }}>
         {activeTab === "dashboard" && (
           <Dashboard
