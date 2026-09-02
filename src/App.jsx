@@ -21,6 +21,7 @@ import FinancePage from "./pages/FinancePage";
 import PurchaseOrderPage from "./pages/PurchaseOrderPage";
 import ComplaintPage from "./pages/ComplaintPage";
 import PrintPOPage from "./pages/PrintPOPage";
+import BastPage from "./pages/BastPage";
 import { Bot } from "lucide-react";
 
 function App() {
@@ -99,6 +100,7 @@ function App() {
         {activeTab === "purchase-orders" && <PurchaseOrderPage />}
         {activeTab === "time-schedule" && <TimeSchedulePage />}
         {activeTab === "join-opname" && <JoinOpnamePage />}
+        {activeTab === "bast" && <BastPage />}
         {activeTab === "complain" && <ComplaintPage />}
       </main>
 

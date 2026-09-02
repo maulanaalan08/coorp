@@ -49,7 +49,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) {
       setIsPerencanaanOpen(true);
     }
-    if (["time-schedule", "join-opname", "complain", "item-tracking"].includes(activeTab)) {
+    if (["time-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) {
       setIsPelaksanaanOpen(true);
     }
     if (["finance", "pembelian-siap-pakai"].includes(activeTab)) {
@@ -159,6 +159,11 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               <li className={`${styles["sub-nav-item"]} ${activeTab === "join-opname" ? styles.active : ""}`}>
                 <a href="#join-opname" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "join-opname")}>
                   <ClipboardCheck size={14} /> Join Opname
+                </a>
+              </li>
+              <li className={`${styles["sub-nav-item"]} ${activeTab === "bast" ? styles.active : ""}`}>
+                <a href="#bast" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "bast")}>
+                  <FileText size={14} /> Berita Acara (BAST)
                 </a>
               </li>
               <li className={`${styles["sub-nav-item"]} ${activeTab === "complain" ? styles.active : ""}`}>
