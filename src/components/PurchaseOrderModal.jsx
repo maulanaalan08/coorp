@@ -3,6 +3,11 @@ import styles from '../styles/PurchaseOrderModal.module.css';
 import { X, ShoppingCart, Plus } from 'lucide-react';
 import { poService } from '../services/poService';
 import toast from 'react-hot-toast';
+
+const fmtVol = (n) => {
+  const num = Number(n || 0);
+  return isNaN(num) ? '0' : parseFloat(num.toFixed(3)).toString();
+};
 import SupplierModal from './SupplierModal';
 
 const fmtRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 });
@@ -47,6 +52,7 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, onClose, onSu
       const initialItems = (editingPo.items || []).map(item => ({
         materialRequestId: item.materialRequestId,
         description: item.description,
+        estVol: '-',
         sisa: '-',
         qty: item.qty,
         unit: item.unit || '',
@@ -58,10 +64,11 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, onClose, onSu
       const initialItems = (selectedItems || []).map(item => {
         const sisaHitung = Math.max(0, (item.estimatedVolume || 0) - (item.orderedQty || 0));
         return {
-          materialRequestId: item.id,
+          materialRequestId: item.mrItemId || item.id,
           description: item.itemName,
-          sisa: `${sisaHitung} ${item.unit || ''}`,
-          qty: sisaHitung,
+          estVol: `${fmtVol(item.estimatedVolume)} ${item.unit || ''}`,
+          sisa: `${fmtVol(sisaHitung)} ${item.unit || ''}`,
+          qty: parseFloat(Number(sisaHitung).toFixed(3)),
           unit: item.unit || '',
           unitPrice: item.pricePerUnit || 0,
           total: 0 // dihitung nanti
@@ -245,6 +252,7 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, onClose, onSu
                   <thead>
                     <tr>
                       <th>Deskripsi Barang</th>
+                      <th>Est Vol</th>
                       <th>Sisa Butuh</th>
                       <th>Qty Beli</th>
                       <th>Harga Satuan (Rp)</th>
@@ -258,7 +266,8 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, onClose, onSu
                       calculatedItems.map((item, index) => (
                         <tr key={index}>
                           <td>{item.description}</td>
-                          <td>{item.sisa}</td>
+                          <td><span style={{ color: '#888', fontSize: '0.9rem' }}>{item.estVol}</span></td>
+                          <td><strong style={{ color: '#fb923c' }}>{item.sisa}</strong></td>
                           <td>
                             <input
                               type="number"

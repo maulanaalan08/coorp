@@ -22,6 +22,7 @@ import PurchaseOrderPage from "./pages/PurchaseOrderPage";
 import ComplaintPage from "./pages/ComplaintPage";
 import PrintPOPage from "./pages/PrintPOPage";
 import BastPage from "./pages/BastPage";
+import ItemTrackingPage from "./pages/ItemTrackingPage";
 import { Bot } from "lucide-react";
 
 function App() {
@@ -57,8 +58,8 @@ function App() {
     <div style={{ display: "flex", width: "100vw", minHeight: "100vh", backgroundColor: "#0c0b09" }}>
 
       {/* Konfigurasi Notifikasi Toaster dari react-hot-toast */}
-      <Toaster 
-        position="top-right" 
+      <Toaster
+        position="top-right"
         toastOptions={{
           style: {
             background: '#1a1814',
@@ -74,13 +75,13 @@ function App() {
           },
         }}
       />
-      
+
       {/* Sidebar - Kita bisa passing prop onLogout agar user bisa keluar dari menu sidebar */}
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        onLogout={logoutAuth} 
-        user={user} 
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onLogout={logoutAuth}
+        user={user}
       />
 
       {/* Konten Utama berdasarkan tab yang aktif */}
@@ -102,11 +103,12 @@ function App() {
         {activeTab === "join-opname" && <JoinOpnamePage />}
         {activeTab === "bast" && <BastPage />}
         {activeTab === "complain" && <ComplaintPage />}
+        {activeTab === "item-tracking" && <ItemTrackingPage />}
       </main>
 
       {/* Floating Chatbot Placeholder */}
-      <button 
-        type="button" 
+      <button
+        type="button"
         onClick={() => alert("Chatbot feature coming soon!")}
         style={{
           position: "fixed",

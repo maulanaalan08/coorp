@@ -13,6 +13,11 @@ import toast from 'react-hot-toast';
 const fmtRp = (n) =>
   "Rp " + Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 });
 
+const fmtVol = (n) => {
+  const num = Number(n || 0);
+  return isNaN(num) ? '0' : parseFloat(num.toFixed(3)).toString();
+};
+
 const PurchaseOrderPage = () => {
   const [activeTab, setActiveTab] = useState('buat-po'); // 'buat-po' atau 'riwayat-po'
   const [search, setSearch] = useState('');
@@ -178,7 +183,7 @@ const PurchaseOrderPage = () => {
                             <th style={{ width: '40px' }}>Pilih</th>
                             <th>ITEM MATERIAL</th>
                             <th>SATUAN</th>
-                            <th className={styles.cellRight}>VOL</th>
+                            <th className={styles.cellRight}>EST VOL</th>
                             <th className={styles.cellRight}>TELAH DI-ORDER</th>
                             <th className={styles.cellRight}>HARGA SATUAN</th>
                             {hasFinanceData && <th>SUPPLIER / TOKO</th>}
@@ -201,8 +206,8 @@ const PurchaseOrderPage = () => {
                                 </td>
                                 <td>{item.itemName}</td>
                                 <td>{item.unit}</td>
-                                <td className={`${styles.cellMono} ${styles.cellRight}`}>{item.estimatedVolume}</td>
-                                <td className={`${styles.cellMono} ${styles.cellRight}`}>{item.orderedVolume || 0}</td>
+                                <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtVol(item.estimatedVolume)}</td>
+                                <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtVol(item.orderedVolume || 0)}</td>
                                 <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(item.pricePerUnit)}</td>
                                 {hasFinanceData && (
                                   <td>
