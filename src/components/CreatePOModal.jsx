@@ -29,7 +29,7 @@ const CreatePOModal = ({ isOpen, onClose, selectedItem, mrItem }) => {
         nomorPO: `PO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
         supplierId: suppliers.length > 0 ? suppliers[0].id : '',
         tanggalPO: new Date().toISOString().split('T')[0],
-        qty: defaultQty.toFixed(4),
+        qty: defaultQty.toFixed(2),
         hargaDeal: selectedItem.unitPrice || 0,
       });
     }

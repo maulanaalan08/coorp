@@ -1,4 +1,3 @@
-// src/pages/ItemTrackingPage.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   MapPin,
@@ -6,21 +5,18 @@ import {
   Clock,
   CheckCircle,
   Truck,
-  Save,
   Search,
   AlertCircle,
   RefreshCw,
+  FileText
 } from 'lucide-react';
-import styles from '../styles/ItemTracking.module.css';
 import Header from '../components/Header';
 import ProjectSelector from '../components/ProjectSelector';
 import { useProjects } from '../hooks/useProjects';
-import { fetchAPI } from '../services/api';
 import { lapanganService } from '../services/lapanganService';
 import toast from 'react-hot-toast';
-import SuratJalanModal from '../components/SuratJalanModal';
+import BulkSuratJalanModal from '../components/BulkSuratJalanModal';
 
-// Helpers
 const toInputDate = (val) => {
   if (!val) return '';
   try {
@@ -34,18 +30,6 @@ const fmtNum = (n) => {
   return isNaN(num) ? '0' : num.toLocaleString('id-ID', { maximumFractionDigits: 2 });
 };
 
-// Status Badge 
-const StatusBadge = ({ status }) => {
-  if (status === 'COMPLETED') {
-    return <span className={`${styles.badge} ${styles.badgeCompleted}`}><CheckCircle size={12} /> Selesai</span>;
-  }
-  if (status === 'PARTIAL') {
-    return <span className={`${styles.badge} ${styles.badgePartial}`}><Truck size={12} /> Sebagian</span>;
-  }
-  return <span className={`${styles.badge} ${styles.badgePending}`}><Clock size={12} /> Pending</span>;
-};
-
-//  Main Component 
 const ItemTrackingPage = () => {
   const { projects: projectList, loading: loadingProjects } = useProjects();
 
@@ -54,40 +38,23 @@ const ItemTrackingPage = () => {
   const [loading, setLoading]     = useState(false);
   const [search, setSearch]       = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
-  const [isSaving, setIsSaving]   = useState(false);
-  const [edits, setEdits]         = useState({});
 
-  const [selectedSJItem, setSelectedSJItem] = useState(null);
-  const [isSJModalOpen, setIsSJModalOpen] = useState(false);
+  // State untuk Checklist & Modal
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [isBulkSJModalOpen, setIsBulkSJModalOpen] = useState(false);
 
   const project = useMemo(
     () => projectList.find((p) => p.id === projectId),
     [projectList, projectId]
   );
 
-  // Fetch data lapangan
   const fetchData = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
     try {
       const data = await lapanganService.getMaterialRequests(projectId);
-      const safeData = Array.isArray(data) ? data : [];
-      setMrData(safeData);
-
-      // Inisialisasi edits dari nilai DB
-      const init = {};
-      safeData.forEach((mr) => {
-        (mr.items || []).forEach((item) => {
-          const key = item.id; // Gunakan split ID untuk state lokal (agar baris yang pecah bisa diketik terpisah)
-          if (!init[key]) {
-            init[key] = {
-              tanggalOnsite: toInputDate(item.tanggalOnsite),
-              updateLapangan: item.updateLapangan || '',
-            };
-          }
-        });
-      });
-      setEdits(init);
+      setMrData(Array.isArray(data) ? data : []);
+      setSelectedItems([]);
     } catch (err) {
       console.error('Item Tracking fetch error:', err);
       toast.error('Gagal memuat data lapangan.');
@@ -99,13 +66,12 @@ const ItemTrackingPage = () => {
 
   useEffect(() => {
     setMrData([]);
-    setEdits({});
+    setSelectedItems([]);
     setSearch('');
     setFilterStatus('ALL');
     fetchData();
   }, [fetchData]);
 
-  // Flatten semua items
   const allItems = useMemo(() => {
     const result = [];
     mrData.forEach((mr) => {
@@ -114,7 +80,6 @@ const ItemTrackingPage = () => {
     return result;
   }, [mrData]);
 
-  // Filter 
   const filteredItems = useMemo(() => {
     return allItems.filter((item) => {
       const matchStatus = filterStatus === 'ALL' || item.status === filterStatus;
@@ -129,7 +94,6 @@ const ItemTrackingPage = () => {
     });
   }, [allItems, filterStatus, search]);
 
-  // Stats 
   const stats = useMemo(() => ({
     total:     allItems.length,
     pending:   allItems.filter((i) => i.status === 'PENDING').length,
@@ -137,56 +101,6 @@ const ItemTrackingPage = () => {
     completed: allItems.filter((i) => i.status === 'COMPLETED').length,
   }), [allItems]);
 
-  // Handle edit lokal 
-  const handleEdit = (mrKey, field, value) => {
-    setEdits((prev) => ({
-      ...prev,
-      [mrKey]: { ...(prev[mrKey] || {}), [field]: value },
-    }));
-  };
-
-  // Save semua (bulk)
-  const handleSaveAll = async () => {
-    const keys = [...new Set(
-      allItems
-        .filter((item) => item.status !== 'PENDING')
-        .map((item) => item.mrItemId || item.id)
-    )];
-
-    if (keys.length === 0) {
-      toast('Tidak ada item yang bisa diperbarui (semua masih PENDING)', { icon: 'ΓÜá∩╕Å' });
-      return;
-    }
-
-    const payload = [];
-    keys.forEach(key => {
-      const item = allItems.find(i => i.id === key);
-      if (item && item.status !== 'PENDING') {
-        payload.push({
-          id: item.mrItemId || item.id, // Backend butuh mrItemId yang asli!
-          tanggalOnsite: edits[key]?.tanggalOnsite || null,
-          updateLapangan: edits[key]?.updateLapangan || '',
-        });
-      }
-    });
-
-    if (payload.length === 0) {
-      toast('Tidak ada item yang bisa disimpan', { icon: '⚠️' });
-      return;
-    }
-
-    setIsSaving(true);
-    toast.promise(
-      lapanganService.updateBulk(payload),
-      {
-        loading: 'Menyimpan progress lapangan...',
-        success: `Berhasil simpan ${payload.length} item!`,
-        error: 'Gagal menyimpan data lapangan.',
-      }
-    ).finally(() => setIsSaving(false));
-  };
-
-  // Group by groupName 
   const grouped = useMemo(() => {
     const map = {};
     filteredItems.forEach((item) => {
@@ -199,24 +113,44 @@ const ItemTrackingPage = () => {
 
   const isLoading = loadingProjects || loading;
 
-  // ── RENDER ──────────────────────────────────────────────────────────
+  // Handler Checklist
+  const eligibleItems = filteredItems.filter(i => i.poNumber !== '-' && i.status !== 'PENDING');
+  
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedItems(eligibleItems);
+    } else {
+      setSelectedItems([]);
+    }
+  };
+
+  const handleToggleSelect = (item) => {
+    setSelectedItems(prev => {
+      const exists = prev.find(i => i.id === item.id);
+      if (exists) {
+        return prev.filter(i => i.id !== item.id);
+      } else {
+        return [...prev, item];
+      }
+    });
+  };
+
   return (
-    <div className={styles.wrapper}>
+    <div className="min-h-screen bg-[#0c0b09] text-[#f2ead9] font-sans">
       <Header />
 
-      {/* ─── TOP HEADER ─── */}
-      <header className={styles.pageHeader}>
-        <div className={styles.headerLeft}>
-          <p className={styles.eyebrow}>
-            {project?.name ? `Project: ${project.name}` : 'Pelaksanaan'}
+      <header className="px-5 py-6 md:px-10 border-b border-white/5 bg-[#11100e] sticky top-0 z-40 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div>
+          <p className="text-[#d4af37] font-bold text-xs uppercase tracking-widest mb-1.5 flex items-center gap-2">
+            <MapPin size={14} /> {project?.name ? `Project: ${project.name}` : 'Pelaksanaan Lapangan'}
           </p>
-          <h2 className={styles.pageTitle}>Item Tracking</h2>
-          <p className={styles.pageSubtitle}>
-            Pantau status pengiriman material &amp; update progres lapangan.
+          <h2 className="text-3xl font-extrabold m-0 text-white tracking-tight">Item Tracking</h2>
+          <p className="text-[#888] mt-1 text-sm md:text-base">
+            Centang barang yang datang dan catat dalam satu Surat Jalan.
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 300 }}>
+        <div className="flex flex-col gap-3 w-full md:w-auto min-w-[300px]">
           <ProjectSelector
             projectId={projectId}
             projectList={projectList}
@@ -224,325 +158,331 @@ const ItemTrackingPage = () => {
             onChange={(e) => setProjectId(e.target.value || null)}
           />
           {projectId && (
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div className="flex gap-2 justify-end">
               <button
                 onClick={fetchData}
                 disabled={loading}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#aaa', padding: '8px 14px', borderRadius: 8,
-                  fontSize: 13, cursor: 'pointer',
-                }}
+                className="flex items-center gap-2 bg-white/5 border border-white/10 text-[#aaa] px-4 py-2 rounded-lg text-sm cursor-pointer hover:bg-white/10 transition-colors disabled:opacity-50"
               >
-                <RefreshCw size={13} /> Refresh
-              </button>
-              <button
-                onClick={handleSaveAll}
-                disabled={isSaving || loading}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  background: 'linear-gradient(135deg,#d4af37,#a8862a)',
-                  border: 'none', color: '#0c0b09',
-                  padding: '8px 18px', borderRadius: 8,
-                  fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                  opacity: isSaving || loading ? 0.6 : 1,
-                }}
-              >
-                <Save size={13} /> Simpan Semua
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
               </button>
             </div>
           )}
         </div>
       </header>
 
-      {/* ─── CONTENT ─── */}
-      <div className={styles.content}>
-
-        {/* Belum pilih proyek */}
+      <div className="p-5 md:p-10 max-w-7xl mx-auto">
         {!projectId && (
-          <div className={styles.emptyState}>
-            <MapPin size={52} className={styles.emptyIcon} />
-            <h3>Pilih Proyek Terlebih Dahulu</h3>
-            <p>Pilih proyek dari dropdown di atas untuk melihat daftar material yang dipantau tim lapangan.</p>
+          <div className="py-20 flex flex-col items-center justify-center text-center bg-white/5 border border-white/10 rounded-2xl">
+            <MapPin size={52} className="text-[#d4af37] mb-4 opacity-80" />
+            <h3 className="text-xl font-bold text-white mb-2">Pilih Proyek Terlebih Dahulu</h3>
+            <p className="text-[#aaa] max-w-md">Pilih proyek dari dropdown di atas untuk memantau penerimaan material.</p>
           </div>
         )}
 
-        {/* Loading */}
         {projectId && isLoading && (
-          <div className={styles.emptyState}>
-            <div style={{
-              width: 40, height: 40, border: '3px solid rgba(212,175,55,0.15)',
-              borderTopColor: '#d4af37', borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-            }} />
-            <p style={{ color: '#888', marginTop: 12 }}>Memuat data material...</p>
+          <div className="py-20 flex flex-col items-center justify-center">
+            <div className="w-10 h-10 border-4 border-[#d4af37]/20 border-t-[#d4af37] rounded-full animate-spin"></div>
+            <p className="text-[#888] mt-4 font-medium">Memuat data material...</p>
           </div>
         )}
 
-        {/* Data tersedia */}
         {projectId && !isLoading && (
           <>
-            {/* ─── STAT CARDS ─── */}
-            <div className={styles.statsGrid}>
-              <div className={`${styles.statCard} ${styles.green}`}>
-                <div className={styles.statInfo}>
-                  <div className={styles.statLabel}>
-                    <Package size={16} className={styles.statIcon} />
-                    Total Item
-                  </div>
-                  <div className={styles.statValue}>{stats.total}</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="bg-[#151a16] border border-[#2e7d32]/30 p-4 rounded-xl flex flex-col">
+                <div className="flex items-center gap-2 text-[#4caf50] font-bold text-sm mb-2">
+                  <Package size={16} /> Total Item
                 </div>
-                <div className={styles.statDesc}>Seluruh item material proyek ini</div>
+                <div className="text-3xl font-extrabold text-white mb-1">{stats.total}</div>
+                <div className="text-xs text-[#888]">Seluruh item material proyek</div>
               </div>
-
-              <div className={`${styles.statCard} ${styles.red}`}>
-                <div className={styles.statInfo}>
-                  <div className={styles.statLabel}>
-                    <Clock size={16} className={styles.statIcon} />
-                    Pending
-                  </div>
-                  <div className={styles.statValue}>{stats.pending}</div>
+              <div className="bg-[#1f1616] border border-[#d32f2f]/30 p-4 rounded-xl flex flex-col">
+                <div className="flex items-center gap-2 text-[#f44336] font-bold text-sm mb-2">
+                  <Clock size={16} /> Pending
                 </div>
-                <div className={styles.statDesc}>Belum diproses Finance / PO</div>
+                <div className="text-3xl font-extrabold text-white mb-1">{stats.pending}</div>
+                <div className="text-xs text-[#888]">Belum diproses Finance</div>
               </div>
-
-              <div className={`${styles.statCard} ${styles.blue}`}>
-                <div className={styles.statInfo}>
-                  <div className={styles.statLabel}>
-                    <Truck size={16} className={styles.statIcon} />
-                    Sebagian Diterima
-                  </div>
-                  <div className={styles.statValue}>{stats.partial}</div>
+              <div className="bg-[#121921] border border-[#1976d2]/30 p-4 rounded-xl flex flex-col">
+                <div className="flex items-center gap-2 text-[#38bdf8] font-bold text-sm mb-2">
+                  <Truck size={16} /> Sebagian
                 </div>
-                <div className={styles.statDesc}>Sudah ada PO, belum lengkap</div>
+                <div className="text-3xl font-extrabold text-white mb-1">{stats.partial}</div>
+                <div className="text-xs text-[#888]">Sudah PO, fisik kurang</div>
               </div>
-
-              <div className={`${styles.statCard} ${styles.gold}`}>
-                <div className={styles.statInfo}>
-                  <div className={styles.statLabel}>
-                    <CheckCircle size={16} className={styles.statIcon} />
-                    Selesai
-                  </div>
-                  <div className={styles.statValue}>{stats.completed}</div>
+              <div className="bg-[#1f1c11] border border-[#d4af37]/30 p-4 rounded-xl flex flex-col">
+                <div className="flex items-center gap-2 text-[#d4af37] font-bold text-sm mb-2">
+                  <CheckCircle size={16} /> Selesai
                 </div>
-                <div className={styles.statDesc}>Material lengkap diterima</div>
+                <div className="text-3xl font-extrabold text-white mb-1">{stats.completed}</div>
+                <div className="text-xs text-[#888]">Material lengkap diterima</div>
               </div>
             </div>
 
-            {/* ─── TABLE SECTION ─── */}
-            <div className={styles.tableSection}>
-              <div className={styles.tableSectionHeader}>
-                <h3 className={styles.tableSectionTitle}>
-                  <MapPin size={18} color="#d4af37" />
-                  Daftar Material Lapangan
-                </h3>
-
-                {/* Filter & Search */}
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                  {/* Search */}
-                  <div className={styles.searchWrap}>
-                    <Search size={14} className={styles.searchIcon} />
-                    <input
-                      className={styles.searchInput}
-                      placeholder="Cari item, supplier, PO..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                    />
+            <div className="bg-[#11100e] border border-white/5 rounded-2xl overflow-hidden shadow-xl">
+              <div className="p-5 border-b border-white/5 bg-[#161513] flex flex-col gap-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <h3 className="m-0 text-lg font-bold flex items-center gap-2 text-white">
+                    <MapPin size={18} className="text-[#d4af37]" />
+                    Daftar Material Lapangan
+                  </h3>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1 sm:flex-none">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" />
+                      <input
+                        className="w-full sm:w-56 bg-white/5 border border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm text-white placeholder:text-[#666] focus:outline-none focus:border-[#d4af37] transition-colors"
+                        placeholder="Cari item, supplier, PO..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
+                      {[
+                        { key: 'ALL',       label: 'Semua',    n: stats.total },
+                        { key: 'PENDING',   label: 'Pending',  n: stats.pending },
+                        { key: 'PARTIAL',   label: 'Sebagian', n: stats.partial },
+                        { key: 'COMPLETED', label: 'Selesai',  n: stats.completed },
+                      ].map(({ key, label, n }) => (
+                        <button
+                          key={key}
+                          onClick={() => setFilterStatus(key)}
+                          className={`px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all border ${
+                            filterStatus === key 
+                              ? 'border-[#d4af37] bg-[#d4af37]/10 text-[#d4af37]' 
+                              : 'border-white/10 bg-white/5 text-[#888] hover:bg-white/10'
+                          }`}
+                        >
+                          {label} ({n})
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                </div>
 
-                  {/* Filter buttons */}
-                  {[
-                    { key: 'ALL',       label: 'Semua',    n: stats.total },
-                    { key: 'PENDING',   label: 'Pending',  n: stats.pending },
-                    { key: 'PARTIAL',   label: 'Sebagian', n: stats.partial },
-                    { key: 'COMPLETED', label: 'Selesai',  n: stats.completed },
-                  ].map(({ key, label, n }) => (
-                    <button
-                      key={key}
-                      onClick={() => setFilterStatus(key)}
-                      style={{
-                        padding: '6px 12px', borderRadius: 6, fontSize: 12,
-                        fontWeight: 600, cursor: 'pointer', border: '1px solid',
-                        borderColor: filterStatus === key ? '#d4af37' : 'rgba(255,255,255,0.1)',
-                        background: filterStatus === key ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.03)',
-                        color: filterStatus === key ? '#d4af37' : '#888',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      {label} ({n})
-                    </button>
-                  ))}
+                {/* Tombol Terima Barang Terpilih */}
+                <div className="pt-2">
+                  <button
+                    onClick={() => setIsBulkSJModalOpen(true)}
+                    disabled={selectedItems.length === 0}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                      selectedItems.length > 0
+                        ? 'bg-gradient-to-br from-[#d4af37] to-[#a8862a] text-[#0c0b09] shadow-lg shadow-[#d4af37]/20 hover:scale-[1.02]'
+                        : 'bg-white/5 text-[#666] border border-white/10 cursor-not-allowed'
+                    }`}
+                  >
+                    <FileText size={16} />
+                    Terima Barang Terpilih ({selectedItems.length})
+                  </button>
                 </div>
               </div>
 
-              {/* Empty state */}
               {filteredItems.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <AlertCircle size={44} className={styles.emptyIcon} />
-                  <h3>Tidak Ada Data</h3>
-                  <p>
-                    {allItems.length === 0
-                      ? 'Proyek ini belum memiliki permintaan material. Kunci RAB dari modul RAB & Budgeting terlebih dahulu.'
-                      : 'Tidak ada item yang cocok dengan filter atau pencarian.'}
+                <div className="py-20 flex flex-col items-center justify-center text-center">
+                  <AlertCircle size={44} className="text-[#555] mb-4" />
+                  <h3 className="text-lg font-bold text-white mb-2">Tidak Ada Data</h3>
+                  <p className="text-[#aaa]">
+                    Tidak ada item yang cocok dengan filter atau pencarian.
                   </p>
                 </div>
               ) : (
                 <>
-                  <div className={styles.tableWrapper}>
-                    <table className={styles.table}>
-                      <thead>
-                        <tr>
-                          <th style={{ width: '3%' }}>#</th>
-                          <th style={{ width: '22%' }}>Nama Item</th>
-                          <th style={{ width: '12%' }}>Pekerjaan</th>
-                          <th style={{ width: '9%' }}>Vol. Butuh</th>
-                          <th style={{ width: '15%' }}>Supplier / PO</th>
-                          <th style={{ width: '9%' }}>Status</th>
-                          <th style={{ width: '13%' }}>Tgl. Onsite</th>
-                          <th>Update Lapangan</th>
-                          <th style={{ width: '10%' }}>Surat Jalan</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(grouped).map(([groupName, items]) => (
-                          <React.Fragment key={groupName}>
-                            {/* Group header row */}
-                              <tr className={styles.groupRow}>
-                                <td colSpan={9}>
-                                  <div style={{ display: 'flex', alignItems: 'center', color: '#d4af37', fontSize: 12, fontWeight: 700 }}>
-                                    <Package size={14} style={{ marginRight: 6 }} /> {groupName}
-                                  </div>
-                                </td>
-                              </tr>
-
-                              {items.map((item, idx) => {
-                                const rowKey    = item.id;
-                                const edit      = edits[rowKey] || {};
-                                const isPending = item.status === 'PENDING';
-                                const isFromPO  = item.poNumber !== '-';
-
-                                return (
-                                <tr key={`${item.id}-${idx}`}>
-                                  <td style={{ color: '#555', fontSize: 12 }}>{idx + 1}</td>
-
-                                  {/* Nama Item */}
-                                  <td>
-                                    <div style={{ fontWeight: 500, color: '#eee', fontSize: 13 }}>
-                                      {item.itemName || 'ΓÇö'}
+                  <div className="w-full">
+                    {/* Desktop View */}
+                    <div className="hidden lg:block overflow-x-auto pb-4">
+                      <table className="w-full text-left border-collapse min-w-[1200px] table-fixed">
+                        <thead>
+                          <tr className="bg-[#1a1917] border-b border-white/5 text-xs uppercase tracking-wider text-[#888]">
+                            <th className="p-4 font-semibold w-[5%] text-center">
+                              <input 
+                                type="checkbox" 
+                                className="accent-[#d4af37] w-4 h-4 cursor-pointer"
+                                checked={eligibleItems.length > 0 && selectedItems.length === eligibleItems.length}
+                                onChange={handleSelectAll}
+                              />
+                            </th>
+                            <th className="p-4 font-semibold w-[18%]">Nama Item</th>
+                            <th className="p-4 font-semibold w-[16%]">Pekerjaan</th>
+                            <th className="p-4 font-semibold w-[8%]">Vol.</th>
+                            <th className="p-4 font-semibold w-[14%]">Supplier / PO</th>
+                            <th className="p-4 font-semibold w-[9%]">Status</th>
+                            <th className="p-4 font-semibold w-[12%]">Tgl. Onsite</th>
+                            <th className="p-4 font-semibold w-[18%]">Update Lapangan</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(grouped).map(([groupName, items]) => (
+                            <React.Fragment key={groupName}>
+                                <tr className="bg-[#161513]">
+                                  <td colSpan={8} className="px-4 py-3 border-b border-white/5">
+                                    <div className="flex items-center text-[#d4af37] text-xs font-bold uppercase tracking-wider">
+                                      <Package size={14} className="mr-2" /> {groupName}
                                     </div>
-                                    {item.unit && (
-                                      <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
-                                        Satuan: {item.unit}
+                                  </td>
+                                </tr>
+                                {items.map((item, idx) => {
+                                  const isPending = item.status === 'PENDING';
+                                  const isFromPO  = item.poNumber !== '-';
+                                  const isEligible = !isPending && isFromPO;
+                                  const isSelected = selectedItems.some(i => i.id === item.id);
+
+                                  return (
+                                  <tr key={`${item.id}-${idx}`} className={`border-b border-white/5 transition-colors group ${isSelected ? 'bg-[#d4af37]/5' : 'hover:bg-white/[0.02]'}`}>
+                                    <td className="p-4 align-top text-center">
+                                      <input 
+                                        type="checkbox"
+                                        disabled={!isEligible}
+                                        checked={isSelected}
+                                        onChange={() => handleToggleSelect(item)}
+                                        className="accent-[#d4af37] w-4 h-4 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                      />
+                                    </td>
+                                    <td className="p-4 align-top">
+                                      <div className="font-semibold text-white text-sm">
+                                        {item.itemName || '—'}
                                       </div>
-                                    )}
-                                  </td>
+                                      {item.unit && (
+                                        <div className="text-xs text-[#666] mt-1">
+                                          Satuan: {item.unit}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="p-4 text-xs text-[#999] align-top break-words">
+                                      <div className="line-clamp-3" title={item.jobName || '—'}>
+                                        {item.jobName || '—'}
+                                      </div>
+                                    </td>
+                                    <td className="p-4 align-top">
+                                      <span className="font-mono text-sm bg-white/5 px-2 py-1 rounded text-[#ccc]">
+                                        {fmtNum(item.estimatedVolume)}
+                                      </span>
+                                    </td>
+                                    <td className="p-4 align-top">
+                                      <div className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${isFromPO ? 'bg-[#38bdf8]/10 border-[#38bdf8]/20 text-[#38bdf8]' : 'bg-[#fb923c]/10 border-[#fb923c]/20 text-[#fb923c]'}`}>
+                                        <Truck size={10} />
+                                        {item.supplierName || '—'}
+                                      </div>
+                                      {isFromPO && (
+                                        <div className="text-[11px] text-[#666] mt-1.5 font-mono">
+                                          {item.poNumber}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="p-4 align-top">
+                                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wider uppercase border shadow-sm ${
+                                        item.status === 'COMPLETED' ? 'bg-gradient-to-br from-[#2e7d32]/20 to-[#2e7d32]/10 text-[#4caf50] border-[#4caf50]/30' :
+                                        item.status === 'PARTIAL' ? 'bg-gradient-to-br from-[#d4af37]/20 to-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30' :
+                                        'bg-white/5 text-[#888] border-white/10'
+                                      }`}>
+                                        {item.status}
+                                      </span>
+                                    </td>
+                                    <td className="p-4 align-top">
+                                      {item.tanggalOnsite ? (
+                                        <div className="text-sm text-white">{toInputDate(item.tanggalOnsite)}</div>
+                                      ) : (
+                                        <div className="text-sm text-[#555] italic">Belum ada</div>
+                                      )}
+                                    </td>
+                                    <td className="p-4 align-top">
+                                      <div className={`text-sm ${item.updateLapangan ? 'text-white' : 'text-[#555] italic'}`}>
+                                        {item.updateLapangan || 'Belum ada catatan'}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
 
-                                  {/* Pekerjaan */}
-                                  <td style={{ fontSize: 12, color: '#999' }}>
-                                    {item.jobName || '—'}
-                                  </td>
+                    {/* Mobile View */}
+                    <div className="lg:hidden flex flex-col p-4 gap-4 bg-[#0a0908]">
+                      {Object.entries(grouped).map(([groupName, items]) => (
+                        <div key={groupName} className="flex flex-col gap-3">
+                          <div className="flex items-center gap-2 text-[#d4af37] text-xs font-bold uppercase tracking-wider mb-1 mt-2">
+                            <Package size={14} /> {groupName}
+                          </div>
+                          
+                          {items.map((item, idx) => {
+                            const isPending = item.status === 'PENDING';
+                            const isFromPO  = item.poNumber !== '-';
+                            const isEligible = !isPending && isFromPO;
+                            const isSelected = selectedItems.some(i => i.id === item.id);
 
-                                  {/* Volume */}
-                                  <td className={styles.cellMono}>
-                                    {fmtNum(item.estimatedVolume)}
-                                  </td>
+                            return (
+                              <div key={`${item.id}-${idx}`} className={`border border-white/10 rounded-xl p-4 flex flex-col gap-4 shadow-sm relative overflow-hidden transition-colors ${isSelected ? 'bg-[#d4af37]/5 border-[#d4af37]/50' : 'bg-[#11100e]'}`}>
+                                <div className={`absolute top-0 left-0 w-1 h-full ${
+                                  item.status === 'COMPLETED' ? 'bg-[#4caf50]' :
+                                  item.status === 'PARTIAL' ? 'bg-[#d4af37]' : 'bg-[#555]'
+                                }`}></div>
+                                
+                                <div className="flex justify-between items-start gap-2 pl-2">
+                                  <div className="flex items-start gap-3">
+                                    <div className="mt-1">
+                                      <input 
+                                        type="checkbox"
+                                        disabled={!isEligible}
+                                        checked={isSelected}
+                                        onChange={() => handleToggleSelect(item)}
+                                        className="accent-[#d4af37] w-5 h-5 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                      />
+                                    </div>
+                                    <div>
+                                      <h4 className="text-white font-bold text-base m-0">{item.itemName || '—'}</h4>
+                                      <p className="text-[#888] text-xs m-0 mt-0.5">{item.jobName || '—'}</p>
+                                    </div>
+                                  </div>
+                                  <span className={`shrink-0 inline-flex px-2 py-1 rounded text-[10px] font-extrabold uppercase border ${
+                                    item.status === 'COMPLETED' ? 'bg-[#2e7d32]/20 text-[#4caf50] border-[#4caf50]/30' :
+                                    item.status === 'PARTIAL' ? 'bg-[#d4af37]/20 text-[#d4af37] border-[#d4af37]/30' :
+                                    'bg-white/5 text-[#888] border-white/10'
+                                  }`}>
+                                    {item.status}
+                                  </span>
+                                </div>
 
-                                  {/* Supplier & PO */}
-                                  <td>
-                                    <div style={{
-                                      display: 'inline-flex', alignItems: 'center', gap: 5,
-                                      fontSize: 12, padding: '3px 10px', borderRadius: 20,
-                                      background: isFromPO ? 'rgba(56,189,248,0.08)' : 'rgba(251,146,60,0.08)',
-                                      border: `1px solid ${isFromPO ? 'rgba(56,189,248,0.2)' : 'rgba(251,146,60,0.2)'}`,
-                                      color: isFromPO ? '#38bdf8' : '#fb923c',
-                                    }}>
+                                <div className="grid grid-cols-2 gap-3 pl-2 text-sm border-t border-white/5 pt-3">
+                                  <div>
+                                    <p className="text-[#666] text-xs mb-1">Vol. Butuh</p>
+                                    <p className="font-mono text-[#ccc] m-0">{fmtNum(item.estimatedVolume)} {item.unit}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[#666] text-xs mb-1">Supplier</p>
+                                    <div className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border ${isFromPO ? 'bg-[#38bdf8]/10 border-[#38bdf8]/20 text-[#38bdf8]' : 'bg-[#fb923c]/10 border-[#fb923c]/20 text-[#fb923c]'}`}>
                                       <Truck size={10} />
                                       {item.supplierName || '—'}
                                     </div>
-                                    {item.poNumber && item.poNumber !== '-' && (
-                                      <div style={{ fontSize: 11, color: '#666', marginTop: 3 }}>
-                                        {item.poNumber}
-                                      </div>
-                                    )}
-                                  </td>
+                                  </div>
+                                </div>
 
-                                  {/* Status */}
-                                  <td><StatusBadge status={item.status} /></td>
-
-                                  {/* Tanggal Onsite */}
-                                  <td>
-                                    <input
-                                      type="date"
-                                      value={edit.tanggalOnsite || ''}
-                                      disabled={isPending || !isFromPO}
-                                      onChange={(e) => handleEdit(rowKey, 'tanggalOnsite', e.target.value)}
-                                      className={styles.cellInput}
-                                      style={{ opacity: (isPending || !isFromPO) ? 0.35 : 1 }}
-                                    />
-                                    {(isPending || !isFromPO) && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#fb923c', marginTop: 4, fontStyle: 'italic' }}>
-                                        <AlertCircle size={12} /> Tunggu PO
-                                      </div>
-                                    )}
-                                  </td>
-
-                                  {/* Update Lapangan */}
-                                  <td>
-                                    <textarea
-                                      value={edit.updateLapangan || ''}
-                                      disabled={isPending || !isFromPO}
-                                      rows={2}
-                                      placeholder={(isPending || !isFromPO) ? 'Menunggu di-PO...' : 'Catatan kondisi barang, kendala...'}
-                                      onChange={(e) => handleEdit(rowKey, 'updateLapangan', e.target.value)}
-                                      className={`${styles.cellInput} ${styles.cellTextarea}`}
-                                      style={{
-                                        opacity: (isPending || !isFromPO) ? 0.35 : 1,
-                                      }}
-                                    />
-                                  </td>
-
-                                  {/* Surat Jalan */}
-                                  <td>
-                                    <button
-                                      disabled={isPending || !isFromPO}
-                                      onClick={() => {
-                                        setSelectedSJItem(item);
-                                        setIsSJModalOpen(true);
-                                      }}
-                                      style={{
-                                        padding: '6px 10px',
-                                        background: (isPending || !isFromPO) ? '#333' : '#38bdf8',
-                                        color: (isPending || !isFromPO) ? '#666' : '#fff',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: (isPending || !isFromPO) ? 'not-allowed' : 'pointer',
-                                        fontSize: '11px',
-                                        fontWeight: 'bold'
-                                      }}
-                                    >
-                                      Upload SJ
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </React.Fragment>
-                        ))}
-                      </tbody>
-                    </table>
+                                <div className="flex flex-col gap-2 pl-2 border-t border-white/5 pt-3">
+                                  <p className="text-[#666] text-xs mb-0">Update Lapangan</p>
+                                  {item.tanggalOnsite ? (
+                                    <div className="text-xs text-white">
+                                      <span className="text-[#888]">Tgl:</span> {toInputDate(item.tanggalOnsite)}
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-[#555] italic">Belum ada Tgl Onsite</div>
+                                  )}
+                                  <div className={`text-sm mt-1 ${item.updateLapangan ? 'text-white' : 'text-[#555] italic'}`}>
+                                    {item.updateLapangan || 'Belum ada catatan...'}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* Footer note */}
-                  <div style={{
-                    padding: '12px 20px', fontSize: 12, color: '#666',
-                    borderTop: '1px solid rgba(255,255,255,0.04)',
-                    display: 'flex', alignItems: 'center', gap: 8,
-                  }}>
-                    <AlertCircle size={12} style={{ color: '#fb923c', flexShrink: 0 }} />
-                    Item <strong style={{ color: '#fb923c' }}>PENDING</strong> tidak bisa diisi &mdash; tunggu Finance memproses Purchase Order.
-                    &nbsp; Menampilkan <strong style={{ color: '#eee' }}>{filteredItems.length}</strong> dari {allItems.length} item.
+                  <div className="p-4 md:px-5 md:py-3 text-xs text-[#666] border-t border-white/5 flex items-center gap-2 bg-[#1a1917]">
+                    <AlertCircle size={14} className="text-[#fb923c] shrink-0" />
+                    <span className="flex-1">Item <strong className="text-[#fb923c]">PENDING</strong> tidak bisa dipilih — tunggu Finance memproses PO.</span>
+                    <span className="hidden sm:inline">Menampilkan <strong className="text-white">{filteredItems.length}</strong> item.</span>
                   </div>
                 </>
               )}
@@ -551,73 +491,13 @@ const ItemTrackingPage = () => {
         )}
       </div>
 
-      {/* ─── FLOATING SAVE BUTTON ─── */}
-      {projectId && !isLoading && (
-        <div style={{
-          position: 'fixed',
-          bottom: 30,
-          right: 40,
-          zIndex: 999,
-          display: 'flex',
-          gap: 12,
-          padding: '12px 20px',
-          background: 'rgba(12, 11, 9, 0.85)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(212, 175, 55, 0.2)',
-          borderRadius: 16,
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-          alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', marginRight: 16 }}>
-            <span style={{ fontSize: 13, color: '#eee', fontWeight: 600 }}>Simpan Progress</span>
-            <span style={{ fontSize: 11, color: '#888' }}>Jangan lupa simpan perubahan</span>
-          </div>
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: '#aaa', padding: '10px 16px', borderRadius: 8,
-              fontSize: 13, cursor: 'pointer',
-            }}
-          >
-            <RefreshCw size={14} /> Batal
-          </button>
-          <button
-            onClick={handleSaveAll}
-            disabled={isSaving || loading}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: 'linear-gradient(135deg,#d4af37,#a8862a)',
-              border: 'none', color: '#0c0b09',
-              padding: '10px 24px', borderRadius: 8,
-              fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              opacity: isSaving || loading ? 0.6 : 1,
-              boxShadow: '0 4px 12px rgba(212, 175, 55, 0.2)',
-              transition: 'all 0.2s'
-            }}
-          >
-            <Save size={16} /> Simpan Lapangan
-          </button>
-        </div>
-      )}
-
-      {/* Modal Surat Jalan */}
-      <SuratJalanModal
-        isOpen={isSJModalOpen}
-        onClose={() => {
-          setIsSJModalOpen(false);
-          setSelectedSJItem(null);
-        }}
-        item={selectedSJItem}
+      {/* Modal Surat Jalan Borongan */}
+      <BulkSuratJalanModal
+        isOpen={isBulkSJModalOpen}
+        onClose={() => setIsBulkSJModalOpen(false)}
+        items={selectedItems}
         onSuccess={fetchData}
       />
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 };

@@ -55,7 +55,7 @@ function App() {
 
   // JIKA SUDAH LOGIN: Tampilkan Layout Utama (Sidebar + Main Content)
   return (
-    <div style={{ display: "flex", width: "100vw", minHeight: "100vh", backgroundColor: "#0c0b09" }}>
+    <div className="flex w-full min-h-screen bg-[#0c0b09] overflow-hidden">
 
       {/* Konfigurasi Notifikasi Toaster dari react-hot-toast */}
       <Toaster
@@ -85,7 +85,7 @@ function App() {
       />
 
       {/* Konten Utama berdasarkan tab yang aktif */}
-      <main style={{ flex: 1, marginLeft: "260px", overflowY: "auto" }}>
+      <main className="flex-1 h-screen overflow-y-auto relative w-full">
         {activeTab === "dashboard" && (
           <Dashboard
             onCreateBv={() => setActiveTab("bv")}
@@ -110,28 +110,9 @@ function App() {
       <button
         type="button"
         onClick={() => alert("Chatbot feature coming soon!")}
-        style={{
-          position: "fixed",
-          bottom: "30px",
-          right: "30px",
-          width: "60px",
-          height: "60px",
-          borderRadius: "50%",
-          backgroundColor: "#d4af37",
-          color: "#0c0b09",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          boxShadow: "0 4px 12px rgba(212, 175, 55, 0.4)",
-          border: "none",
-          cursor: "pointer",
-          zIndex: 9999,
-          transition: "transform 0.2s ease",
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.1)"}
-        onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#d4af37] to-[#a8862a] text-[#0c0b09] flex justify-center items-center shadow-lg shadow-[#d4af37]/40 border-none cursor-pointer z-50 hover:scale-110 transition-transform duration-200"
       >
-        <Bot size={32} />
+        <Bot size={28} />
       </button>
     </div>
   );

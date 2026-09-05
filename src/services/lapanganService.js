@@ -15,7 +15,7 @@ export const lapanganService = {
 
   // Update banyak item sekaligus
   updateBulk: (items) =>
-    fetchAPI(`/material-request-items/lapangan-update-bulk`, {
+    fetchAPI(`/po-items/lapangan-update-bulk`, {
       method: 'PUT',
       body: JSON.stringify({ items }),
     }),
@@ -26,4 +26,15 @@ export const lapanganService = {
       method: 'POST',
       body: formData, // FormData doesn't need Content-Type header in fetch API, browser sets it automatically with boundary
     }),
+
+  // Upload Surat Jalan Borongan (Bulk) dengan Foto
+  uploadBulkSuratJalan: (formData) =>
+    fetchAPI(`/surat-jalan/bulk`, {
+      method: 'POST',
+      body: formData,
+    }),
+
+  // Ambil Riwayat Surat Jalan
+  getSuratJalanHistory: (poItemId) =>
+    fetchAPI(`/surat-jalan/${poItemId}`),
 };

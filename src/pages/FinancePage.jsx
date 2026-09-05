@@ -167,7 +167,7 @@ const FinancePage = () => {
   // Calculations
   const totalRap = flattenedItems.reduce((sum, item) => sum + Number(item.rapTotalPrice || 0), 0);
   const totalBeli = mrItems.reduce((sum, mr) => {
-    const volume = Number(editedItems[mr.id]?.orderedVolume || 0);
+    const volume = Number(mr.orderedVolume || 0);
     const unitPrice = Number(mr.pricePerUnit || 0);
     return sum + (volume * unitPrice);
   }, 0);
@@ -348,7 +348,6 @@ const FinancePage = () => {
                                           <th style={{ width: "120px" }}>VOL. DIBELI (PO)</th>
                                           <th style={{ width: "90px" }}>STATUS</th>
                                           <th>CATATAN FINANCE</th>
-                                          <th style={{ width: "100px", textAlign: "center" }}>AKSI</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -374,22 +373,15 @@ const FinancePage = () => {
                                               <td>{c.section}</td>
                                               <td className={styles.cellMono}>
                                                 {mr && mr.estimatedVolume 
-                                                  ? Number(mr.estimatedVolume).toFixed(4)
-                                                  : (Number(c.coefficient) * Number(item.volume)).toFixed(4)}
+                                                  ? Number(mr.estimatedVolume).toFixed(2)
+                                                  : (Number(c.coefficient) * Number(item.volume)).toFixed(2)}
                                               </td>
                                               <td>{c.unit}</td>
                                               <td className={styles.cellMono}>{fmtRp(c.unitPrice)}</td>
                                               <td className={styles.cellMono}>{fmtRp(lineTotal)}</td>
                                               <td>
                                                 {mr ? (
-                                                  <input
-                                                    type="number"
-                                                    className={styles.editInput}
-                                                    value={editedItems[mr.id]?.orderedVolume ?? ""}
-                                                    onChange={(e) => handleEditChange(mr.id, "orderedVolume", e.target.value)}
-                                                    placeholder="0"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                  />
+                                                  <span className={styles.cellMono}>{Number(mr.orderedVolume || 0).toFixed(2)}</span>
                                                 ) : (
                                                   <span style={{ color: "#666" }}>-</span>
                                                 )}
@@ -415,20 +407,6 @@ const FinancePage = () => {
                                                   />
                                                 ) : (
                                                   <span style={{ color: "#666", fontStyle: "italic", fontSize: "11px" }}>Bukan Bahan/Alat</span>
-                                                )}
-                                              </td>
-                                              <td style={{ textAlign: "center" }}>
-                                                {!isUpah && (
-                                                  <button
-                                                    className={styles.primaryBtn}
-                                                    style={{ padding: "4px 8px", fontSize: "12px", width: "100%" }}
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      handleOpenPOModal(c, mr, item.volume);
-                                                    }}
-                                                  >
-                                                    Buat PO
-                                                  </button>
                                                 )}
                                               </td>
                                             </tr>

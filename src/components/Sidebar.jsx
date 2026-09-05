@@ -1,7 +1,4 @@
-// src/components/Sidebar.jsx
-import { useState, useEffect } from "react";
-import styles from "../styles/Sidebar.module.css";
-
+import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   KanbanSquare,
@@ -24,11 +21,11 @@ import {
   ShoppingCart,
   Package,
   LogOut,
+  Menu,
+  X
 } from "lucide-react";
-
 import CreateProjectModal from "./CreateProjectModal";
 
-/** Ambil 1–2 huruf inisial dari nama */
 const getInitials = (name = "") => {
   const parts = name.trim().split(" ");
   if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "?";
@@ -37,6 +34,7 @@ const getInitials = (name = "") => {
 
 const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Dropdown state
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(false);
@@ -44,250 +42,245 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   const [isFinanceOpen, setIsFinanceOpen] = useState(false);
   const [isPurchasingOpen, setIsPurchasingOpen] = useState(false);
 
-  // Auto-buka dropdown sesuai tab aktif
   useEffect(() => {
-    if (["data-survey", "bv", "rab"].includes(activeTab)) {
-      setIsPerencanaanOpen(true);
-    }
-    if (["time-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) {
-      setIsPelaksanaanOpen(true);
-    }
-    if (["finance", "pembelian-siap-pakai"].includes(activeTab)) {
-      setIsFinanceOpen(true);
-    }
-    if (["purchase-orders"].includes(activeTab)) {
-      setIsPurchasingOpen(true);
-    }
+    if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
+    if (["time-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
+    if (["finance", "pembelian-siap-pakai"].includes(activeTab)) setIsFinanceOpen(true);
+    if (["purchase-orders"].includes(activeTab)) setIsPurchasingOpen(true);
   }, [activeTab]);
 
   const handleNavigation = (e, tab) => {
     e.preventDefault();
     setActiveTab(tab);
+    setIsMobileOpen(false); // Close on mobile after navigation
   };
 
+  const NavItem = ({ icon: Icon, label, tab }) => (
+    <li>
+      <a
+        href={`#${tab}`}
+        onClick={(e) => handleNavigation(e, tab)}
+        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all group ${
+          activeTab === tab
+            ? "bg-[#d4af37]/10 text-[#d4af37]"
+            : "text-[#888] hover:bg-white/5 hover:text-white"
+        }`}
+      >
+        <Icon size={18} className={activeTab === tab ? "text-[#d4af37]" : "text-[#888] group-hover:text-white"} />
+        <span>{label}</span>
+      </a>
+    </li>
+  );
+
+  const SubNavItem = ({ icon: Icon, label, tab }) => (
+    <li>
+      <a
+        href={`#${tab}`}
+        onClick={(e) => handleNavigation(e, tab)}
+        className={`flex items-center gap-3 pl-11 pr-4 py-2.5 rounded-lg text-sm font-medium transition-all group ${
+          activeTab === tab
+            ? "bg-[#d4af37]/10 text-[#d4af37]"
+            : "text-[#888] hover:bg-white/5 hover:text-white"
+        }`}
+      >
+        <Icon size={16} className={activeTab === tab ? "text-[#d4af37]" : "text-[#888] group-hover:text-white"} />
+        <span>{label}</span>
+      </a>
+    </li>
+  );
+
   return (
-    <aside className={styles.sidebar}>
-      {/* HEADER / BRAND */}
-      <div className={styles["sidebar-header"]}>
-        <div className={styles["logo-title"]}>DIVES CORP.</div>
-        <div className={styles["logo-subtitle"]}>INTERIOR &amp; CONTRACTOR</div>
-      </div>
+    <>
+      {/* MOBILE TOGGLE BUTTON */}
+      <button 
+        className="md:hidden fixed top-5 left-5 z-50 bg-[#161513] text-white p-2 rounded-md border border-[#333] shadow-lg"
+        onClick={() => setIsMobileOpen(true)}
+      >
+        <Menu size={24} />
+      </button>
 
-      {/* NAVIGATION */}
-      <nav className={styles["sidebar-nav"]}>
-        <ul className={styles["nav-list"]}>
+      {/* OVERLAY FOR MOBILE */}
+      {isMobileOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black/60 z-[90] backdrop-blur-sm"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
 
-          {/* DASHBOARD */}
-          <li className={`${styles["nav-item"]} ${activeTab === "dashboard" ? styles.active : ""}`}>
-            <a href="#dashboard" className={styles["nav-link"]} onClick={(e) => handleNavigation(e, "dashboard")}>
-              <LayoutDashboard className={styles["nav-icon"]} />
-              <span>Dashboard</span>
-            </a>
-          </li>
-
-          {/* PROJECT BOARD */}
-          <li className={`${styles["nav-item"]} ${activeTab === "project-board" ? styles.active : ""}`}>
-            <a href="#project-board" className={styles["nav-link"]} onClick={(e) => handleNavigation(e, "project-board")}>
-              <KanbanSquare className={styles["nav-icon"]} />
-              <span>Project Board</span>
-            </a>
-          </li>
-
-          {/* UPLOAD HSPK */}
-          <li className={`${styles["nav-item"]} ${activeTab === "upload-hspk" ? styles.active : ""}`}>
-            <a href="#upload-hspk" className={styles["nav-link"]} onClick={(e) => handleNavigation(e, "upload-hspk")}>
-              <Upload className={styles["nav-icon"]} />
-              <span>Upload HSPK</span>
-            </a>
-          </li>
-
-          {/* DROPDOWN: PERENCANAAN */}
-          <li className={`${styles["nav-item"]} ${styles["has-dropdown"]}`}>
-            <button
-              type="button"
-              className={`${styles["dropdown-toggle"]} ${isPerencanaanOpen ? styles["dropdown-open"] : ""}`}
-              onClick={() => setIsPerencanaanOpen((v) => !v)}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                <Layers className={styles["nav-icon"]} style={{ margin: 0 }} />
-                Perencanaan
-              </span>
-              {isPerencanaanOpen
-                ? <ChevronDown className={styles.chevron} size={14} />
-                : <ChevronRight className={styles.chevron} size={14} />}
-            </button>
-            <ul className={`${styles["sub-nav-list"]} ${isPerencanaanOpen ? styles.open : ""}`}>
-              <li className={`${styles["sub-nav-item"]} ${activeTab === "data-survey" ? styles.active : ""}`}>
-                <a href="#data-survey" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "data-survey")}>
-                  <Map size={14} /> Data Survey
-                </a>
-              </li>
-              <li className={`${styles["sub-nav-item"]} ${activeTab === "bv" ? styles.active : ""}`}>
-                <a href="#bv" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "bv")}>
-                  <ClipboardList size={14} /> Back Up Volume
-                </a>
-              </li>
-              <li className={`${styles["sub-nav-item"]} ${activeTab === "rab" ? styles.active : ""}`}>
-                <a href="#rab" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "rab")}>
-                  <Wallet size={14} /> RAB &amp; Budgeting
-                </a>
-              </li>
-            </ul>
-          </li>
-
-          {/* DROPDOWN: PELAKSANAAN */}
-          <li className={`${styles["nav-item"]} ${styles["has-dropdown"]}`}>
-            <button
-              type="button"
-              className={`${styles["dropdown-toggle"]} ${isPelaksanaanOpen ? styles["dropdown-open"] : ""}`}
-              onClick={() => setIsPelaksanaanOpen((v) => !v)}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                <Wrench className={styles["nav-icon"]} style={{ margin: 0 }} />
-                Pelaksanaan
-              </span>
-              {isPelaksanaanOpen
-                ? <ChevronDown className={styles.chevron} size={14} />
-                : <ChevronRight className={styles.chevron} size={14} />}
-            </button>
-            <ul className={`${styles["sub-nav-list"]} ${isPelaksanaanOpen ? styles.open : ""}`}>
-              <li className={`${styles["sub-nav-item"]} ${activeTab === "time-schedule" ? styles.active : ""}`}>
-                <a href="#time-schedule" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "time-schedule")}>
-                  <History size={14} /> Time Schedule
-                </a>
-              </li>
-              <li className={`${styles["sub-nav-item"]} ${activeTab === "join-opname" ? styles.active : ""}`}>
-                <a href="#join-opname" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "join-opname")}>
-                  <ClipboardCheck size={14} /> Join Opname
-                </a>
-              </li>
-              <li className={`${styles["sub-nav-item"]} ${activeTab === "bast" ? styles.active : ""}`}>
-                <a href="#bast" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "bast")}>
-                  <FileText size={14} /> Berita Acara (BAST)
-                </a>
-              </li>
-              <li className={`${styles["sub-nav-item"]} ${activeTab === "complain" ? styles.active : ""}`}>
-                <a href="#complain" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "complain")}>
-                  <PieChart size={14} /> Complain
-                </a>
-              </li>
-              <li className={`${styles["sub-nav-item"]} ${activeTab === "item-tracking" ? styles.active : ""}`}>
-                <a href="#item-tracking" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "item-tracking")}>
-                  <MapPin size={14} /> Item Tracking
-                </a>
-              </li>
-            </ul>
-          </li>
-
-          {/* DROPDOWN: FINANCE */}
-          <li className={`${styles["nav-item"]} ${styles["has-dropdown"]}`}>
-            <button
-              type="button"
-              className={`${styles["dropdown-toggle"]} ${isFinanceOpen ? styles["dropdown-open"] : ""}`}
-              onClick={() => setIsFinanceOpen((v) => !v)}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                <FileText className={styles["nav-icon"]} style={{ margin: 0 }} />
-                Finance
-              </span>
-              {isFinanceOpen
-                ? <ChevronDown className={styles.chevron} size={14} />
-                : <ChevronRight className={styles.chevron} size={14} />}
-            </button>
-            <ul className={`${styles["sub-nav-list"]} ${isFinanceOpen ? styles.open : ""}`}>
-              <li className={`${styles["sub-nav-item"]} ${activeTab === "finance" ? styles.active : ""}`}>
-                <a href="#finance" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "finance")}>
-                  <Wallet size={14} /> Kebutuhan Material
-                </a>
-              </li>
-              <li className={`${styles["sub-nav-item"]} ${activeTab === "pembelian-siap-pakai" ? styles.active : ""}`}>
-                <a href="#pembelian-siap-pakai" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "pembelian-siap-pakai")}>
-                  <Package size={14} /> Pembelian Siap Pakai
-                </a>
-              </li>
-            </ul>
-          </li>
-
-          {/* DROPDOWN: PURCHASING */}
-          <li className={`${styles["nav-item"]} ${styles["has-dropdown"]}`}>
-            <button
-              type="button"
-              className={`${styles["dropdown-toggle"]} ${isPurchasingOpen ? styles["dropdown-open"] : ""}`}
-              onClick={() => setIsPurchasingOpen((v) => !v)}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                <ShoppingCart className={styles["nav-icon"]} style={{ margin: 0 }} />
-                Purchasing
-              </span>
-              {isPurchasingOpen
-                ? <ChevronDown className={styles.chevron} size={14} />
-                : <ChevronRight className={styles.chevron} size={14} />}
-            </button>
-            <ul className={`${styles["sub-nav-list"]} ${isPurchasingOpen ? styles.open : ""}`}>
-              <li className={`${styles["sub-nav-item"]} ${activeTab === "purchase-orders" ? styles.active : ""}`}>
-                <a href="#purchase-orders" className={styles["sub-nav-link"]} onClick={(e) => handleNavigation(e, "purchase-orders")}>
-                  <ClipboardList size={14} /> Purchase Orders
-                </a>
-              </li>
-            </ul>
-          </li>
-
-        </ul>
-
-        {/* CREATE PROJECT BUTTON */}
-        <button type="button" className={styles["create-btn"]} onClick={() => setIsModalOpen(true)}>
-          <Plus className={styles["btn-icon"]} />
-          <span>Create Project</span>
-        </button>
-      </nav>
-
-      {/* CREATE PROJECT MODAL */}
-      <CreateProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-
-      {/* FOOTER */}
-      <div className={styles["sidebar-footer"]}>
-        {/* User Card */}
-        {user && (
-          <div className="sidebar-user-card">
-            <div className="sidebar-user-avatar">{getInitials(user.name)}</div>
-            <div className="sidebar-user-info">
-              <div className="sidebar-user-name">{user.name}</div>
-              <div className="sidebar-user-role">{user.role}</div>
+      {/* SIDEBAR CONTAINER */}
+      <aside 
+        className={`fixed md:relative top-0 left-0 h-full w-[280px] bg-[#0c0b09] border-r border-[#222] flex flex-col z-[100] transition-transform duration-300 ease-in-out shrink-0 overflow-y-auto overflow-x-hidden ${
+          isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
+        {/* HEADER / BRAND */}
+        <div className="p-6 sticky top-0 bg-[#0c0b09] z-10 flex justify-between items-start">
+          <div>
+            <div className="text-[#d4af37] text-2xl font-black tracking-wider uppercase mb-1 drop-shadow-md">
+              DIVES CORP.
+            </div>
+            <div className="text-[#888] text-[10px] font-bold tracking-[0.2em] uppercase">
+              Interior &amp; Contractor
             </div>
           </div>
-        )}
+          <button className="md:hidden text-[#888] hover:text-white" onClick={() => setIsMobileOpen(false)}>
+            <X size={24} />
+          </button>
+        </div>
 
-        <ul className={styles["nav-list"]}>
-          <li className={styles["nav-item"]}>
-            <a href="#settings" className={styles["nav-link"]} onClick={(e) => e.preventDefault()}>
-              <Settings className={styles["nav-icon"]} />
-              <span>Profile Settings</span>
-            </a>
-          </li>
-          <li className={styles["nav-item"]}>
-            <a href="#support" className={styles["nav-link"]} onClick={(e) => e.preventDefault()}>
-              <HelpCircle className={styles["nav-icon"]} />
-              <span>Support</span>
-            </a>
-          </li>
-          {/* Logout */}
-          <li className={styles["nav-item"]}>
-            <a
-              href="#logout"
-              className={styles["nav-link"]}
-              style={{ color: "#ef4444" }}
-              onClick={(e) => {
-                e.preventDefault();
-                if (onLogout) onLogout();
-              }}
-            >
-              <LogOut className={styles["nav-icon"]} style={{ color: "#ef4444" }} />
-              <span>Logout</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </aside>
+        {/* NAVIGATION */}
+        <nav className="flex-1 px-4 py-2 pb-6 flex flex-col gap-1">
+          <ul className="flex flex-col gap-1 m-0 p-0 list-none">
+            <NavItem icon={LayoutDashboard} label="Dashboard" tab="dashboard" />
+            <NavItem icon={KanbanSquare} label="Project Board" tab="project-board" />
+            <NavItem icon={Upload} label="Upload HSPK" tab="upload-hspk" />
+
+            {/* DROPDOWN: PERENCANAAN */}
+            <li>
+              <button
+                type="button"
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all text-[#888] hover:bg-white/5 hover:text-white ${isPerencanaanOpen ? "bg-white/5 text-white" : ""}`}
+                onClick={() => setIsPerencanaanOpen(!isPerencanaanOpen)}
+              >
+                <div className="flex items-center gap-3">
+                  <Layers size={18} className={isPerencanaanOpen ? "text-white" : "text-[#888]"} />
+                  <span>Perencanaan</span>
+                </div>
+                {isPerencanaanOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+              {isPerencanaanOpen && (
+                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
+                  <SubNavItem icon={Map} label="Data Survey" tab="data-survey" />
+                  <SubNavItem icon={ClipboardList} label="Back Up Volume" tab="bv" />
+                  <SubNavItem icon={Wallet} label="RAB & Budgeting" tab="rab" />
+                </ul>
+              )}
+            </li>
+
+            {/* DROPDOWN: PELAKSANAAN */}
+            <li>
+              <button
+                type="button"
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all text-[#888] hover:bg-white/5 hover:text-white ${isPelaksanaanOpen ? "bg-white/5 text-white" : ""}`}
+                onClick={() => setIsPelaksanaanOpen(!isPelaksanaanOpen)}
+              >
+                <div className="flex items-center gap-3">
+                  <Wrench size={18} className={isPelaksanaanOpen ? "text-white" : "text-[#888]"} />
+                  <span>Pelaksanaan</span>
+                </div>
+                {isPelaksanaanOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+              {isPelaksanaanOpen && (
+                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
+                  <SubNavItem icon={History} label="Time Schedule" tab="time-schedule" />
+                  <SubNavItem icon={ClipboardCheck} label="Join Opname" tab="join-opname" />
+                  <SubNavItem icon={FileText} label="Berita Acara (BAST)" tab="bast" />
+                  <SubNavItem icon={PieChart} label="Complain" tab="complain" />
+                  <SubNavItem icon={MapPin} label="Item Tracking" tab="item-tracking" />
+                </ul>
+              )}
+            </li>
+
+            {/* DROPDOWN: FINANCE */}
+            <li>
+              <button
+                type="button"
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all text-[#888] hover:bg-white/5 hover:text-white ${isFinanceOpen ? "bg-white/5 text-white" : ""}`}
+                onClick={() => setIsFinanceOpen(!isFinanceOpen)}
+              >
+                <div className="flex items-center gap-3">
+                  <FileText size={18} className={isFinanceOpen ? "text-white" : "text-[#888]"} />
+                  <span>Finance</span>
+                </div>
+                {isFinanceOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+              {isFinanceOpen && (
+                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
+                  <SubNavItem icon={Wallet} label="Kebutuhan Material" tab="finance" />
+                  <SubNavItem icon={Package} label="Pembelian Siap Pakai" tab="pembelian-siap-pakai" />
+                </ul>
+              )}
+            </li>
+
+            {/* DROPDOWN: PURCHASING */}
+            <li>
+              <button
+                type="button"
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all text-[#888] hover:bg-white/5 hover:text-white ${isPurchasingOpen ? "bg-white/5 text-white" : ""}`}
+                onClick={() => setIsPurchasingOpen(!isPurchasingOpen)}
+              >
+                <div className="flex items-center gap-3">
+                  <ShoppingCart size={18} className={isPurchasingOpen ? "text-white" : "text-[#888]"} />
+                  <span>Purchasing</span>
+                </div>
+                {isPurchasingOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+              {isPurchasingOpen && (
+                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
+                  <SubNavItem icon={ClipboardList} label="Purchase Orders" tab="purchase-orders" />
+                </ul>
+              )}
+            </li>
+          </ul>
+
+          {/* CREATE PROJECT BUTTON */}
+          <button 
+            type="button" 
+            className="mt-6 mx-2 py-3 px-4 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-lg border border-dashed border-[#555] hover:border-[#d4af37] transition-all"
+            onClick={() => setIsModalOpen(true)}
+          >
+            <Plus size={18} />
+            <span>Create Project</span>
+          </button>
+        </nav>
+
+        {/* CREATE PROJECT MODAL */}
+        <CreateProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+
+        {/* FOOTER */}
+        <div className="p-4 border-t border-[#222] bg-[#0c0b09] sticky bottom-0">
+          {user && (
+            <div className="flex items-center gap-3 bg-[#161513] p-3 rounded-xl mb-4 border border-[#2a2a2a]">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#d4af37] to-[#a8862a] flex items-center justify-center text-[#0c0b09] font-bold text-sm shadow-md">
+                {getInitials(user.name)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-white text-sm font-bold truncate">{user.name}</div>
+                <div className="text-[#888] text-xs uppercase tracking-wider">{user.role}</div>
+              </div>
+            </div>
+          )}
+
+          <ul className="flex flex-col gap-1 m-0 p-0 list-none">
+            <li>
+              <a href="#settings" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#888] hover:text-white hover:bg-white/5 transition-all text-sm font-medium" onClick={(e) => e.preventDefault()}>
+                <Settings size={18} />
+                <span>Profile Settings</span>
+              </a>
+            </li>
+            <li>
+              <a href="#support" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#888] hover:text-white hover:bg-white/5 transition-all text-sm font-medium" onClick={(e) => e.preventDefault()}>
+                <HelpCircle size={18} />
+                <span>Support</span>
+              </a>
+            </li>
+            <li>
+              <a
+                href="#logout"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#ef4444] hover:bg-[#ef4444]/10 transition-all text-sm font-bold"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (onLogout) onLogout();
+                }}
+              >
+                <LogOut size={18} />
+                <span>Logout</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </aside>
+    </>
   );
 };
 

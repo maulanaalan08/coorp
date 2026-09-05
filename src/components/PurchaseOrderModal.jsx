@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 const fmtVol = (n) => {
   const num = Number(n || 0);
-  return isNaN(num) ? '0' : parseFloat(num.toFixed(3)).toString();
+  return isNaN(num) ? '0' : parseFloat(num.toFixed(2)).toString();
 };
 import SupplierModal from './SupplierModal';
 
@@ -68,7 +68,7 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, onClose, onSu
           description: item.itemName,
           estVol: `${fmtVol(item.estimatedVolume)} ${item.unit || ''}`,
           sisa: `${fmtVol(sisaHitung)} ${item.unit || ''}`,
-          qty: parseFloat(Number(sisaHitung).toFixed(3)),
+          qty: parseFloat(Number(sisaHitung).toFixed(2)),
           unit: item.unit || '',
           unitPrice: item.pricePerUnit || 0,
           total: 0 // dihitung nanti

@@ -9,7 +9,7 @@ const getAuthHeaders = () => {
 export const financeService = {
   // Ambil material requests untuk project tertentu (endpoint lama)
   getMaterialRequests: (projectId) => {
-    return fetchAPI(`/projects/${projectId}/material-requests`);
+    return fetchAPI(`/finance/projects/${projectId}/material-requests`);
   },
 
   // Ambil SEMUA material requests dari Dasbor Finance (data lebih kaya, split per toko)

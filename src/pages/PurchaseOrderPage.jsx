@@ -15,7 +15,7 @@ const fmtRp = (n) =>
 
 const fmtVol = (n) => {
   const num = Number(n || 0);
-  return isNaN(num) ? '0' : parseFloat(num.toFixed(3)).toString();
+  return isNaN(num) ? '0' : parseFloat(num.toFixed(2)).toString();
 };
 
 const PurchaseOrderPage = () => {

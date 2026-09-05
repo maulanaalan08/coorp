@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -40,8 +44,7 @@ html, body {
 
 ::-webkit-scrollbar-thumb {
   background: #4a4231;
-  border-radius: 6px;
-  border: 2px solid #161513;
+  border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
