@@ -34,7 +34,7 @@ export const useComplaints = (projectId) => {
   const saveComplaint = async (newCategories, newFilesMap) => {
     if (!projectId) return;
     
-    const formData = buildComplaintFormData(newCategories, newFilesMap);
+    const formData = await buildComplaintFormData(newCategories, newFilesMap);
     
     try {
       if (complaintReport && complaintReport.id) {

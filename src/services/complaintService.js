@@ -37,5 +37,9 @@ export const complaintService = {
 
   downloadPdf: (id) => {
     window.open(`${API_URL}/complaints/${id}/pdf/view`, '_blank');
+  },
+
+  downloadBast2Pdf: (id) => {
+    window.open(`${API_URL}/complaints2/${id}/pdf/view`, '_blank');
   }
 };

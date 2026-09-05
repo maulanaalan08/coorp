@@ -10,6 +10,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useSurveys } from '../hooks/useSurveys';
 import { surveyService } from '../services/surveyService';
 import toast from 'react-hot-toast';
+import { compressImage } from '../utils/imageCompression';
 
 // ================================================================
 // KONSTANTA
@@ -342,11 +343,21 @@ function SurveyModal({ isOpen, onClose, projectId, onSuccess, initialData }) {
       const formData = new FormData();
       formData.append('surveyData', JSON.stringify(surveyData));
 
-      areas.forEach((area, areaIndex) => {
-        (area.photosFiles || []).forEach((file, photoIndex) => {
-          formData.append(`photo_${areaIndex}_${photoIndex}`, file);
-        });
-      });
+      // Gunakan for...of agar bisa await kompresi gambar
+      for (let areaIndex = 0; areaIndex < areas.length; areaIndex++) {
+        const area = areas[areaIndex];
+        const photos = area.photosFiles || [];
+        for (let photoIndex = 0; photoIndex < photos.length; photoIndex++) {
+          const file = photos[photoIndex];
+          try {
+            const compressedFile = await compressImage(file);
+            formData.append(`photo_${areaIndex}_${photoIndex}`, compressedFile);
+          } catch (err) {
+            console.error('Error compress:', err);
+            formData.append(`photo_${areaIndex}_${photoIndex}`, file);
+          }
+        }
+      }
 
       if (initialData) {
         await surveyService.update(initialData.id, formData);

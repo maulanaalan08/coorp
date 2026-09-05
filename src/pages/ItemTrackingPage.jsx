@@ -18,8 +18,9 @@ import { useProjects } from '../hooks/useProjects';
 import { fetchAPI } from '../services/api';
 import { lapanganService } from '../services/lapanganService';
 import toast from 'react-hot-toast';
+import SuratJalanModal from '../components/SuratJalanModal';
 
-// ΓöÇΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Helpers
 const toInputDate = (val) => {
   if (!val) return '';
   try {
@@ -33,7 +34,7 @@ const fmtNum = (n) => {
   return isNaN(num) ? '0' : num.toLocaleString('id-ID', { maximumFractionDigits: 2 });
 };
 
-// ΓöÇΓöÇΓöÇ Status Badge ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Status Badge 
 const StatusBadge = ({ status }) => {
   if (status === 'COMPLETED') {
     return <span className={`${styles.badge} ${styles.badgeCompleted}`}><CheckCircle size={12} /> Selesai</span>;
@@ -44,7 +45,7 @@ const StatusBadge = ({ status }) => {
   return <span className={`${styles.badge} ${styles.badgePending}`}><Clock size={12} /> Pending</span>;
 };
 
-// ΓöÇΓöÇΓöÇ Main Component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+//  Main Component 
 const ItemTrackingPage = () => {
   const { projects: projectList, loading: loadingProjects } = useProjects();
 
@@ -56,12 +57,15 @@ const ItemTrackingPage = () => {
   const [isSaving, setIsSaving]   = useState(false);
   const [edits, setEdits]         = useState({});
 
+  const [selectedSJItem, setSelectedSJItem] = useState(null);
+  const [isSJModalOpen, setIsSJModalOpen] = useState(false);
+
   const project = useMemo(
     () => projectList.find((p) => p.id === projectId),
     [projectList, projectId]
   );
 
-  // ΓöÇΓöÇ Fetch data lapangan ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // Fetch data lapangan
   const fetchData = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
@@ -101,7 +105,7 @@ const ItemTrackingPage = () => {
     fetchData();
   }, [fetchData]);
 
-  // ΓöÇΓöÇ Flatten semua items ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // Flatten semua items
   const allItems = useMemo(() => {
     const result = [];
     mrData.forEach((mr) => {
@@ -110,7 +114,7 @@ const ItemTrackingPage = () => {
     return result;
   }, [mrData]);
 
-  // ΓöÇΓöÇ Filter ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // Filter 
   const filteredItems = useMemo(() => {
     return allItems.filter((item) => {
       const matchStatus = filterStatus === 'ALL' || item.status === filterStatus;
@@ -125,7 +129,7 @@ const ItemTrackingPage = () => {
     });
   }, [allItems, filterStatus, search]);
 
-  // ΓöÇΓöÇ Stats ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // Stats 
   const stats = useMemo(() => ({
     total:     allItems.length,
     pending:   allItems.filter((i) => i.status === 'PENDING').length,
@@ -133,7 +137,7 @@ const ItemTrackingPage = () => {
     completed: allItems.filter((i) => i.status === 'COMPLETED').length,
   }), [allItems]);
 
-  // ΓöÇΓöÇ Handle edit lokal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // Handle edit lokal 
   const handleEdit = (mrKey, field, value) => {
     setEdits((prev) => ({
       ...prev,
@@ -141,7 +145,7 @@ const ItemTrackingPage = () => {
     }));
   };
 
-  // ΓöÇΓöÇ Save semua (bulk) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // Save semua (bulk)
   const handleSaveAll = async () => {
     const keys = [...new Set(
       allItems
@@ -182,7 +186,7 @@ const ItemTrackingPage = () => {
     ).finally(() => setIsSaving(false));
   };
 
-  // ΓöÇΓöÇ Group by groupName ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // Group by groupName 
   const grouped = useMemo(() => {
     const map = {};
     filteredItems.forEach((item) => {
@@ -398,6 +402,7 @@ const ItemTrackingPage = () => {
                           <th style={{ width: '9%' }}>Status</th>
                           <th style={{ width: '13%' }}>Tgl. Onsite</th>
                           <th>Update Lapangan</th>
+                          <th style={{ width: '10%' }}>Surat Jalan</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -405,7 +410,7 @@ const ItemTrackingPage = () => {
                           <React.Fragment key={groupName}>
                             {/* Group header row */}
                               <tr className={styles.groupRow}>
-                                <td colSpan={8}>
+                                <td colSpan={9}>
                                   <div style={{ display: 'flex', alignItems: 'center', color: '#d4af37', fontSize: 12, fontWeight: 700 }}>
                                     <Package size={14} style={{ marginRight: 6 }} /> {groupName}
                                   </div>
@@ -497,6 +502,29 @@ const ItemTrackingPage = () => {
                                       }}
                                     />
                                   </td>
+
+                                  {/* Surat Jalan */}
+                                  <td>
+                                    <button
+                                      disabled={isPending || !isFromPO}
+                                      onClick={() => {
+                                        setSelectedSJItem(item);
+                                        setIsSJModalOpen(true);
+                                      }}
+                                      style={{
+                                        padding: '6px 10px',
+                                        background: (isPending || !isFromPO) ? '#333' : '#38bdf8',
+                                        color: (isPending || !isFromPO) ? '#666' : '#fff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: (isPending || !isFromPO) ? 'not-allowed' : 'pointer',
+                                        fontSize: '11px',
+                                        fontWeight: 'bold'
+                                      }}
+                                    >
+                                      Upload SJ
+                                    </button>
+                                  </td>
                                 </tr>
                               );
                             })}
@@ -575,6 +603,17 @@ const ItemTrackingPage = () => {
           </button>
         </div>
       )}
+
+      {/* Modal Surat Jalan */}
+      <SuratJalanModal
+        isOpen={isSJModalOpen}
+        onClose={() => {
+          setIsSJModalOpen(false);
+          setSelectedSJItem(null);
+        }}
+        item={selectedSJItem}
+        onSuccess={fetchData}
+      />
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }

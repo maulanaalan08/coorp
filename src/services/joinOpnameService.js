@@ -25,8 +25,10 @@ export const joinOpnameService = {
     formData.append("progressPercent", progressPercent);
 
     if (files && files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        formData.append("foto", files[i]);
+      const { compressFiles } = await import('../utils/imageCompression.js');
+      const compressedFiles = await compressFiles(files);
+      for (let i = 0; i < compressedFiles.length; i++) {
+        formData.append("foto", compressedFiles[i]);
       }
     }
 

@@ -65,7 +65,7 @@ const BastModal = ({ isOpen, onClose, onSubmit, initialData, isSubmitting }) => 
     setNewPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const data = new FormData();
     
@@ -74,10 +74,14 @@ const BastModal = ({ isOpen, onClose, onSubmit, initialData, isSubmitting }) => 
       if (formData[key]) data.append(key, formData[key]);
     });
 
-    // Append new photos
-    newPhotos.forEach((file) => {
-      data.append('photos', file);
-    });
+    // Append new photos (with compression)
+    if (newPhotos.length > 0) {
+      const { compressFiles } = await import('../utils/imageCompression.js');
+      const compressedFiles = await compressFiles(newPhotos);
+      compressedFiles.forEach((file) => {
+        data.append('photos', file);
+      });
+    }
 
     // Append existing photos to keep (only for edit)
     if (initialData) {

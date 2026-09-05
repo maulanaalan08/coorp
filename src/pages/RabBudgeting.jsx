@@ -31,6 +31,18 @@ const fmtRp = (n) =>
     maximumFractionDigits: 0,
   });
 
+const formatInputNumber = (val) => {
+  if (val === "" || val === null || val === undefined) return "";
+  const numStr = String(val).replace(/[^0-9]/g, "");
+  if (!numStr) return "";
+  return Number(numStr).toLocaleString("id-ID");
+};
+
+const parseInputNumber = (val) => {
+  if (!val) return "";
+  return String(val).replace(/[^0-9]/g, "");
+};
+
 const RabBudgeting = ({ initialProjectId = null, onBack }) => {
   const [projectId, setProjectId] = useState(initialProjectId);
   const [search, setSearch] = useState("");
@@ -602,7 +614,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
               <div style={{ padding: '12px', background: '#1a1a1a', borderRadius: '6px', border: '1px solid #333' }}>
                 <label className={styles["rab-form-label"]}>
                   Harga Modal / RAP (Satuan)
-                  <input type="number" className={styles["rab-form-input"]} value={editModal.isByOwner || editModal.isStip ? "" : editModal.rapUnitPrice} disabled={editModal.isByOwner || editModal.isStip} onChange={(e) => setEditModal({ ...editModal, rapUnitPrice: e.target.value })} />
+                  <input type="text" className={styles["rab-form-input"]} value={editModal.isByOwner || editModal.isStip ? "" : formatInputNumber(editModal.rapUnitPrice)} disabled={editModal.isByOwner || editModal.isStip} onChange={(e) => setEditModal({ ...editModal, rapUnitPrice: parseInputNumber(e.target.value) })} />
                 </label>
               </div>
             )}
@@ -641,7 +653,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
           <div className={styles["rab-modal"]}>
             <h3>Edit Harga Massal (Terpilih)</h3>
             <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Harga Baru (RAP Satuan)
-              <input type="number" className={styles["rab-form-input"]} placeholder="Kosongkan jika tidak ingin ubah" value={bulkPriceModal.rapUnitPrice} onChange={(e) => setBulkPriceModal({ ...bulkPriceModal, rapUnitPrice: e.target.value })} />
+              <input type="text" className={styles["rab-form-input"]} placeholder="Kosongkan jika tidak ingin ubah" value={formatInputNumber(bulkPriceModal.rapUnitPrice)} onChange={(e) => setBulkPriceModal({ ...bulkPriceModal, rapUnitPrice: parseInputNumber(e.target.value) })} />
             </label>
             <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Overhead Baru (%)
               <input type="number" className={styles["rab-form-input"]} placeholder="Kosongkan jika tidak ingin ubah" value={bulkPriceModal.overheadPercent} onChange={(e) => setBulkPriceModal({ ...bulkPriceModal, overheadPercent: e.target.value })} />
@@ -692,7 +704,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
               <input type="text" className={styles["rab-form-input"]} placeholder="Misal: Cat Dinding Dalam" value={bulkNameModal.name} onChange={(e) => setBulkNameModal({ ...bulkNameModal, name: e.target.value })} />
             </label>
             <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Harga Baru (RAP Satuan)
-              <input type="number" className={styles["rab-form-input"]} value={bulkNameModal.rapUnitPrice} onChange={(e) => setBulkNameModal({ ...bulkNameModal, rapUnitPrice: e.target.value })} />
+              <input type="text" className={styles["rab-form-input"]} value={formatInputNumber(bulkNameModal.rapUnitPrice)} onChange={(e) => setBulkNameModal({ ...bulkNameModal, rapUnitPrice: parseInputNumber(e.target.value) })} />
             </label>
             <div className={styles["rab-modal-actions"]} style={{ marginTop: '24px' }}>
               <button className={styles["rab-btn"]} onClick={() => setBulkNameModal(null)}>Batal</button>

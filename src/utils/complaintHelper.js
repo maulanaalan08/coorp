@@ -1,4 +1,4 @@
-export const buildComplaintFormData = (categories, newFilesMap) => {
+export const buildComplaintFormData = async (categories, newFilesMap) => {
   const formData = new FormData();
   
   // newFilesMap: { [`photoBefore_${globalIndex}_${i}`]: File, ... }
@@ -32,11 +32,18 @@ export const buildComplaintFormData = (categories, newFilesMap) => {
 
   formData.append("complaintData", JSON.stringify({ categories: formattedCategories }));
 
-  // Append new files
+  // Append new files (with compression)
   if (newFilesMap) {
-    Object.keys(newFilesMap).forEach(key => {
-      formData.append(key, newFilesMap[key]);
-    });
+    const { compressImage } = await import('./imageCompression.js');
+    for (const key of Object.keys(newFilesMap)) {
+      try {
+        const compressed = await compressImage(newFilesMap[key]);
+        formData.append(key, compressed);
+      } catch (err) {
+        console.error('Error compress:', err);
+        formData.append(key, newFilesMap[key]);
+      }
+    }
   }
 
   return formData;

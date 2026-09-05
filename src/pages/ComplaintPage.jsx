@@ -164,6 +164,12 @@ export default function ComplaintPage() {
     }
   };
 
+  const openBastPdf = () => {
+    if (complaintReport && complaintReport.id) {
+      complaintService.downloadBast2Pdf(complaintReport.id);
+    }
+  };
+
   const isAllDone = complaintReport && complaintReport.categories.length > 0 && complaintReport.categories.every(cat => 
     cat.items.every(item => item.status === true)
   );
@@ -209,7 +215,7 @@ export default function ComplaintPage() {
                   </button>
                   <button 
                     className="btn-download" 
-                    onClick={openDefectPdf} 
+                    onClick={openBastPdf} 
                     disabled={!complaintReport || !isAllDone}
                     style={{ 
                       display: 'flex', alignItems: 'center', gap: '8px', 

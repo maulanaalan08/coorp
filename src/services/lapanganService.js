@@ -1,13 +1,12 @@
-﻿// src/services/lapanganService.js
+// src/services/lapanganService.js
 import { fetchAPI } from './api';
 
 export const lapanganService = {
   // Ambil material requests untuk project tertentu (sudah dipecah per toko)
   getMaterialRequests: (projectId) =>
-    fetchAPI(`/projects/${projectId}/material-requests`),
+    fetchAPI(`/finance/projects/${projectId}/material-requests`),
 
   // Update progress lapangan 1 item (tanggalOnsite, updateLapangan)
-  // Hanya bisa jika status Finance bukan PENDING
   updateItem: (id, data) =>
     fetchAPI(`/material-request-items/${id}/lapangan-update`, {
       method: 'PUT',
@@ -15,10 +14,16 @@ export const lapanganService = {
     }),
 
   // Update banyak item sekaligus
-  // body: { items: [{ id, tanggalOnsite, updateLapangan }, ...] }
   updateBulk: (items) =>
     fetchAPI(`/material-request-items/lapangan-update-bulk`, {
       method: 'PUT',
       body: JSON.stringify({ items }),
+    }),
+
+  // Upload Surat Jalan dengan Foto
+  uploadSuratJalan: (poItemId, formData) =>
+    fetchAPI(`/po-items/${poItemId}/surat-jalan`, {
+      method: 'POST',
+      body: formData, // FormData doesn't need Content-Type header in fetch API, browser sets it automatically with boundary
     }),
 };
