@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, CheckCircle, Printer, ShoppingCart, Plus, Package, Edit } from 'lucide-react';
+import { Search, CheckCircle, Printer, ShoppingCart, Plus, Package, Edit, AlertCircle, Info, ChevronRight } from 'lucide-react';
 import styles from '../styles/PurchaseOrderPage.module.css';
 import Header from '../components/Header';
 import { usePO } from '../hooks/usePO';
@@ -19,12 +19,16 @@ const fmtVol = (n) => {
 };
 
 const PurchaseOrderPage = () => {
-  const [activeTab, setActiveTab] = useState('buat-po'); // 'buat-po' atau 'riwayat-po'
+  const [activeTab, setActiveTab] = useState('buat-po');
   const [search, setSearch] = useState('');
   const [projectId, setProjectId] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
   const [isPoModalOpen, setIsPoModalOpen] = useState(false);
   const [editingPo, setEditingPo] = useState(null);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const [expandedJobs, setExpandedJobs] = useState({});
+  const [expandedPOs, setExpandedPOs] = useState({});
+  const [expandedMaterials, setExpandedMaterials] = useState({});
 
   const { projects: projectList, loading: loadingProjects } = useProjects();
   const { mrItems, loadingMr, refreshMaterialRequests } = useMaterialRequests(projectId);
@@ -66,20 +70,67 @@ const PurchaseOrderPage = () => {
   const displayItems = financeMrItems.length > 0 ? financeMrItems : mrItems;
   const hasFinanceData = financeMrItems.length > 0;
 
-  // Grouping Material Request Items
+  // Grouping 4-level: Grup Pekerjaan → Uraian Pekerjaan → Nama Material → Split Items (Riwayat PO)
   const groupedMrItems = useMemo(() => {
     const groups = {};
     displayItems.forEach(item => {
-      const gName = item.groupName || 'Tanpa Group';
-      if (!groups[gName]) groups[gName] = [];
-      groups[gName].push(item);
+      let gName = item.groupName || 'Tanpa Group';
+      let jName = item.jobName || 'Tanpa Uraian';
+
+      // Ekstrak nama uraian dari nama grup (karena dari backend di join pakai " ▸ ")
+      if (gName.includes(' ▸ ')) {
+        const parts = gName.split(' ▸ ');
+        gName = parts[0];
+        jName = parts.slice(1).join(' ▸ ');
+      }
+
+      if (!groups[gName]) groups[gName] = {};
+      if (!groups[gName][jName]) groups[gName][jName] = {};
+
+      const matKey = item.mrItemId || item.id;
+      if (!groups[gName][jName][matKey]) groups[gName][jName][matKey] = [];
+      groups[gName][jName][matKey].push(item);
     });
     return groups;
   }, [displayItems]);
 
-  // getItemPoStatus dihapus karena kita ambil langsung dari item.orderedVolume dan item.status
+  // Helper: cek apakah item sudah terpenuhi (tidak bisa di-PO lagi)
+  const isItemFulfilled = (item) => item.status === 'COMPLETED' || item.isForceClosed;
+
+  // Reset expanded state saat project berubah
+  const handleProjectChange = (e) => {
+    setProjectId(e.target.value || null);
+    setSelectedItems([]);
+    setExpandedGroups({});
+    setExpandedJobs({});
+    setExpandedPOs({});
+    setExpandedMaterials({});
+  };
+
+  const toggleGroup = (groupName) => {
+    setExpandedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
+  };
+
+  const toggleJob = (jobKey) => {
+    setExpandedJobs(prev => ({ ...prev, [jobKey]: !prev[jobKey] }));
+  };
+
+  const togglePO = (poId) => {
+    setExpandedPOs(prev => ({ ...prev, [poId]: !prev[poId] }));
+  };
+
+  const toggleMaterial = (matKey) => {
+    setExpandedMaterials(prev => ({ ...prev, [matKey]: !prev[matKey] }));
+  };
 
   const toggleSelectItem = (item) => {
+    if (isItemFulfilled(item)) {
+      toast.error(`"${item.itemName}" sudah terpenuhi dan tidak bisa di-PO lagi!`, {
+        icon: '🚫',
+        duration: 3000,
+      });
+      return;
+    }
     setSelectedItems(prev => {
       const isSelected = prev.some(i => i.id === item.id);
       if (isSelected) {
@@ -123,10 +174,7 @@ const PurchaseOrderPage = () => {
               projectId={projectId}
               projectList={projectList}
               loading={loadingProjects}
-              onChange={(e) => {
-                setProjectId(e.target.value || null);
-                setSelectedItems([]);
-              }}
+              onChange={handleProjectChange}
             />
           )}
         </div>
@@ -151,90 +199,314 @@ const PurchaseOrderPage = () => {
         {activeTab === 'buat-po' && (
           <div className={styles.tabContent}>
             <div className={styles.toolbar}>
-              <h3 className={styles.sectionTitle}>Material Requests</h3>
-              <button className={styles.createPoBtn} onClick={handleCreatePoClick}>
-                <Plus size={16} /> Buat PO Terpilih ({selectedItems.length})
+              <div>
+                <h3 className={styles.sectionTitle}>Daftar Kebutuhan Material</h3>
+                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#888' }}>
+                  Klik grup untuk expand. Centang item yang belum terpenuhi untuk dibuat Surat PO.
+                </p>
+              </div>
+              <button
+                className={styles.createPoBtn}
+                onClick={handleCreatePoClick}
+                style={selectedItems.length === 0 ? { opacity: 0.5 } : {}}
+              >
+                <Plus size={16} /> Buat PO ({selectedItems.length} item dipilih)
               </button>
             </div>
 
             {!projectId ? (
               <div className={styles.emptyState}>
                 <Package size={48} className={styles.emptyIcon} />
-                <h3>Pilih Project</h3>
-                <p>Silakan pilih project dari dropdown di atas untuk melihat kebutuhan material.</p>
+                <h3>Pilih Project Terlebih Dahulu</h3>
+                <p>Gunakan dropdown di pojok kanan atas untuk memilih project dan melihat kebutuhan materialnya.</p>
               </div>
             ) : (loadingMr || loadingFinanceMR) ? (
               <div className={styles.emptyState}>
-                <p>Memuat kebutuhan material...</p>
+                <p>⏳ Memuat kebutuhan material...</p>
               </div>
             ) : displayItems.length === 0 ? (
               <div className={styles.emptyState}>
-                <p>Tidak ada material request untuk project ini.</p>
+                <Package size={48} className={styles.emptyIcon} />
+                <h3>Tidak Ada Material Request</h3>
+                <p>Belum ada kebutuhan material yang terdaftar untuk project ini.</p>
               </div>
             ) : (
               <div className={styles.mrGroups}>
-                {Object.entries(groupedMrItems).map(([groupName, items]) => (
-                  <div key={groupName} className={styles.mrGroupCard}>
-                    <h3 className={styles.mrGroupTitle}>{groupName}</h3>
-                    <div className={styles.tableWrapper}>
-                      <table className={styles.poTable}>
-                        <thead>
-                          <tr>
-                            <th style={{ width: '40px' }}>Pilih</th>
-                            <th>ITEM MATERIAL</th>
-                            <th>SATUAN</th>
-                            <th className={styles.cellRight}>EST VOL</th>
-                            <th className={styles.cellRight}>TELAH DI-ORDER</th>
-                            <th className={styles.cellRight}>HARGA SATUAN</th>
-                            {hasFinanceData && <th>SUPPLIER / TOKO</th>}
-                            {hasFinanceData && <th>NO. PO</th>}
-                            <th style={{ textAlign: 'center' }}>STATUS PO</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {items.map(item => {
-                            const isSelected = selectedItems.some(i => i.id === item.id);
-                            return (
-                              <tr key={item.id} className={isSelected ? styles.selectedRow : ''}>
-                                <td style={{ textAlign: 'center' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() => toggleSelectItem(item)}
-                                    className={styles.checkbox}
-                                  />
+                {/* ===== TABEL UTAMA ===== */}
+                <div className={styles.tableSection}>
+                  <div className={styles.tableWrapper}>
+                    <table className={styles.poTable}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: '36px' }} />
+                          <th>NAMA GRUP / PEKERJAAN</th>
+                          <th style={{ textAlign: 'center' }}>TOTAL ITEM</th>
+                          <th style={{ textAlign: 'center' }}>TERPENUHI</th>
+                          <th style={{ minWidth: '160px' }}>PROGRES GRUP</th>
+                          <th style={{ textAlign: 'center' }}>DIPILIH</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(groupedMrItems).map(([groupName, jobsObj]) => {
+                          const isGroupOpen = !!expandedGroups[groupName];
+
+                          // Flatten material unik untuk stats
+                          const allGroupMaterials = Object.values(jobsObj).flatMap(matObj => Object.values(matObj));
+                          const gCompleted = allGroupMaterials.filter(matItems => isItemFulfilled(matItems[0])).length;
+                          const gTotal = allGroupMaterials.length;
+                          // Hitung selected berdasarkan 'sisa' item
+                          const gSelected = allGroupMaterials.filter(matItems => {
+                            const sisaItem = matItems.find(i => i.poItemId === null || i.supplierName === '⏳ Belum di-PO') || matItems[0];
+                            return selectedItems.some(s => s.id === sisaItem.id);
+                          }).length;
+                          const gPct = gTotal > 0 ? (gCompleted / gTotal) * 100 : 0;
+
+                          return (
+                            <React.Fragment key={groupName}>
+                              {/* ══ LEVEL 1: GRUP PEKERJAAN ══ */}
+                              <tr className={styles.groupRow} onClick={() => toggleGroup(groupName)}>
+                                <td style={{ textAlign: 'center', padding: '14px 8px' }}>
+                                  <ChevronRight size={16} style={{
+                                    color: '#d4af37',
+                                    transform: isGroupOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                                    transition: 'transform 0.2s ease',
+                                  }} />
                                 </td>
-                                <td>{item.itemName}</td>
-                                <td>{item.unit}</td>
-                                <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtVol(item.estimatedVolume)}</td>
-                                <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtVol(item.orderedVolume || 0)}</td>
-                                <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(item.pricePerUnit)}</td>
-                                {hasFinanceData && (
-                                  <td>
-                                    <span style={{ fontSize: '0.85rem' }}>{item.supplierName || '-'}</span>
-                                  </td>
-                                )}
-                                {hasFinanceData && (
-                                  <td>
-                                    <span className={styles.cellMono} style={{ fontSize: '0.8rem' }}>{item.poNumber || '-'}</span>
-                                  </td>
-                                )}
+                                <td><span className={styles.groupRowName}>{groupName}</span></td>
+                                <td style={{ textAlign: 'center', color: '#888' }}>{gTotal}</td>
                                 <td style={{ textAlign: 'center' }}>
-                                  <span className={`${styles.statusBadge} ${item.status === 'COMPLETED' ? styles.statusApproved :
-                                      item.status === 'PARTIAL' ? styles.statusPending :
-                                        styles.statusNone
-                                    }`}>
-                                    {item.status || 'PENDING'}
-                                  </span>
+                                  <span className={`${styles.statusBadge} ${gCompleted === gTotal && gTotal > 0 ? styles.statusApproved
+                                      : gCompleted > 0 ? styles.statusPending
+                                        : styles.statusNone
+                                    }`}>{gCompleted}/{gTotal}</span>
+                                </td>
+                                <td>
+                                  <div className={styles.progressWrap}>
+                                    <div className={styles.progressBar}>
+                                      <div className={styles.progressFill} style={{
+                                        width: `${gPct}%`,
+                                        background: gPct >= 100 ? '#22c55e' : gPct > 0 ? '#eab308' : '#333',
+                                      }} />
+                                    </div>
+                                    <span className={styles.progressPct}>{Math.round(gPct)}%</span>
+                                  </div>
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  {gSelected > 0 && <span className={styles.selectedCountBadge}>{gSelected} dipilih</span>}
                                 </td>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+
+                              {/* ══ LEVEL 2: URAIAN PEKERJAAN ══ */}
+                              {isGroupOpen && Object.entries(jobsObj).map(([jobName, matObj]) => {
+                                const jobKey = `${groupName}::${jobName}`;
+                                const isJobOpen = !!expandedJobs[jobKey];
+
+                                const allJobMaterials = Object.values(matObj);
+                                const jCompleted = allJobMaterials.filter(matItems => isItemFulfilled(matItems[0])).length;
+                                const jTotal = allJobMaterials.length;
+                                const jSelected = allJobMaterials.filter(matItems => {
+                                  const sisaItem = matItems.find(i => i.poItemId === null || i.supplierName === '⏳ Belum di-PO') || matItems[0];
+                                  return selectedItems.some(s => s.id === sisaItem.id);
+                                }).length;
+                                const jPct = jTotal > 0 ? (jCompleted / jTotal) * 100 : 0;
+
+                                return (
+                                  <React.Fragment key={jobKey}>
+                                    <tr className={styles.jobRow} onClick={() => toggleJob(jobKey)}>
+                                      <td style={{ textAlign: 'center', padding: '11px 8px' }}>
+                                        <ChevronRight size={14} style={{
+                                          color: '#60a5fa',
+                                          transform: isJobOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                                          transition: 'transform 0.2s ease',
+                                          marginLeft: '18px',
+                                        }} />
+                                      </td>
+                                      <td>
+                                        <span className={styles.jobRowName}>
+                                          <span style={{ color: '#444', marginRight: '8px' }}>└</span>
+                                          {jobName}
+                                        </span>
+                                      </td>
+                                      <td style={{ textAlign: 'center', color: '#666', fontSize: '12px' }}>{jTotal}</td>
+                                      <td style={{ textAlign: 'center' }}>
+                                        <span className={`${styles.statusBadge} ${jCompleted === jTotal && jTotal > 0 ? styles.statusApproved
+                                            : jCompleted > 0 ? styles.statusPending
+                                              : styles.statusNone
+                                          }`} style={{ fontSize: '10px', padding: '3px 8px' }}>
+                                          {jCompleted}/{jTotal}
+                                        </span>
+                                      </td>
+                                      <td>
+                                        <div className={styles.progressWrap}>
+                                          <div className={styles.progressBar}>
+                                            <div className={styles.progressFill} style={{
+                                              width: `${jPct}%`,
+                                              background: jPct >= 100 ? '#22c55e' : jPct > 0 ? '#eab308' : '#333',
+                                            }} />
+                                          </div>
+                                          <span className={styles.progressPct}>{Math.round(jPct)}%</span>
+                                        </div>
+                                      </td>
+                                      <td style={{ textAlign: 'center' }}>
+                                        {jSelected > 0 && <span className={styles.selectedCountBadge} style={{ fontSize: '10px' }}>{jSelected} dipilih</span>}
+                                      </td>
+                                    </tr>
+
+                                    {/* ══ LEVEL 3: NAMA MATERIAL (sub-table) ══ */}
+                                    {isJobOpen && (
+                                      <tr>
+                                        <td colSpan={6} style={{ padding: 0, background: 'rgba(0,0,0,0.2)' }}>
+                                          <div className={styles.materialTableWrapper}>
+                                            <table className={styles.subTable}>
+                                              <thead>
+                                                <tr>
+                                                  <th style={{ width: '40px', textAlign: 'center' }}>PILIH</th>
+                                                  <th>NAMA MATERIAL</th>
+                                                  <th>SAT.</th>
+                                                  <th className={styles.cellRight}>EST. VOL</th>
+                                                  <th className={styles.cellRight}>DI-ORDER</th>
+                                                  <th style={{ minWidth: '100px' }}>PROGRES</th>
+                                                  <th className={styles.cellRight}>HARGA/SAT</th>
+                                                  <th style={{ textAlign: 'center' }}>STATUS</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {Object.entries(matObj).map(([matKey, matItems]) => {
+                                                  const isMatOpen = !!expandedMaterials[matKey];
+                                                  const firstItem = matItems[0];
+
+                                                  // Hitung total dari seluruh split item
+                                                  const totalEstVol = matItems.reduce((sum, curr) => sum + (curr.estimatedVolume || 0), 0);
+                                                  const totalOrdered = matItems.reduce((sum, curr) => sum + (curr.orderedVolume || 0), 0);
+                                                  const pct = totalEstVol > 0 ? Math.min((totalOrdered / totalEstVol) * 100, 100) : 0;
+
+                                                  const fulfilled = isItemFulfilled(firstItem);
+
+                                                  // Ambil item sisa (belum di-PO) untuk menjadi target checkbox
+                                                  const sisaItem = matItems.find(i => i.poItemId === null || i.supplierName === '⏳ Belum di-PO') || firstItem;
+                                                  const isSelected = selectedItems.some(i => i.id === sisaItem.id);
+
+                                                  const poItemsOnly = matItems.filter(i => i.poNumber && i.poNumber !== '-');
+                                                  const hasPOs = poItemsOnly.length > 0;
+
+                                                  const statusLabel = firstItem.status === 'COMPLETED' ? 'COMPLETED'
+                                                    : firstItem.status === 'PARTIAL' ? 'PARTIAL'
+                                                      : 'PENDING';
+
+                                                  return (
+                                                    <React.Fragment key={matKey}>
+                                                      <tr
+                                                        className={fulfilled ? styles.rowCompleted : isSelected ? styles.selectedRow : styles.subItemRow}
+                                                        title={fulfilled ? 'Material ini sudah terpenuhi' : ''}
+                                                      >
+                                                        <td style={{ textAlign: 'center' }}>
+                                                          {fulfilled ? (
+                                                            <span className={styles.fulfilledIcon}>
+                                                              <CheckCircle size={15} style={{ color: '#22c55e' }} />
+                                                            </span>
+                                                          ) : (
+                                                            <input
+                                                              type="checkbox"
+                                                              checked={isSelected}
+                                                              onChange={() => toggleSelectItem(sisaItem)}
+                                                              className={styles.checkbox}
+                                                              onClick={e => e.stopPropagation()}
+                                                            />
+                                                          )}
+                                                        </td>
+                                                        <td
+                                                          onClick={() => hasPOs && toggleMaterial(matKey)}
+                                                          style={{ cursor: hasPOs ? 'pointer' : 'default' }}
+                                                        >
+                                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            {hasPOs ? (
+                                                              <ChevronRight size={14} style={{
+                                                                color: '#a78bfa',
+                                                                transform: isMatOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                                                                transition: 'transform 0.2s ease',
+                                                              }} />
+                                                            ) : (
+                                                              <div style={{ width: '14px' }}></div>
+                                                            )}
+                                                            <span style={{ color: fulfilled ? '#555' : '#ddd', fontSize: '13px' }}>
+                                                              {firstItem.itemName}
+                                                            </span>
+                                                          </div>
+                                                        </td>
+                                                        <td style={{ color: '#666', fontSize: '12px' }}>{firstItem.unit}</td>
+                                                        <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtVol(totalEstVol)}</td>
+                                                        <td className={`${styles.cellMono} ${styles.cellRight}`}
+                                                          style={{ color: fulfilled ? '#22c55e' : totalOrdered > 0 ? '#eab308' : '#555' }}
+                                                        >
+                                                          {fmtVol(totalOrdered)}
+                                                        </td>
+                                                        <td>
+                                                          <div className={styles.progressWrap}>
+                                                            <div className={styles.progressBar}>
+                                                              <div className={styles.progressFill} style={{
+                                                                width: `${pct}%`,
+                                                                background: pct >= 100 ? '#22c55e' : pct > 0 ? '#eab308' : '#333',
+                                                              }} />
+                                                            </div>
+                                                            <span className={styles.progressPct}>{Math.round(pct)}%</span>
+                                                          </div>
+                                                        </td>
+                                                        <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(firstItem.pricePerUnit)}</td>
+                                                        <td style={{ textAlign: 'center' }}>
+                                                          <span className={`${styles.statusBadge} ${firstItem.status === 'COMPLETED' ? styles.statusApproved
+                                                              : firstItem.status === 'PARTIAL' ? styles.statusPending
+                                                                : styles.statusNone
+                                                            }`}>{statusLabel}</span>
+                                                        </td>
+                                                      </tr>
+
+                                                      {/* ══ LEVEL 4: RIWAYAT PO MATERIAL ══ */}
+                                                      {isMatOpen && hasPOs && (
+                                                        <tr>
+                                                          <td colSpan={8} style={{ padding: 0, background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                                            <div style={{ padding: '12px 16px 16px 72px' }}>
+                                                              <h4 style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#a78bfa', fontWeight: '500' }}>Riwayat Pemesanan (PO)</h4>
+                                                              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                                                <thead>
+                                                                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>NO. PO</th>
+                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>SUPPLIER / TOKO</th>
+                                                                    <th style={{ textAlign: 'right', padding: '6px', fontSize: '11px', color: '#888' }}>VOL DI-ORDER</th>
+                                                                  </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                  {poItemsOnly.map(poI => (
+                                                                    <tr key={poI.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                                                      <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', color: '#60a5fa' }}>{poI.poNumber}</td>
+                                                                      <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.supplierName}</td>
+                                                                      <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', textAlign: 'right', color: '#eab308' }}>{fmtVol(poI.orderedVolume)} {poI.unit}</td>
+                                                                    </tr>
+                                                                  ))}
+                                                                </tbody>
+                                                              </table>
+                                                            </div>
+                                                          </td>
+                                                        </tr>
+                                                      )}
+                                                    </React.Fragment>
+                                                  );
+                                                })}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                ))}
+                </div>
               </div>
             )}
           </div>
@@ -270,11 +542,12 @@ const PurchaseOrderPage = () => {
                   <table className={styles.poTable}>
                     <thead>
                       <tr>
+                        <th style={{ width: '36px' }} />
                         <th>NO. PO</th>
                         <th>TANGGAL</th>
                         <th>TOKO / SUPPLIER</th>
                         <th>NAMA PROYEK</th>
-                        <th>DAFTAR BARANG (QTY)</th>
+                        <th style={{ textAlign: 'center' }}>TOTAL ITEM</th>
                         <th className={styles.cellRight}>GRAND TOTAL</th>
                         <th style={{ textAlign: 'center' }}>STATUS</th>
                         <th>AKSI</th>
@@ -283,76 +556,115 @@ const PurchaseOrderPage = () => {
                     <tbody>
                       {filteredPOs.length === 0 ? (
                         <tr>
-                          <td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "#888" }}>
+                          <td colSpan="9" style={{ textAlign: "center", padding: "30px", color: "#888" }}>
                             Tidak ada data PO ditemukan.
                           </td>
                         </tr>
                       ) : (
                         filteredPOs.map((po) => {
                           const isApproved = po.status === 'APPROVED' || po.status === 'approve' || po.status === 'Approved';
+                          const isPOOpen = !!expandedPOs[po.id];
 
                           return (
-                            <tr key={po.id}>
-                              <td className={styles.cellMono}>{po.poNumber}</td>
-                              <td>{new Date(po.tanggal).toLocaleDateString('id-ID')}</td>
-                              <td>{po.supplier?.name || po.supplierId}</td>
-                              <td>{projectList.find(p => p.id === po.projectId)?.name || 'Proyek tidak diketahui'}</td>
-                              <td style={{ fontSize: '0.85rem', maxWidth: '250px' }}>
-                                {po.items && po.items.length > 0 ? (
-                                  <ul style={{ margin: 0, paddingLeft: '16px', color: '#ccc' }}>
-                                    {po.items.slice(0, 3).map((item, idx) => (
-                                      <li key={item.id || idx}>{item.description} - <b>{item.qty} {item.unit}</b></li>
-                                    ))}
-                                    {po.items.length > 3 && (
-                                      <li style={{ listStyle: 'none', fontStyle: 'italic', color: '#888', marginLeft: '-16px', marginTop: '4px' }}>
-                                        + {po.items.length - 3} item lainnya...
-                                      </li>
+                            <React.Fragment key={po.id}>
+                              <tr
+                                className={styles.groupRow}
+                                onClick={() => togglePO(po.id)}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                <td style={{ textAlign: 'center', padding: '14px 8px' }}>
+                                  <ChevronRight size={16} style={{
+                                    color: '#60a5fa',
+                                    transform: isPOOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                                    transition: 'transform 0.2s ease',
+                                  }} />
+                                </td>
+                                <td className={styles.cellMono}>{po.poNumber}</td>
+                                <td>{new Date(po.tanggal).toLocaleDateString('id-ID')}</td>
+                                <td>{po.supplier?.name || po.supplierId}</td>
+                                <td>{projectList.find(p => p.id === po.projectId)?.name || 'Proyek tidak diketahui'}</td>
+                                <td style={{ textAlign: 'center', color: '#888' }}>
+                                  {po.items?.length || 0}
+                                </td>
+                                <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(po.grandTotal)}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span className={`${styles.statusBadge} ${isApproved ? styles.statusApproved : styles.statusPending}`}>
+                                    {isApproved ? 'Approved' : 'Belum Approve'}
+                                  </span>
+                                </td>
+                                <td>
+                                  <div className={styles.actionCell}>
+                                    {!isApproved && (
+                                      <button
+                                        className={styles.approveBtn}
+                                        onClick={(e) => { e.stopPropagation(); handleApprove(po.id); }}
+                                        title="Approve PO"
+                                      >
+                                        <CheckCircle size={16} />
+                                      </button>
                                     )}
-                                  </ul>
-                                ) : (
-                                  <span style={{ color: '#888' }}>Kosong</span>
-                                )}
-                              </td>
-                              <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(po.grandTotal)}</td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span className={`${styles.statusBadge} ${isApproved ? styles.statusApproved : styles.statusPending}`}>
-                                  {isApproved ? 'Approved' : 'Belum Approve'}
-                                </span>
-                              </td>
-                              <td>
-                                <div className={styles.actionCell}>
-                                  {!isApproved && (
-                                    <button
-                                      className={styles.approveBtn}
-                                      onClick={() => handleApprove(po.id)}
-                                      title="Approve PO"
-                                    >
-                                      <CheckCircle size={16} />
-                                    </button>
-                                  )}
-                                  {!isApproved && (
+                                    {!isApproved && (
+                                      <button
+                                        className={styles.printBtn}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingPo(po);
+                                          setIsPoModalOpen(true);
+                                        }}
+                                        title="Edit PO"
+                                        style={{ backgroundColor: '#2563eb' }}
+                                      >
+                                        <Edit size={16} />
+                                      </button>
+                                    )}
                                     <button
                                       className={styles.printBtn}
-                                      onClick={() => {
-                                        setEditingPo(po);
-                                        setIsPoModalOpen(true);
-                                      }}
-                                      title="Edit PO"
-                                      style={{ backgroundColor: '#2563eb' }}
+                                      onClick={(e) => { e.stopPropagation(); handlePrint(po.id); }}
+                                      title="Cetak PDF"
                                     >
-                                      <Edit size={16} />
+                                      <Printer size={16} />
                                     </button>
-                                  )}
-                                  <button
-                                    className={styles.printBtn}
-                                    onClick={() => handlePrint(po.id)}
-                                    title="Cetak PDF"
-                                  >
-                                    <Printer size={16} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
+                                  </div>
+                                </td>
+                              </tr>
+
+                              {/* ── EXPANDED: SUB-TABLE ITEM PO ── */}
+                              {isPOOpen && (
+                                <tr>
+                                  <td colSpan={9} style={{ padding: 0, background: 'rgba(0,0,0,0.15)' }}>
+                                    <div className={styles.materialTableWrapper} style={{ paddingBottom: '16px', paddingTop: '12px' }}>
+                                      <table className={styles.subTable}>
+                                        <thead>
+                                          <tr>
+                                            <th>DESKRIPSI ITEM</th>
+                                            <th className={styles.cellRight}>QTY</th>
+                                            <th>SAT.</th>
+                                            <th className={styles.cellRight}>HARGA SATUAN</th>
+                                            <th className={styles.cellRight}>TOTAL HARGA</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {(po.items || []).map((item, idx) => (
+                                            <tr key={item.id || idx} className={styles.subItemRow}>
+                                              <td style={{ color: '#ddd' }}>{item.description}</td>
+                                              <td className={`${styles.cellMono} ${styles.cellRight}`}>{item.qty}</td>
+                                              <td style={{ color: '#666', fontSize: '12px' }}>{item.unit}</td>
+                                              <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(item.unitPrice)}</td>
+                                              <td className={`${styles.cellMono} ${styles.cellRight}`} style={{ color: '#60a5fa' }}>{fmtRp(item.totalPrice)}</td>
+                                            </tr>
+                                          ))}
+                                          {(!po.items || po.items.length === 0) && (
+                                            <tr>
+                                              <td colSpan={5} style={{ textAlign: 'center', color: '#666', padding: '12px' }}>Tidak ada detail item pada PO ini.</td>
+                                            </tr>
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
                           );
                         })
                       )}

@@ -362,9 +362,10 @@ const FinancePage = () => {
                                           let statusClass = styles.statusPending;
                                           let statusText = "PENDING";
                                           if (mr) {
-                                            statusText = mr.status;
-                                            if (mr.status === "COMPLETED") statusClass = styles.statusCompleted;
-                                            else if (mr.status === "PARTIAL") statusClass = styles.statusPartial;
+                                            const mrStatus = mr.procurementStatus || mr.status || "PENDING";
+                                            statusText = mrStatus;
+                                            if (mrStatus === "COMPLETED") statusClass = styles.statusCompleted;
+                                            else if (mrStatus === "PARTIAL") statusClass = styles.statusPartial;
                                           }
 
                                           return (
