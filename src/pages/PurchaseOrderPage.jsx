@@ -106,6 +106,15 @@ const PurchaseOrderPage = () => {
   // Helper: cek apakah item sudah terpenuhi (tidak bisa di-PO lagi)
   const isItemFulfilled = (item) => item.status === 'COMPLETED' || item.isForceClosed;
 
+  const isMaterialFulfilled = (matItems) => {
+    const first = matItems[0];
+    if (isItemFulfilled(first) || first.procurementStatus === 'COMPLETED') return true;
+    
+    const tEst = matItems.reduce((sum, curr) => sum + (curr.estimatedVolume || 0), 0);
+    const tOrd = matItems.reduce((sum, curr) => sum + (curr.orderedVolume || 0), 0);
+    return tEst > 0 && tOrd >= tEst;
+  };
+
   // Reset expanded state saat project berubah
   const handleProjectChange = (e) => {
     setProjectId(e.target.value || null);
@@ -261,7 +270,7 @@ const PurchaseOrderPage = () => {
 
                           // Flatten material unik untuk stats
                           const allGroupMaterials = Object.values(jobsObj).flatMap(matObj => Object.values(matObj));
-                          const gCompleted = allGroupMaterials.filter(matItems => isItemFulfilled(matItems[0])).length;
+                          const gCompleted = allGroupMaterials.filter(matItems => isMaterialFulfilled(matItems)).length;
                           const gTotal = allGroupMaterials.length;
                           // Hitung selected berdasarkan 'sisa' item
                           const gSelected = allGroupMaterials.filter(matItems => {
@@ -311,7 +320,7 @@ const PurchaseOrderPage = () => {
                                 const isJobOpen = !!expandedJobs[jobKey];
 
                                 const allJobMaterials = Object.values(matObj);
-                                const jCompleted = allJobMaterials.filter(matItems => isItemFulfilled(matItems[0])).length;
+                                const jCompleted = allJobMaterials.filter(matItems => isMaterialFulfilled(matItems)).length;
                                 const jTotal = allJobMaterials.length;
                                 const jSelected = allJobMaterials.filter(matItems => {
                                   const sisaItem = matItems.find(i => i.poItemId === null || i.supplierName === '⏳ Belum di-PO') || matItems[0];
@@ -373,7 +382,7 @@ const PurchaseOrderPage = () => {
                                                   <th>NAMA MATERIAL</th>
                                                   <th>SAT.</th>
                                                   <th className={styles.cellRight}>EST. VOL</th>
-                                                  <th className={styles.cellRight}>DI-ORDER</th>
+                                                  <th className={styles.cellRight}>VOL. DITERIMA</th>
                                                   <th style={{ minWidth: '120px' }}>SISA BUTUH</th>
                                                   <th className={styles.cellRight}>HARGA/SAT</th>
                                                   <th style={{ textAlign: 'center' }}>STATUS</th>
@@ -388,8 +397,7 @@ const PurchaseOrderPage = () => {
                                                   const totalEstVol = matItems.reduce((sum, curr) => sum + (curr.estimatedVolume || 0), 0);
                                                   const totalOrdered = matItems.reduce((sum, curr) => sum + (curr.orderedVolume || 0), 0);
                                                   const pct = totalEstVol > 0 ? Math.min((totalOrdered / totalEstVol) * 100, 100) : 0;
-
-                                                  const fulfilled = isItemFulfilled(firstItem);
+                                                  const fulfilled = isMaterialFulfilled(matItems);
 
                                                   // Ambil item sisa (belum di-PO) untuk menjadi target checkbox
                                                   const sisaItem = matItems.find(i => i.poItemId === null || i.supplierName === '⏳ Belum di-PO') || firstItem;
@@ -405,16 +413,29 @@ const PurchaseOrderPage = () => {
                                                   let showUpdateBtn = false;
                                                   let statusClass = styles.statusNone;
 
+                                                  const allPOs = poItemsOnly.map(poI => pos.find(p => p.poNumber === poI.poNumber)).filter(Boolean);
+                                                  const hasUnapprovedPO = allPOs.length > 0 && allPOs.some(po => !(po.status === 'APPROVED' || po.status === 'approve' || po.status === 'Approved'));
+
                                                   if (isCompleted) {
                                                     statusLabel = 'COMPLETED';
                                                     statusClass = styles.statusApproved;
                                                     showUpdateBtn = false;
                                                   } else if (isFullyOrdered) {
-                                                    statusLabel = 'Menunggu Konfirmasi';
-                                                    statusClass = styles.statusPending;
-                                                    showUpdateBtn = true;
+                                                    if (hasUnapprovedPO) {
+                                                      statusLabel = 'Menunggu Approval PO';
+                                                      statusClass = styles.statusPending;
+                                                      showUpdateBtn = false;
+                                                    } else {
+                                                      statusLabel = 'COMPLETED';
+                                                      statusClass = styles.statusApproved;
+                                                      showUpdateBtn = false;
+                                                    }
                                                   } else if (totalOrdered > 0) {
-                                                    statusLabel = 'PARTIAL';
+                                                    if (hasUnapprovedPO) {
+                                                      statusLabel = 'PARTIAL (Belum Approve)';
+                                                    } else {
+                                                      statusLabel = 'PARTIAL (PO Approved)';
+                                                    }
                                                     statusClass = styles.statusPending;
                                                     showUpdateBtn = false;
                                                   }
@@ -525,19 +546,62 @@ const PurchaseOrderPage = () => {
                                                                     <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>TANGGAL PO</th>
                                                                     <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>TANGGAL ONSITE</th>
                                                                     <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>SUPPLIER / TOKO</th>
-                                                                    <th style={{ textAlign: 'right', padding: '6px', fontSize: '11px', color: '#888' }}>VOL DI-ORDER</th>
+                                                                    <th style={{ textAlign: 'right', padding: '6px', fontSize: '11px', color: '#888' }}>VOL. DITERIMA</th>
+                                                                    <th style={{ textAlign: 'center', padding: '6px', fontSize: '11px', color: '#888' }}>AKSI</th>
                                                                   </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                  {poItemsOnly.map(poI => (
-                                                                    <tr key={poI.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                      <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', color: '#60a5fa' }}>{poI.poNumber}</td>
-                                                                      <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalPo ? new Date(poI.tanggalPo).toLocaleDateString('id-ID') : '-'}</td>
-                                                                      <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalOnsite ? new Date(poI.tanggalOnsite).toLocaleDateString('id-ID') : '-'}</td>
-                                                                      <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.supplierName}</td>
-                                                                      <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', textAlign: 'right', color: '#eab308' }}>{fmtVol(poI.orderedVolume)} {poI.unit}</td>
-                                                                    </tr>
-                                                                  ))}
+                                                                  {poItemsOnly.map(poI => {
+                                                                    const fullPo = pos.find(p => p.poNumber === poI.poNumber);
+                                                                    const isApproved = fullPo && (fullPo.status === 'APPROVED' || fullPo.status === 'approve' || fullPo.status === 'Approved');
+                                                                    
+                                                                    return (
+                                                                      <tr key={poI.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                                                        <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', color: '#60a5fa' }}>{poI.poNumber}</td>
+                                                                        <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalPo ? new Date(poI.tanggalPo).toLocaleDateString('id-ID') : '-'}</td>
+                                                                        <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalOnsite ? new Date(poI.tanggalOnsite).toLocaleDateString('id-ID') : '-'}</td>
+                                                                        <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.supplierName}</td>
+                                                                        <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', textAlign: 'right', color: '#eab308' }}>{fmtVol(poI.orderedVolume)} {poI.unit}</td>
+                                                                        <td style={{ padding: '6px', textAlign: 'center' }}>
+                                                                          {fullPo ? (
+                                                                            <div className={styles.actionCell} style={{ justifyContent: 'center' }}>
+                                                                              {!isApproved && (
+                                                                                <button
+                                                                                  className={styles.approveBtn}
+                                                                                  onClick={(e) => { e.stopPropagation(); handleApprove(fullPo.id); }}
+                                                                                  title="Approve PO"
+                                                                                >
+                                                                                  <CheckCircle size={14} />
+                                                                                </button>
+                                                                              )}
+                                                                              {!isApproved && (
+                                                                                <button
+                                                                                  className={styles.printBtn}
+                                                                                  onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setEditingPo(fullPo);
+                                                                                    setIsPoModalOpen(true);
+                                                                                  }}
+                                                                                  title="Edit PO"
+                                                                                  style={{ backgroundColor: '#2563eb' }}
+                                                                                >
+                                                                                  <Edit size={14} />
+                                                                                </button>
+                                                                              )}
+                                                                              <button
+                                                                                className={styles.printBtn}
+                                                                                onClick={(e) => { e.stopPropagation(); handlePrint(fullPo.id); }}
+                                                                                title="Cetak PDF"
+                                                                              >
+                                                                                <Printer size={14} />
+                                                                              </button>
+                                                                            </div>
+                                                                          ) : (
+                                                                            <span style={{ fontSize: '11px', color: '#666' }}>-</span>
+                                                                          )}
+                                                                        </td>
+                                                                      </tr>
+                                                                    )})}
                                                                 </tbody>
                                                               </table>
                                                             </div>
@@ -606,7 +670,6 @@ const PurchaseOrderPage = () => {
                         <th style={{ textAlign: 'center' }}>TOTAL ITEM</th>
                         <th className={styles.cellRight}>GRAND TOTAL</th>
                         <th style={{ textAlign: 'center' }}>STATUS</th>
-                        <th>AKSI</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -647,40 +710,6 @@ const PurchaseOrderPage = () => {
                                   <span className={`${styles.statusBadge} ${isApproved ? styles.statusApproved : styles.statusPending}`}>
                                     {isApproved ? 'Approved' : 'Belum Approve'}
                                   </span>
-                                </td>
-                                <td>
-                                  <div className={styles.actionCell}>
-                                    {!isApproved && (
-                                      <button
-                                        className={styles.approveBtn}
-                                        onClick={(e) => { e.stopPropagation(); handleApprove(po.id); }}
-                                        title="Approve PO"
-                                      >
-                                        <CheckCircle size={16} />
-                                      </button>
-                                    )}
-                                    {!isApproved && (
-                                      <button
-                                        className={styles.printBtn}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setEditingPo(po);
-                                          setIsPoModalOpen(true);
-                                        }}
-                                        title="Edit PO"
-                                        style={{ backgroundColor: '#2563eb' }}
-                                      >
-                                        <Edit size={16} />
-                                      </button>
-                                    )}
-                                    <button
-                                      className={styles.printBtn}
-                                      onClick={(e) => { e.stopPropagation(); handlePrint(po.id); }}
-                                      title="Cetak PDF"
-                                    >
-                                      <Printer size={16} />
-                                    </button>
-                                  </div>
                                 </td>
                               </tr>
 
