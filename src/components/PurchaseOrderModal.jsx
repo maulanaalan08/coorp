@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styles from '../styles/PurchaseOrderModal.module.css';
-import { X, ShoppingCart, Plus } from 'lucide-react';
+import { X, ShoppingCart, Plus, Package, CheckCircle } from 'lucide-react';
 import { poService } from '../services/poService';
 import toast from 'react-hot-toast';
+import SupplierModal from './SupplierModal';
 
 const fmtVol = (n) => {
   const num = Number(n || 0);
   return isNaN(num) ? '0' : parseFloat(num.toFixed(2)).toString();
 };
-import SupplierModal from './SupplierModal';
 
 const fmtRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 });
 
-const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, onClose, onSuccess }) => {
+const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems, onConfirmReceipt, onClose, onSuccess }) => {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSupplierModal, setShowSupplierModal] = useState(false);
@@ -30,10 +30,20 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, onClose, onSu
     keterangan: '',
   });
 
+  // Receipt Mode States
+  const [receivedVol, setReceivedVol] = useState(0);
+  const [condition, setCondition] = useState('Baik');
+  const [notes, setNotes] = useState('');
+
   // Items State (editable)
   const [items, setItems] = useState([]);
 
   useEffect(() => {
+    if (receiptItems && receiptItems.length > 0) {
+      setReceivedVol(receiptItems.reduce((sum, curr) => sum + (curr.orderedVolume || 0), 0));
+      return; // Skip fetching suppliers for receipt mode
+    }
+
     fetchSuppliers();
 
     if (editingPo) {
@@ -76,7 +86,7 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, onClose, onSu
       });
       setItems(initialItems);
     }
-  }, [selectedItems, editingPo]);
+  }, [selectedItems, editingPo, receiptItems]);
 
   const fetchSuppliers = async () => {
     try {
@@ -147,6 +157,114 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, onClose, onSu
       setLoading(false);
     });
   };
+
+  const handleReceiptSubmit = async (e) => {
+    e.preventDefault();
+    if (!receiptItems || receiptItems.length === 0) return;
+    setLoading(true);
+    try {
+      const firstItem = receiptItems[0];
+      const payload = receiptItems.map(item => ({
+        id: item.id,
+        status: 'COMPLETED',
+        catatanFinance: `[PENERIMAAN BARANG] Vol Diterima: ${receivedVol} ${firstItem.unit}. Kondisi: ${condition}. Catatan: ${notes} | ${item.catatanFinance || ''}`.trim()
+      }));
+
+      await onConfirmReceipt(payload);
+      toast.success('Penerimaan barang berhasil dikonfirmasi!');
+      onClose();
+    } catch (error) {
+      toast.error('Gagal mengkonfirmasi penerimaan: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (receiptItems && receiptItems.length > 0) {
+    const firstItem = receiptItems[0];
+    const totalOrdered = receiptItems.reduce((sum, curr) => sum + (curr.orderedVolume || 0), 0);
+    return (
+      <div className={styles.modalOverlay} style={{ zIndex: 1000 }}>
+        <div className={styles.modalContent} style={{ maxWidth: '500px' }}>
+          <div className={styles.modalHeader}>
+            <h2 className={styles.modalTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Package size={20} style={{ color: '#60a5fa' }} />
+              Konfirmasi Penerimaan Barang
+            </h2>
+            <button type="button" className={styles.closeBtn} onClick={onClose}><X size={20} /></button>
+          </div>
+          <form onSubmit={handleReceiptSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#aaa' }}>Nama Material</label>
+              <div style={{ padding: '10px', backgroundColor: '#2a2a2a', borderRadius: '6px', color: '#eee', fontSize: '14px' }}>
+                {firstItem.itemName}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#aaa' }}>Total Di-order</label>
+                <div style={{ padding: '10px', backgroundColor: '#2a2a2a', borderRadius: '6px', color: '#eee', fontSize: '14px' }}>
+                  {totalOrdered} {firstItem.unit}
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#aaa' }}>Volume Diterima <span style={{ color: '#ef4444' }}>*</span></label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={receivedVol}
+                  onChange={(e) => setReceivedVol(e.target.value)}
+                  style={{ width: '100%', padding: '10px', backgroundColor: '#111', border: '1px solid #444', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#aaa' }}>Kondisi Barang <span style={{ color: '#ef4444' }}>*</span></label>
+              <select
+                value={condition}
+                onChange={(e) => setCondition(e.target.value)}
+                style={{ width: '100%', padding: '10px', backgroundColor: '#111', border: '1px solid #444', borderRadius: '6px', color: '#fff' }}
+              >
+                <option value="Baik">Baik (Sesuai Pesanan)</option>
+                <option value="Rusak Sebagian">Rusak Sebagian</option>
+                <option value="Rusak Total">Rusak Total</option>
+                <option value="Tidak Sesuai Spesifikasi">Tidak Sesuai Spesifikasi</option>
+                <option value="Kurang Volume">Kurang Volume</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#aaa' }}>Catatan / Keterangan Validasi</label>
+              <textarea
+                rows={3}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Contoh: Surat Jalan no. 123, barang diterima oleh mandor..."
+                style={{ width: '100%', padding: '10px', backgroundColor: '#111', border: '1px solid #444', borderRadius: '6px', color: '#fff', boxSizing: 'border-box', resize: 'vertical' }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{ padding: '10px 16px', backgroundColor: 'transparent', border: '1px solid #555', color: '#ccc', borderRadius: '6px', cursor: 'pointer' }}
+                disabled={loading}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{ padding: '10px 16px', backgroundColor: '#22c55e', border: 'none', color: '#fff', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500' }}
+              >
+                {loading ? 'Menyimpan...' : <><CheckCircle size={16} /> Konfirmasi Selesai</>}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

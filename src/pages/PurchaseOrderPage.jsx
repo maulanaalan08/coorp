@@ -30,8 +30,12 @@ const PurchaseOrderPage = () => {
   const [expandedPOs, setExpandedPOs] = useState({});
   const [expandedMaterials, setExpandedMaterials] = useState({});
 
+  // State untuk Goods Receipt
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [selectedReceiptItem, setSelectedReceiptItem] = useState(null);
+
   const { projects: projectList, loading: loadingProjects } = useProjects();
-  const { mrItems, loadingMr, refreshMaterialRequests } = useMaterialRequests(projectId);
+  const { mrItems, loadingMr, refreshMaterialRequests, updateBulkMaterialRequests } = useMaterialRequests(projectId);
   const { requests: financeMRs, loading: loadingFinanceMR, refreshFinanceMR } = useFinanceMaterialRequests();
   const { pos, loading, error, approve, refreshPOs } = usePO();
 
@@ -49,6 +53,11 @@ const PurchaseOrderPage = () => {
       success: 'PO berhasil di-approve!',
       error: 'Gagal menyetujui PO'
     });
+  };
+
+  const handleConfirmReceipt = async (payload) => {
+    await updateBulkMaterialRequests(payload);
+    refreshFinanceMR();
   };
 
   const handlePrint = (id) => {
@@ -276,8 +285,8 @@ const PurchaseOrderPage = () => {
                                 <td style={{ textAlign: 'center', color: '#888' }}>{gTotal}</td>
                                 <td style={{ textAlign: 'center' }}>
                                   <span className={`${styles.statusBadge} ${gCompleted === gTotal && gTotal > 0 ? styles.statusApproved
-                                      : gCompleted > 0 ? styles.statusPending
-                                        : styles.statusNone
+                                    : gCompleted > 0 ? styles.statusPending
+                                      : styles.statusNone
                                     }`}>{gCompleted}/{gTotal}</span>
                                 </td>
                                 <td>
@@ -330,8 +339,8 @@ const PurchaseOrderPage = () => {
                                       <td style={{ textAlign: 'center', color: '#666', fontSize: '12px' }}>{jTotal}</td>
                                       <td style={{ textAlign: 'center' }}>
                                         <span className={`${styles.statusBadge} ${jCompleted === jTotal && jTotal > 0 ? styles.statusApproved
-                                            : jCompleted > 0 ? styles.statusPending
-                                              : styles.statusNone
+                                          : jCompleted > 0 ? styles.statusPending
+                                            : styles.statusNone
                                           }`} style={{ fontSize: '10px', padding: '3px 8px' }}>
                                           {jCompleted}/{jTotal}
                                         </span>
@@ -365,7 +374,7 @@ const PurchaseOrderPage = () => {
                                                   <th>SAT.</th>
                                                   <th className={styles.cellRight}>EST. VOL</th>
                                                   <th className={styles.cellRight}>DI-ORDER</th>
-                                                  <th style={{ minWidth: '100px' }}>PROGRES</th>
+                                                  <th style={{ minWidth: '120px' }}>SISA BUTUH</th>
                                                   <th className={styles.cellRight}>HARGA/SAT</th>
                                                   <th style={{ textAlign: 'center' }}>STATUS</th>
                                                 </tr>
@@ -389,9 +398,26 @@ const PurchaseOrderPage = () => {
                                                   const poItemsOnly = matItems.filter(i => i.poNumber && i.poNumber !== '-');
                                                   const hasPOs = poItemsOnly.length > 0;
 
-                                                  const statusLabel = firstItem.status === 'COMPLETED' ? 'COMPLETED'
-                                                    : firstItem.status === 'PARTIAL' ? 'PARTIAL'
-                                                      : 'PENDING';
+                                                  const isFullyOrdered = totalOrdered >= totalEstVol && totalEstVol > 0;
+                                                  const isCompleted = firstItem.procurementStatus === 'COMPLETED' || firstItem.isForceClosed || firstItem.status === 'COMPLETED';
+
+                                                  let statusLabel = 'PENDING';
+                                                  let showUpdateBtn = false;
+                                                  let statusClass = styles.statusNone;
+
+                                                  if (isCompleted) {
+                                                    statusLabel = 'COMPLETED';
+                                                    statusClass = styles.statusApproved;
+                                                    showUpdateBtn = false;
+                                                  } else if (isFullyOrdered) {
+                                                    statusLabel = 'Menunggu Konfirmasi';
+                                                    statusClass = styles.statusPending;
+                                                    showUpdateBtn = true;
+                                                  } else if (totalOrdered > 0) {
+                                                    statusLabel = 'PARTIAL';
+                                                    statusClass = styles.statusPending;
+                                                    showUpdateBtn = false;
+                                                  }
 
                                                   return (
                                                     <React.Fragment key={matKey}>
@@ -441,22 +467,48 @@ const PurchaseOrderPage = () => {
                                                           {fmtVol(totalOrdered)}
                                                         </td>
                                                         <td>
-                                                          <div className={styles.progressWrap}>
-                                                            <div className={styles.progressBar}>
+                                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                              <span style={{ fontSize: '13px', color: (totalEstVol - totalOrdered) > 0 ? '#fb923c' : '#22c55e', fontWeight: '600' }}>
+                                                                {(totalEstVol - totalOrdered) > 0 ? `${fmtVol(totalEstVol - totalOrdered)} ${firstItem.unit}` : 'Terpenuhi'}
+                                                              </span>
+                                                              <span style={{ fontSize: '11px', color: '#888' }}>{Math.round(pct)}%</span>
+                                                            </div>
+                                                            <div className={styles.progressBar} style={{ height: '4px', minWidth: '100px', margin: 0 }}>
                                                               <div className={styles.progressFill} style={{
                                                                 width: `${pct}%`,
                                                                 background: pct >= 100 ? '#22c55e' : pct > 0 ? '#eab308' : '#333',
                                                               }} />
                                                             </div>
-                                                            <span className={styles.progressPct}>{Math.round(pct)}%</span>
                                                           </div>
                                                         </td>
                                                         <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(firstItem.pricePerUnit)}</td>
                                                         <td style={{ textAlign: 'center' }}>
-                                                          <span className={`${styles.statusBadge} ${firstItem.status === 'COMPLETED' ? styles.statusApproved
-                                                              : firstItem.status === 'PARTIAL' ? styles.statusPending
-                                                                : styles.statusNone
-                                                            }`}>{statusLabel}</span>
+                                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                                            <span className={`${styles.statusBadge} ${statusClass}`}>{statusLabel}</span>
+
+                                                            {showUpdateBtn && (
+                                                              <button
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  setSelectedReceiptItem(matItems);
+                                                                  setReceiptModalOpen(true);
+                                                                }}
+                                                                style={{
+                                                                  fontSize: '10px',
+                                                                  padding: '4px 8px',
+                                                                  backgroundColor: '#10b981',
+                                                                  color: 'white',
+                                                                  border: 'none',
+                                                                  borderRadius: '4px',
+                                                                  cursor: 'pointer',
+                                                                  whiteSpace: 'nowrap'
+                                                                }}
+                                                              >
+                                                                Update Penerimaan
+                                                              </button>
+                                                            )}
+                                                          </div>
                                                         </td>
                                                       </tr>
 
@@ -470,6 +522,8 @@ const PurchaseOrderPage = () => {
                                                                 <thead>
                                                                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                                                                     <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>NO. PO</th>
+                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>TANGGAL PO</th>
+                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>TANGGAL ONSITE</th>
                                                                     <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>SUPPLIER / TOKO</th>
                                                                     <th style={{ textAlign: 'right', padding: '6px', fontSize: '11px', color: '#888' }}>VOL DI-ORDER</th>
                                                                   </tr>
@@ -478,6 +532,8 @@ const PurchaseOrderPage = () => {
                                                                   {poItemsOnly.map(poI => (
                                                                     <tr key={poI.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                                                       <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', color: '#60a5fa' }}>{poI.poNumber}</td>
+                                                                      <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalPo ? new Date(poI.tanggalPo).toLocaleDateString('id-ID') : '-'}</td>
+                                                                      <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalOnsite ? new Date(poI.tanggalOnsite).toLocaleDateString('id-ID') : '-'}</td>
                                                                       <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.supplierName}</td>
                                                                       <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', textAlign: 'right', color: '#eab308' }}>{fmtVol(poI.orderedVolume)} {poI.unit}</td>
                                                                     </tr>
@@ -687,6 +743,18 @@ const PurchaseOrderPage = () => {
             setEditingPo(null);
           }}
           onSuccess={handlePoSuccess}
+        />
+      )}
+
+      {receiptModalOpen && (
+        <PurchaseOrderModal
+          receiptItems={selectedReceiptItem}
+          onConfirmReceipt={handleConfirmReceipt}
+          onClose={() => {
+            setReceiptModalOpen(false);
+            setSelectedReceiptItem(null);
+          }}
+          onSuccess={() => { }}
         />
       )}
     </div>

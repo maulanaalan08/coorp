@@ -13,14 +13,14 @@ const getAuthHeaders = () => {
 export const poService = {
   // Ambil daftar supplier
   getSuppliers: () => {
-    return fetchAPI('/finance/suppliers', {
+    return fetchAPI('/suppliers', {
       headers: getAuthHeaders()
     });
   },
 
   // Tambah supplier baru
   createSupplier: (supplierData) => {
-    return fetchAPI('/finance/suppliers', {
+    return fetchAPI('/suppliers', {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(supplierData),
@@ -73,3 +73,5 @@ export const poService = {
     window.open(`/?print-po=${id}`, '_blank');
   }
 };
+
+// Trigger HMR
