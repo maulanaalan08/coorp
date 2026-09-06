@@ -28,6 +28,7 @@ import { Bot } from "lucide-react";
 function App() {
   const { isAuthenticated, loginAuth, logoutAuth, user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [globalProjectId, setGlobalProjectId] = useState(null);
 
   // Cek apakah mode khusus print PO (via URL parameter)
   const urlParams = new URLSearchParams(window.location.search);
@@ -55,7 +56,7 @@ function App() {
 
   // JIKA SUDAH LOGIN: Tampilkan Layout Utama (Sidebar + Main Content)
   return (
-    <div className="flex w-full min-h-screen bg-[#0c0b09] overflow-hidden">
+    <div className="flex w-full h-screen bg-[#0c0b09] overflow-hidden">
 
       {/* Konfigurasi Notifikasi Toaster dari react-hot-toast */}
       <Toaster
@@ -88,14 +89,21 @@ function App() {
       <main className="flex-1 h-screen overflow-y-auto relative w-full">
         {activeTab === "dashboard" && (
           <Dashboard
-            onCreateBv={() => setActiveTab("bv")}
+            onCreateBv={(projectId) => {
+              setGlobalProjectId(projectId);
+              setActiveTab("bv");
+            }}
+            onCreateSurvey={(projectId) => {
+              setGlobalProjectId(projectId);
+              setActiveTab("data-survey");
+            }}
             onViewDetails={() => setActiveTab("project-board")}
           />
         )}
         {activeTab === "project-board" && <ProjectBoard />}
         {activeTab === "upload-hspk" && <UploadHspk />}
-        {activeTab === "data-survey" && <DataSurvey />}
-        {(activeTab === "bv" || activeTab === "backup-volume") && <BackUpVolume />}
+        {activeTab === "data-survey" && <DataSurvey initialProjectId={globalProjectId} />}
+        {(activeTab === "bv" || activeTab === "backup-volume") && <BackUpVolume initialProjectId={globalProjectId} />}
         {activeTab === "rab" && <RabBudgeting />}
         {activeTab === "finance" && <FinancePage />}
         {activeTab === "purchase-orders" && <PurchaseOrderPage />}

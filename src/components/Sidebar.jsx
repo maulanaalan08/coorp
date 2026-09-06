@@ -114,7 +114,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
         }`}
       >
         {/* HEADER / BRAND */}
-        <div className="p-6 sticky top-0 bg-[#0c0b09] z-10 flex justify-between items-start">
+        <div className="p-6 bg-[#0c0b09] flex justify-between items-start shrink-0">
           <div>
             <div className="text-[#d4af37] text-2xl font-black tracking-wider uppercase mb-1 drop-shadow-md">
               DIVES CORP.
@@ -238,7 +238,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
         <CreateProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
 
         {/* FOOTER */}
-        <div className="p-4 border-t border-[#222] bg-[#0c0b09] sticky bottom-0">
+        <div className="p-4 border-t border-[#222] bg-[#0c0b09] mt-auto">
           {user && (
             <div className="flex items-center gap-3 bg-[#161513] p-3 rounded-xl mb-4 border border-[#2a2a2a]">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#d4af37] to-[#a8862a] flex items-center justify-center text-[#0c0b09] font-bold text-sm shadow-md">

@@ -449,9 +449,15 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, edit
 // ================================================================
 // KOMPONEN UTAMA BACKUP VOLUME
 // ================================================================
-export default function BackUpVolume() {
+export default function BackUpVolume({ initialProjectId = null }) {
   const { projects, loading: loadingProjects } = useProjects();
-  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
+
+  React.useEffect(() => {
+    if (initialProjectId) {
+      setSelectedProjectId(initialProjectId);
+    }
+  }, [initialProjectId]);
 
   const { bvItems, loading: loadingBv, refresh, deleteBvItem, deleteBulk, linkToRab, linkToRabBulk, syncBvItem, syncBulk } = useBvItems(selectedProjectId);
 

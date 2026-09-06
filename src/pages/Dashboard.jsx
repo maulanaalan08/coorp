@@ -22,12 +22,36 @@ import StatCard from "../components/StatCard";
 import ProjectTableRow from "../components/ProjectTableRow";
 import CreateProjectModal from "../components/CreateProjectModal";
 import { useProjects } from "../hooks/useProjects";
+import { hspkService } from "../services/hspkService";
 import toast from "react-hot-toast";
 
 // ================================================================
 // INLINE EDIT MODAL — Desain selaras dengan CreateProjectModal
 // ================================================================
-function EditProjectModal({ editProject, editForm, editError, savingEdit, onClose, onChange, onSubmit }) {
+function EditProjectModal({ editProject, editForm, setEditForm, editError, savingEdit, onClose, onChange, onSubmit }) {
+  const [hspkOptions, setHspkOptions] = React.useState([]);
+  const [hspkLoading, setHspkLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchHspk = async () => {
+      try {
+        const result = await hspkService.getAvailableCombos();
+        setHspkOptions(result);
+      } catch (err) {
+        console.error(err);
+        setHspkOptions([]);
+      } finally {
+        setHspkLoading(false);
+      }
+    };
+    if (editProject) fetchHspk();
+  }, [editProject]);
+
+  const filteredHspkOptions = hspkOptions.filter(combo => {
+    if (!editForm.discipline) return false;
+    return combo.discipline?.toUpperCase() === editForm.discipline.toUpperCase();
+  });
+
   if (!editProject) return null;
 
   return (
@@ -98,47 +122,66 @@ function EditProjectModal({ editProject, editForm, editError, savingEdit, onClos
                 />
               </div>
 
-              <div className="form-group">
-                <label>HSPK Period</label>
-                <input
-                  id="edit-hspkPeriod"
-                  name="hspkPeriod"
-                  type="number"
-                  value={editForm.hspkPeriod}
-                  onChange={onChange}
-                  placeholder="Contoh: 2026"
-                  disabled={savingEdit}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Discipline</label>
+              <div className="form-group full">
+                <label>Kategori Pekerjaan</label>
                 <select
-                  id="edit-discipline"
                   name="discipline"
                   value={editForm.discipline}
-                  onChange={onChange}
+                  onChange={(e) => {
+                    onChange(e);
+                    // Reset grade & hspkPeriod on discipline change to force re-selection
+                    setEditForm((prev) => ({ ...prev, grade: "", hspkPeriod: "" }));
+                  }}
                   disabled={savingEdit}
                 >
-                  <option value="">— Pilih Disiplin —</option>
+                  <option value="">— Pilih Kategori —</option>
                   <option value="SIPIL">Sipil</option>
                   <option value="INTERIOR">Interior</option>
                 </select>
               </div>
 
-              <div className="form-group">
-                <label>Grade</label>
+              <div className="form-group full">
+                <label>Pilih Data HSPK</label>
                 <select
-                  id="edit-grade"
-                  name="grade"
-                  value={editForm.grade}
-                  onChange={onChange}
-                  disabled={savingEdit}
+                  value={
+                    filteredHspkOptions.findIndex(
+                      (c) =>
+                        String(c.period) === String(editForm.hspkPeriod) &&
+                        String(c.grade) === String(editForm.grade)
+                    ) !== -1
+                      ? filteredHspkOptions.findIndex(
+                          (c) =>
+                            String(c.period) === String(editForm.hspkPeriod) &&
+                            String(c.grade) === String(editForm.grade)
+                        )
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const idx = e.target.value;
+                    const selected = filteredHspkOptions[idx];
+                    if (selected) {
+                      setEditForm((prev) => ({
+                        ...prev,
+                        hspkPeriod: selected.period,
+                        grade: selected.grade,
+                        discipline: selected.discipline,
+                      }));
+                    }
+                  }}
+                  disabled={savingEdit || !editForm.discipline}
                 >
-                  <option value="">— Pilih Grade —</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
+                  <option value="" disabled>
+                    {hspkLoading
+                      ? "-- memuat --"
+                      : !editForm.discipline
+                      ? "-- Pilih kategori pekerjaan dulu --"
+                      : "-- pilih data HSPK --"}
+                  </option>
+                  {filteredHspkOptions.map((combo, index) => (
+                    <option key={index} value={index}>
+                      {combo.period} — {combo.discipline} — Grade {combo.grade}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -358,6 +401,7 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
       <EditProjectModal
         editProject={editProject}
         editForm={editForm}
+        setEditForm={setEditForm}
         editError={editError}
         savingEdit={savingEdit}
         onClose={closeEditProjectModal}

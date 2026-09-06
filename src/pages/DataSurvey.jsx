@@ -646,11 +646,17 @@ function SurveyRow({ survey, onDelete, onEdit }) {
 // ================================================================
 // KOMPONEN UTAMA — DATA SURVEY PAGE
 // ================================================================
-const DataSurvey = () => {
+const DataSurvey = ({ initialProjectId = null }) => {
   const { projects, loading: loadingProjects } = useProjects();
-  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSurvey, setEditingSurvey] = useState(null);
+
+  React.useEffect(() => {
+    if (initialProjectId) {
+      setSelectedProjectId(initialProjectId);
+    }
+  }, [initialProjectId]);
 
   const { surveys, loading: loadingSurveys, error: surveyError, refresh, deleteSurvey } = useSurveys(selectedProjectId);
 
