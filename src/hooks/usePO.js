@@ -51,6 +51,26 @@ export const usePO = () => {
     }
   };
 
+  const reject = async (id, reason) => {
+    try {
+      const res = await poService.rejectPO(id, reason);
+      await fetchPOs();
+      return res;
+    } catch (err) {
+      throw new Error(err.message || 'Gagal reject PO');
+    }
+  };
+
+  const cancelReject = async (id) => {
+    try {
+      const res = await poService.cancelRejectPO(id);
+      await fetchPOs();
+      return res;
+    } catch (err) {
+      throw new Error(err.message || 'Gagal membatalkan reject PO');
+    }
+  };
+
   // Fetch initial data
   useEffect(() => {
     fetchSuppliers();
@@ -64,6 +84,8 @@ export const usePO = () => {
     error,
     refreshPOs: fetchPOs,
     createNewPO,
-    approve
+    approve,
+    reject,
+    cancelReject
   };
 };

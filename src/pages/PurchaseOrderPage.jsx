@@ -37,7 +37,7 @@ const PurchaseOrderPage = () => {
   const { projects: projectList, loading: loadingProjects } = useProjects();
   const { mrItems, loadingMr, refreshMaterialRequests, updateBulkMaterialRequests } = useMaterialRequests(projectId);
   const { requests: financeMRs, loading: loadingFinanceMR, refreshFinanceMR } = useFinanceMaterialRequests();
-  const { pos, loading, error, approve, refreshPOs } = usePO();
+  const { pos, loading, error, approve, reject, cancelReject, refreshPOs } = usePO();
 
   // Gabungkan data dari finance endpoint (lebih kaya, split per toko)
   // Filter berdasarkan project yang dipilih
@@ -52,6 +52,29 @@ const PurchaseOrderPage = () => {
       loading: 'Meng-approve PO...',
       success: 'PO berhasil di-approve!',
       error: 'Gagal menyetujui PO'
+    });
+  };
+
+  const handleReject = async (id) => {
+    const reason = window.prompt('Masukkan alasan penolakan PO:');
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error('Alasan penolakan tidak boleh kosong');
+      return;
+    }
+    toast.promise(reject(id, reason), {
+      loading: 'Menolak PO...',
+      success: 'PO berhasil ditolak!',
+      error: 'Gagal menolak PO'
+    });
+  };
+
+  const handleCancelReject = async (id) => {
+    if (!window.confirm('Yakin ingin membatalkan penolakan PO ini? Status akan kembali menjadi Belum Approve.')) return;
+    toast.promise(cancelReject(id), {
+      loading: 'Membatalkan penolakan...',
+      success: 'Penolakan berhasil dibatalkan!',
+      error: 'Gagal membatalkan penolakan'
     });
   };
 
@@ -109,7 +132,7 @@ const PurchaseOrderPage = () => {
   const isMaterialFulfilled = (matItems) => {
     const first = matItems[0];
     if (isItemFulfilled(first) || first.procurementStatus === 'COMPLETED') return true;
-    
+
     const tEst = matItems.reduce((sum, curr) => sum + (curr.estimatedVolume || 0), 0);
     const tOrd = matItems.reduce((sum, curr) => sum + (curr.orderedVolume || 0), 0);
     return tEst > 0 && tOrd >= tEst;
@@ -554,54 +577,97 @@ const PurchaseOrderPage = () => {
                                                                   {poItemsOnly.map(poI => {
                                                                     const fullPo = pos.find(p => p.poNumber === poI.poNumber);
                                                                     const isApproved = fullPo && (fullPo.status === 'APPROVED' || fullPo.status === 'approve' || fullPo.status === 'Approved');
-                                                                    
+                                                                    const isRejected = fullPo && fullPo.status === 'REJECTED';
+                                                                    const isBelumApprove = fullPo && (!isApproved && !isRejected);
+
                                                                     return (
-                                                                      <tr key={poI.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                        <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', color: '#60a5fa' }}>{poI.poNumber}</td>
-                                                                        <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalPo ? new Date(poI.tanggalPo).toLocaleDateString('id-ID') : '-'}</td>
-                                                                        <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalOnsite ? new Date(poI.tanggalOnsite).toLocaleDateString('id-ID') : '-'}</td>
-                                                                        <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.supplierName}</td>
-                                                                        <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', textAlign: 'right', color: '#eab308' }}>{fmtVol(poI.orderedVolume)} {poI.unit}</td>
-                                                                        <td style={{ padding: '6px', textAlign: 'center' }}>
-                                                                          {fullPo ? (
-                                                                            <div className={styles.actionCell} style={{ justifyContent: 'center' }}>
-                                                                              {!isApproved && (
-                                                                                <button
-                                                                                  className={styles.approveBtn}
-                                                                                  onClick={(e) => { e.stopPropagation(); handleApprove(fullPo.id); }}
-                                                                                  title="Approve PO"
-                                                                                >
-                                                                                  <CheckCircle size={14} />
-                                                                                </button>
-                                                                              )}
-                                                                              {!isApproved && (
+                                                                      <React.Fragment key={poI.id}>
+                                                                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                                                          <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', color: '#60a5fa' }}>{poI.poNumber}</td>
+                                                                          <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalPo ? new Date(poI.tanggalPo).toLocaleDateString('id-ID') : '-'}</td>
+                                                                          <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalOnsite ? new Date(poI.tanggalOnsite).toLocaleDateString('id-ID') : '-'}</td>
+                                                                          <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.supplierName}</td>
+                                                                          <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', textAlign: 'right', color: '#eab308' }}>{fmtVol(poI.orderedVolume)} {poI.unit}</td>
+                                                                          <td style={{ padding: '6px', textAlign: 'center' }}>
+                                                                            {fullPo ? (
+                                                                              <div className={styles.actionCell} style={{ justifyContent: 'center' }}>
+                                                                                {isBelumApprove && (
+                                                                                  <>
+                                                                                    <button
+                                                                                      className={styles.approveBtn}
+                                                                                      onClick={(e) => { e.stopPropagation(); handleApprove(fullPo.id); }}
+                                                                                      title="Approve PO"
+                                                                                    >
+                                                                                      <CheckCircle size={14} />
+                                                                                    </button>
+                                                                                    <button
+                                                                                      onClick={(e) => { e.stopPropagation(); handleReject(fullPo.id); }}
+                                                                                      title="Tolak PO"
+                                                                                      style={{ backgroundColor: '#ef4444', color: 'white', padding: '4px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '11px' }}
+                                                                                    >
+                                                                                      Tolak
+                                                                                    </button>
+                                                                                    <button
+                                                                                      className={styles.printBtn}
+                                                                                      onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setEditingPo(fullPo);
+                                                                                        setIsPoModalOpen(true);
+                                                                                      }}
+                                                                                      title="Edit PO"
+                                                                                      style={{ backgroundColor: '#2563eb' }}
+                                                                                    >
+                                                                                      <Edit size={14} />
+                                                                                    </button>
+                                                                                  </>
+                                                                                )}
+                                                                                {isRejected && (
+                                                                                  <>
+                                                                                    <button
+                                                                                      onClick={(e) => { e.stopPropagation(); handleCancelReject(fullPo.id); }}
+                                                                                      title="Batal Tolak PO"
+                                                                                      style={{ backgroundColor: '#f59e0b', color: 'white', padding: '4px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '11px' }}
+                                                                                    >
+                                                                                      Cancel Reject
+                                                                                    </button>
+                                                                                    <button
+                                                                                      className={styles.printBtn}
+                                                                                      onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setEditingPo(fullPo);
+                                                                                        setIsPoModalOpen(true);
+                                                                                      }}
+                                                                                      title="Edit PO (Ajukan Ulang)"
+                                                                                      style={{ backgroundColor: '#2563eb' }}
+                                                                                    >
+                                                                                      <Edit size={14} />
+                                                                                    </button>
+                                                                                  </>
+                                                                                )}
                                                                                 <button
                                                                                   className={styles.printBtn}
-                                                                                  onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    setEditingPo(fullPo);
-                                                                                    setIsPoModalOpen(true);
-                                                                                  }}
-                                                                                  title="Edit PO"
-                                                                                  style={{ backgroundColor: '#2563eb' }}
+                                                                                  onClick={(e) => { e.stopPropagation(); handlePrint(fullPo.id); }}
+                                                                                  title="Cetak PDF"
                                                                                 >
-                                                                                  <Edit size={14} />
+                                                                                  <Printer size={14} />
                                                                                 </button>
-                                                                              )}
-                                                                              <button
-                                                                                className={styles.printBtn}
-                                                                                onClick={(e) => { e.stopPropagation(); handlePrint(fullPo.id); }}
-                                                                                title="Cetak PDF"
-                                                                              >
-                                                                                <Printer size={14} />
-                                                                              </button>
-                                                                            </div>
-                                                                          ) : (
-                                                                            <span style={{ fontSize: '11px', color: '#666' }}>-</span>
-                                                                          )}
-                                                                        </td>
-                                                                      </tr>
-                                                                    )})}
+                                                                              </div>
+                                                                            ) : (
+                                                                              <span style={{ fontSize: '11px', color: '#666' }}>-</span>
+                                                                            )}
+                                                                          </td>
+                                                                        </tr>
+                                                                        {isRejected && fullPo.rejectReason && (
+                                                                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                                                            <td colSpan={6} style={{ padding: '4px 6px', fontSize: '11px', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
+                                                                              <AlertCircle size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
+                                                                              <strong>Alasan Penolakan:</strong> {fullPo.rejectReason}
+                                                                            </td>
+                                                                          </tr>
+                                                                        )}
+                                                                      </React.Fragment>
+                                                                    )
+                                                                  })}
                                                                 </tbody>
                                                               </table>
                                                             </div>
@@ -682,6 +748,7 @@ const PurchaseOrderPage = () => {
                       ) : (
                         filteredPOs.map((po) => {
                           const isApproved = po.status === 'APPROVED' || po.status === 'approve' || po.status === 'Approved';
+                          const isRejected = po.status === 'REJECTED';
                           const isPOOpen = !!expandedPOs[po.id];
 
                           return (
@@ -707,8 +774,8 @@ const PurchaseOrderPage = () => {
                                 </td>
                                 <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(po.grandTotal)}</td>
                                 <td style={{ textAlign: 'center' }}>
-                                  <span className={`${styles.statusBadge} ${isApproved ? styles.statusApproved : styles.statusPending}`}>
-                                    {isApproved ? 'Approved' : 'Belum Approve'}
+                                  <span className={`${styles.statusBadge} ${isApproved ? styles.statusApproved : isRejected ? styles.statusNone : styles.statusPending}`} style={isRejected ? { backgroundColor: '#ef4444', color: 'white' } : {}}>
+                                    {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Belum Approve'}
                                   </span>
                                 </td>
                               </tr>
@@ -718,6 +785,12 @@ const PurchaseOrderPage = () => {
                                 <tr>
                                   <td colSpan={9} style={{ padding: 0, background: 'rgba(0,0,0,0.15)' }}>
                                     <div className={styles.materialTableWrapper} style={{ paddingBottom: '16px', paddingTop: '12px' }}>
+                                      {isRejected && po.rejectReason && (
+                                        <div style={{ padding: '8px 16px', marginBottom: '12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontSize: '12px', borderRadius: '4px', borderLeft: '3px solid #ef4444' }}>
+                                          <AlertCircle size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+                                          <strong>Alasan Penolakan:</strong> {po.rejectReason}
+                                        </div>
+                                      )}
                                       <table className={styles.subTable}>
                                         <thead>
                                           <tr>

@@ -68,6 +68,31 @@ export const poService = {
     });
   },
 
+  // Approve Atasan
+  approveOwnerPO: (id) => {
+    return fetchAPI(`/finance/po/${id}/approve-owner`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+    });
+  },
+
+  // Reject PO
+  rejectPO: (id, reason) => {
+    return fetchAPI(`/finance/po/${id}/reject`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ rejectReason: reason }),
+    });
+  },
+
+  // Cancel Reject PO
+  cancelRejectPO: (id) => {
+    return fetchAPI(`/finance/po/${id}/cancel-reject`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+    });
+  },
+
   // Fungsi khusus buka PDF/Print page di window baru
   printPO: (id) => {
     window.open(`/?print-po=${id}`, '_blank');
