@@ -11,6 +11,7 @@ import "./styles/Auth.css";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import ProjectBoard from "./pages/ProjectBoard";
+import ProjectDetailDashboard from "./pages/ProjectDetailDashboard";
 import UploadHspk from "./pages/UploadHspk";
 import BackUpVolume from "./pages/BackUpVolume";
 import DataSurvey from "./pages/DataSurvey";
@@ -100,7 +101,20 @@ function App() {
             onViewDetails={() => setActiveTab("project-board")}
           />
         )}
-        {activeTab === "project-board" && <ProjectBoard />}
+        {activeTab === "project-board" && (
+          <ProjectBoard 
+            onProjectClick={(projectId) => {
+              setGlobalProjectId(projectId);
+              setActiveTab("project-detail");
+            }} 
+          />
+        )}
+        {activeTab === "project-detail" && (
+          <ProjectDetailDashboard 
+            projectId={globalProjectId} 
+            onBack={() => setActiveTab("project-board")} 
+          />
+        )}
         {activeTab === "upload-hspk" && <UploadHspk />}
         {activeTab === "data-survey" && <DataSurvey initialProjectId={globalProjectId} />}
         {(activeTab === "bv" || activeTab === "backup-volume") && <BackUpVolume initialProjectId={globalProjectId} />}

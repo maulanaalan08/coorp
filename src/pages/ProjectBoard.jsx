@@ -6,7 +6,7 @@ import {
 import CreateProjectModal from '../components/CreateProjectModal';
 import { useProjects } from '../hooks/useProjects';
 
-const ProjectBoard = () => {
+const ProjectBoard = ({ onProjectClick }) => {
   const { projects, loading, error, refresh: loadProjects } = useProjects();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,7 +24,11 @@ const ProjectBoard = () => {
       : `https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=500&sig=${imageSeed}`;
 
     return (
-      <div key={project.id} className={styles.kanbanCard}>
+      <div 
+        key={project.id} 
+        className={`${styles.kanbanCard} cursor-pointer hover:ring-2 hover:ring-[#d4af37] transition-all`}
+        onClick={() => onProjectClick && onProjectClick(project.id)}
+      >
         <div
           className={styles.cardImage}
           style={{ backgroundImage: `url('${imageUrl}')` }}
