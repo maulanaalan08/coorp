@@ -65,6 +65,7 @@ export const poService = {
     return fetchAPI(`/finance/po/${id}/approve`, {
       method: 'PUT',
       headers: getAuthHeaders(),
+      body: JSON.stringify({}),
     });
   },
 
@@ -73,6 +74,7 @@ export const poService = {
     return fetchAPI(`/finance/po/${id}/approve-owner`, {
       method: 'PUT',
       headers: getAuthHeaders(),
+      body: JSON.stringify({}),
     });
   },
 
@@ -90,6 +92,7 @@ export const poService = {
     return fetchAPI(`/finance/po/${id}/cancel-reject`, {
       method: 'PUT',
       headers: getAuthHeaders(),
+      body: JSON.stringify({}),
     });
   },
 

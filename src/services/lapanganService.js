@@ -27,11 +27,11 @@ export const lapanganService = {
       body: formData, // FormData doesn't need Content-Type header in fetch API, browser sets it automatically with boundary
     }),
 
-  // Upload Surat Jalan Borongan (Bulk) dengan Foto
-  uploadBulkSuratJalan: (formData) =>
+  // Upload Surat Jalan Borongan (Bulk) dengan JSON payload
+  uploadBulkSuratJalan: (payload) =>
     fetchAPI(`/surat-jalan/bulk`, {
       method: 'POST',
-      body: formData,
+      body: JSON.stringify(payload),
     }),
 
   // Ambil Riwayat Surat Jalan

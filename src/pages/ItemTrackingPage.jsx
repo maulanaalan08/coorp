@@ -14,6 +14,7 @@ import Header from '../components/Header';
 import ProjectSelector from '../components/ProjectSelector';
 import { useProjects } from '../hooks/useProjects';
 import { lapanganService } from '../services/lapanganService';
+import { poService } from '../services/poService';
 import toast from 'react-hot-toast';
 import BulkSuratJalanModal from '../components/BulkSuratJalanModal';
 
@@ -34,9 +35,9 @@ const ItemTrackingPage = () => {
   const { projects: projectList, loading: loadingProjects } = useProjects();
 
   const [projectId, setProjectId] = useState(null);
-  const [mrData, setMrData]       = useState([]);
-  const [loading, setLoading]     = useState(false);
-  const [search, setSearch]       = useState('');
+  const [mrData, setMrData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
 
   // State untuk Checklist & Modal
@@ -52,8 +53,37 @@ const ItemTrackingPage = () => {
     if (!projectId) return;
     setLoading(true);
     try {
+      // 1. Fetch Material Requests
       const data = await lapanganService.getMaterialRequests(projectId);
-      setMrData(Array.isArray(data) ? data : []);
+      const mrList = Array.isArray(data) ? data : [];
+
+      // 2. Fetch all POs to check their status (since backend doesn't send poStatus in mrData)
+      let poList = [];
+      try {
+        const pos = await poService.getPOs();
+        poList = Array.isArray(pos) ? pos : [];
+      } catch (e) {
+        console.error('Failed to fetch POs', e);
+      }
+
+      // 3. Create a map of PO Number to Status
+      const poStatusMap = {};
+      poList.forEach(po => {
+        poStatusMap[po.poNumber] = po.status;
+      });
+
+      // 4. Inject poStatus into the items
+      const enrichedMrList = mrList.map(mr => ({
+        ...mr,
+        items: (mr.items || []).map(item => ({
+          ...item,
+          poStatus: item.poNumber && item.poNumber !== '-'
+            ? (poStatusMap[item.poNumber] || 'UNKNOWN')
+            : null
+        }))
+      }));
+
+      setMrData(enrichedMrList);
       setSelectedItems([]);
     } catch (err) {
       console.error('Item Tracking fetch error:', err);
@@ -75,7 +105,28 @@ const ItemTrackingPage = () => {
   const allItems = useMemo(() => {
     const result = [];
     mrData.forEach((mr) => {
-      (mr.items || []).forEach((item) => result.push(item));
+      (mr.items || []).forEach((item) => {
+        // Filter: Hanya ambil data yang berasal dari PO
+        if (item.poNumber && item.poNumber !== '-') {
+          // Hitung status secara lokal di frontend agar tidak perlu merubah backend
+          let localStatus = item.procurementStatus || item.status;
+
+          if (item.isForceClosed) {
+            localStatus = 'COMPLETED';
+          } else if (Number((item.receivedVolume || 0).toFixed(4)) >= Number((item.orderedVolume || 0).toFixed(4))) {
+            localStatus = 'COMPLETED';
+          } else if ((item.receivedVolume || 0) > 0) {
+            localStatus = 'PARTIAL';
+          } else {
+            localStatus = 'PENDING';
+          }
+
+          result.push({
+            ...item,
+            status: localStatus
+          });
+        }
+      });
     });
     return result;
   }, [mrData]);
@@ -86,6 +137,8 @@ const ItemTrackingPage = () => {
       const q = search.toLowerCase();
       const matchSearch = !q ||
         (item.itemName || '').toLowerCase().includes(q) ||
+        (item.description || '').toLowerCase().includes(q) ||
+        (item.description2 || '').toLowerCase().includes(q) ||
         (item.groupName || '').toLowerCase().includes(q) ||
         (item.jobName || '').toLowerCase().includes(q) ||
         (item.supplierName || '').toLowerCase().includes(q) ||
@@ -95,9 +148,9 @@ const ItemTrackingPage = () => {
   }, [allItems, filterStatus, search]);
 
   const stats = useMemo(() => ({
-    total:     allItems.length,
-    pending:   allItems.filter((i) => i.status === 'PENDING').length,
-    partial:   allItems.filter((i) => i.status === 'PARTIAL').length,
+    total: allItems.length,
+    pending: allItems.filter((i) => i.status === 'PENDING').length,
+    partial: allItems.filter((i) => i.status === 'PARTIAL').length,
     completed: allItems.filter((i) => i.status === 'COMPLETED').length,
   }), [allItems]);
 
@@ -114,10 +167,13 @@ const ItemTrackingPage = () => {
   const isLoading = loadingProjects || loading;
 
   // Handler Checklist
-  const eligibleItems = filteredItems.filter(i => i.poNumber !== '-' && i.status !== 'PENDING');
-  
+  // Sekarang semua items dalam filteredItems sudah pasti dari PO
+  const eligibleItems = filteredItems;
+
   const handleSelectAll = (e) => {
     if (e.target.checked) {
+      // Hanya pilih yang PENDING atau PARTIAL (opsional, jika ingin bisa centang COMPLETED juga, hapus filter ini)
+      // Kita biarkan user memilih semua item, termasuk COMPLETED jika ada revisi catatan
       setSelectedItems(eligibleItems);
     } else {
       setSelectedItems([]);
@@ -239,19 +295,18 @@ const ItemTrackingPage = () => {
                     </div>
                     <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
                       {[
-                        { key: 'ALL',       label: 'Semua',    n: stats.total },
-                        { key: 'PENDING',   label: 'Pending',  n: stats.pending },
-                        { key: 'PARTIAL',   label: 'Sebagian', n: stats.partial },
-                        { key: 'COMPLETED', label: 'Selesai',  n: stats.completed },
+                        { key: 'ALL', label: 'Semua', n: stats.total },
+                        { key: 'PENDING', label: 'Pending', n: stats.pending },
+                        { key: 'PARTIAL', label: 'Sebagian', n: stats.partial },
+                        { key: 'COMPLETED', label: 'Selesai', n: stats.completed },
                       ].map(({ key, label, n }) => (
                         <button
                           key={key}
                           onClick={() => setFilterStatus(key)}
-                          className={`px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all border ${
-                            filterStatus === key 
-                              ? 'border-[#d4af37] bg-[#d4af37]/10 text-[#d4af37]' 
-                              : 'border-white/10 bg-white/5 text-[#888] hover:bg-white/10'
-                          }`}
+                          className={`px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all border ${filterStatus === key
+                            ? 'border-[#d4af37] bg-[#d4af37]/10 text-[#d4af37]'
+                            : 'border-white/10 bg-white/5 text-[#888] hover:bg-white/10'
+                            }`}
                         >
                           {label} ({n})
                         </button>
@@ -265,11 +320,10 @@ const ItemTrackingPage = () => {
                   <button
                     onClick={() => setIsBulkSJModalOpen(true)}
                     disabled={selectedItems.length === 0}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                      selectedItems.length > 0
-                        ? 'bg-gradient-to-br from-[#d4af37] to-[#a8862a] text-[#0c0b09] shadow-lg shadow-[#d4af37]/20 hover:scale-[1.02]'
-                        : 'bg-white/5 text-[#666] border border-white/10 cursor-not-allowed'
-                    }`}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${selectedItems.length > 0
+                      ? 'bg-gradient-to-br from-[#d4af37] to-[#a8862a] text-[#0c0b09] shadow-lg shadow-[#d4af37]/20 hover:scale-[1.02]'
+                      : 'bg-white/5 text-[#666] border border-white/10 cursor-not-allowed'
+                      }`}
                   >
                     <FileText size={16} />
                     Terima Barang Terpilih ({selectedItems.length})
@@ -294,8 +348,8 @@ const ItemTrackingPage = () => {
                         <thead>
                           <tr className="bg-[#1a1917] border-b border-white/5 text-xs uppercase tracking-wider text-[#888]">
                             <th className="p-4 font-semibold w-[5%] text-center">
-                              <input 
-                                type="checkbox" 
+                              <input
+                                type="checkbox"
                                 className="accent-[#d4af37] w-4 h-4 cursor-pointer"
                                 checked={eligibleItems.length > 0 && selectedItems.length === eligibleItems.length}
                                 onChange={handleSelectAll}
@@ -313,34 +367,37 @@ const ItemTrackingPage = () => {
                         <tbody>
                           {Object.entries(grouped).map(([groupName, items]) => (
                             <React.Fragment key={groupName}>
-                                <tr className="bg-[#161513]">
-                                  <td colSpan={8} className="px-4 py-3 border-b border-white/5">
-                                    <div className="flex items-center text-[#d4af37] text-xs font-bold uppercase tracking-wider">
-                                      <Package size={14} className="mr-2" /> {groupName}
-                                    </div>
-                                  </td>
-                                </tr>
-                                {items.map((item, idx) => {
-                                  const isPending = item.status === 'PENDING';
-                                  const isFromPO  = item.poNumber !== '-';
-                                  const isEligible = !isPending && isFromPO;
-                                  const isSelected = selectedItems.some(i => i.id === item.id);
+                              <tr className="bg-[#161513]">
+                                <td colSpan={8} className="px-4 py-3 border-b border-white/5">
+                                  <div className="flex items-center text-[#d4af37] text-xs font-bold uppercase tracking-wider">
+                                    <Package size={14} className="mr-2" /> {groupName}
+                                  </div>
+                                </td>
+                              </tr>
+                              {items.map((item, idx) => {
+                                const isEligible = item.poStatus === 'APPROVED';
+                                const isSelected = selectedItems.some(i => i.id === item.id);
 
-                                  return (
+                                return (
                                   <tr key={`${item.id}-${idx}`} className={`border-b border-white/5 transition-colors group ${isSelected ? 'bg-[#d4af37]/5' : 'hover:bg-white/[0.02]'}`}>
                                     <td className="p-4 align-top text-center">
-                                      <input 
+                                      <input
                                         type="checkbox"
                                         disabled={!isEligible}
                                         checked={isSelected}
                                         onChange={() => handleToggleSelect(item)}
                                         className="accent-[#d4af37] w-4 h-4 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title={!isEligible ? 'PO belum di-approve' : 'Pilih item'}
                                       />
                                     </td>
                                     <td className="p-4 align-top">
-                                      <div className="font-semibold text-white text-sm">
-                                        {item.itemName || '—'}
-                                      </div>
+                                      <div className="font-bold text-white text-sm">{item.itemName || '—'}</div>
+                                      <div className="text-xs text-[#888] mt-1 line-clamp-1">{item.description}</div>
+                                      {!isEligible && (
+                                        <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                                          <AlertCircle size={12} /> PO Belum Approve
+                                        </div>
+                                      )}
                                       {item.unit && (
                                         <div className="text-xs text-[#666] mt-1">
                                           Satuan: {item.unit}
@@ -358,22 +415,19 @@ const ItemTrackingPage = () => {
                                       </span>
                                     </td>
                                     <td className="p-4 align-top">
-                                      <div className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${isFromPO ? 'bg-[#38bdf8]/10 border-[#38bdf8]/20 text-[#38bdf8]' : 'bg-[#fb923c]/10 border-[#fb923c]/20 text-[#fb923c]'}`}>
+                                      <div className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border bg-[#38bdf8]/10 border-[#38bdf8]/20 text-[#38bdf8]`}>
                                         <Truck size={10} />
                                         {item.supplierName || '—'}
                                       </div>
-                                      {isFromPO && (
-                                        <div className="text-[11px] text-[#666] mt-1.5 font-mono">
-                                          {item.poNumber}
-                                        </div>
-                                      )}
+                                      <div className="text-[11px] text-[#666] mt-1.5 font-mono">
+                                        {item.poNumber}
+                                      </div>
                                     </td>
                                     <td className="p-4 align-top">
-                                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wider uppercase border shadow-sm ${
-                                        item.status === 'COMPLETED' ? 'bg-gradient-to-br from-[#2e7d32]/20 to-[#2e7d32]/10 text-[#4caf50] border-[#4caf50]/30' :
+                                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wider uppercase border shadow-sm ${item.status === 'COMPLETED' ? 'bg-gradient-to-br from-[#2e7d32]/20 to-[#2e7d32]/10 text-[#4caf50] border-[#4caf50]/30' :
                                         item.status === 'PARTIAL' ? 'bg-gradient-to-br from-[#d4af37]/20 to-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30' :
-                                        'bg-white/5 text-[#888] border-white/10'
-                                      }`}>
+                                          'bg-white/5 text-[#888] border-white/10'
+                                        }`}>
                                         {item.status}
                                       </span>
                                     </td>
@@ -385,8 +439,8 @@ const ItemTrackingPage = () => {
                                       )}
                                     </td>
                                     <td className="p-4 align-top">
-                                      <div className={`text-sm ${item.updateLapangan ? 'text-white' : 'text-[#555] italic'}`}>
-                                        {item.updateLapangan || 'Belum ada catatan'}
+                                      <div className={`text-sm ${item.catatanRusak ? 'text-white' : 'text-[#555] italic'}`}>
+                                        {item.catatanRusak || 'Belum ada catatan'}
                                       </div>
                                     </td>
                                   </tr>
@@ -405,24 +459,21 @@ const ItemTrackingPage = () => {
                           <div className="flex items-center gap-2 text-[#d4af37] text-xs font-bold uppercase tracking-wider mb-1 mt-2">
                             <Package size={14} /> {groupName}
                           </div>
-                          
+
                           {items.map((item, idx) => {
-                            const isPending = item.status === 'PENDING';
-                            const isFromPO  = item.poNumber !== '-';
-                            const isEligible = !isPending && isFromPO;
+                            const isEligible = true; // Semua item sekarang sudah pasti dari PO
                             const isSelected = selectedItems.some(i => i.id === item.id);
 
                             return (
                               <div key={`${item.id}-${idx}`} className={`border border-white/10 rounded-xl p-4 flex flex-col gap-4 shadow-sm relative overflow-hidden transition-colors ${isSelected ? 'bg-[#d4af37]/5 border-[#d4af37]/50' : 'bg-[#11100e]'}`}>
-                                <div className={`absolute top-0 left-0 w-1 h-full ${
-                                  item.status === 'COMPLETED' ? 'bg-[#4caf50]' :
+                                <div className={`absolute top-0 left-0 w-1 h-full ${item.status === 'COMPLETED' ? 'bg-[#4caf50]' :
                                   item.status === 'PARTIAL' ? 'bg-[#d4af37]' : 'bg-[#555]'
-                                }`}></div>
-                                
+                                  }`}></div>
+
                                 <div className="flex justify-between items-start gap-2 pl-2">
                                   <div className="flex items-start gap-3">
                                     <div className="mt-1">
-                                      <input 
+                                      <input
                                         type="checkbox"
                                         disabled={!isEligible}
                                         checked={isSelected}
@@ -435,11 +486,10 @@ const ItemTrackingPage = () => {
                                       <p className="text-[#888] text-xs m-0 mt-0.5">{item.jobName || '—'}</p>
                                     </div>
                                   </div>
-                                  <span className={`shrink-0 inline-flex px-2 py-1 rounded text-[10px] font-extrabold uppercase border ${
-                                    item.status === 'COMPLETED' ? 'bg-[#2e7d32]/20 text-[#4caf50] border-[#4caf50]/30' :
+                                  <span className={`shrink-0 inline-flex px-2 py-1 rounded text-[10px] font-extrabold uppercase border ${item.status === 'COMPLETED' ? 'bg-[#2e7d32]/20 text-[#4caf50] border-[#4caf50]/30' :
                                     item.status === 'PARTIAL' ? 'bg-[#d4af37]/20 text-[#d4af37] border-[#d4af37]/30' :
-                                    'bg-white/5 text-[#888] border-white/10'
-                                  }`}>
+                                      'bg-white/5 text-[#888] border-white/10'
+                                    }`}>
                                     {item.status}
                                   </span>
                                 </div>
@@ -451,7 +501,7 @@ const ItemTrackingPage = () => {
                                   </div>
                                   <div>
                                     <p className="text-[#666] text-xs mb-1">Supplier</p>
-                                    <div className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border ${isFromPO ? 'bg-[#38bdf8]/10 border-[#38bdf8]/20 text-[#38bdf8]' : 'bg-[#fb923c]/10 border-[#fb923c]/20 text-[#fb923c]'}`}>
+                                    <div className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border bg-[#38bdf8]/10 border-[#38bdf8]/20 text-[#38bdf8]`}>
                                       <Truck size={10} />
                                       {item.supplierName || '—'}
                                     </div>
@@ -467,8 +517,8 @@ const ItemTrackingPage = () => {
                                   ) : (
                                     <div className="text-xs text-[#555] italic">Belum ada Tgl Onsite</div>
                                   )}
-                                  <div className={`text-sm mt-1 ${item.updateLapangan ? 'text-white' : 'text-[#555] italic'}`}>
-                                    {item.updateLapangan || 'Belum ada catatan...'}
+                                  <div className={`text-sm mt-1 ${item.catatanRusak ? 'text-white' : 'text-[#555] italic'}`}>
+                                    {item.catatanRusak || 'Belum ada catatan...'}
                                   </div>
                                 </div>
                               </div>
@@ -480,8 +530,8 @@ const ItemTrackingPage = () => {
                   </div>
 
                   <div className="p-4 md:px-5 md:py-3 text-xs text-[#666] border-t border-white/5 flex items-center gap-2 bg-[#1a1917]">
-                    <AlertCircle size={14} className="text-[#fb923c] shrink-0" />
-                    <span className="flex-1">Item <strong className="text-[#fb923c]">PENDING</strong> tidak bisa dipilih — tunggu Finance memproses PO.</span>
+                    <AlertCircle size={14} className="text-[#38bdf8] shrink-0" />
+                    <span className="flex-1">Pilih item untuk mencatat Surat Jalan / penerimaan barang.</span>
                     <span className="hidden sm:inline">Menampilkan <strong className="text-white">{filteredItems.length}</strong> item.</span>
                   </div>
                 </>
