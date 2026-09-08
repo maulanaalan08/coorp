@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, CheckCircle, Printer, ShoppingCart, Plus, Package, Edit, AlertCircle, Info, ChevronRight } from 'lucide-react';
+import { Search, CheckCircle, Printer, ShoppingCart, Plus, Package, Edit, AlertCircle, Info, ChevronRight, Building } from 'lucide-react';
 import styles from '../styles/PurchaseOrderPage.module.css';
 import Header from '../components/Header';
 import { usePO } from '../hooks/usePO';
@@ -8,6 +8,7 @@ import { useProjects } from '../hooks/useProjects';
 import ProjectSelector from '../components/ProjectSelector';
 import { poService } from '../services/poService';
 import PurchaseOrderModal from '../components/PurchaseOrderModal';
+import SupplierModal from '../components/SupplierModal';
 import toast from 'react-hot-toast';
 
 const fmtRp = (n) =>
@@ -229,11 +230,12 @@ const PurchaseOrderPage = () => {
           >
             <Package size={16} /> Buat PO Material
           </button>
+
           <button
-            className={`${styles.tabBtn} ${activeTab === 'riwayat-po' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('riwayat-po')}
+            className={`${styles.tabBtn} ${activeTab === 'manage-supplier' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('manage-supplier')}
           >
-            <ShoppingCart size={16} /> Riwayat Surat PO
+            <Building size={16} /> Manage Supplier
           </button>
         </div>
 
@@ -567,7 +569,6 @@ const PurchaseOrderPage = () => {
                                                                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                                                                     <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>NO. PO</th>
                                                                     <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>TANGGAL PO</th>
-                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>TANGGAL ONSITE</th>
                                                                     <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>SUPPLIER / TOKO</th>
                                                                     <th style={{ textAlign: 'right', padding: '6px', fontSize: '11px', color: '#888' }}>VOL. DITERIMA</th>
                                                                     <th style={{ textAlign: 'center', padding: '6px', fontSize: '11px', color: '#888' }}>AKSI</th>
@@ -584,8 +585,7 @@ const PurchaseOrderPage = () => {
                                                                       <React.Fragment key={poI.id}>
                                                                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                                                           <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', color: '#60a5fa' }}>{poI.poNumber}</td>
-                                                                          <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalPo ? new Date(poI.tanggalPo).toLocaleDateString('id-ID') : '-'}</td>
-                                                                          <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.tanggalOnsite ? new Date(poI.tanggalOnsite).toLocaleDateString('id-ID') : '-'}</td>
+                                                                          <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{fullPo?.tanggal ? new Date(fullPo.tanggal).toLocaleDateString('id-ID') : '-'}</td>
                                                                           <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.supplierName}</td>
                                                                           <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', textAlign: 'right', color: '#eab308' }}>{fmtVol(poI.orderedVolume)} {poI.unit}</td>
                                                                           <td style={{ padding: '6px', textAlign: 'center' }}>
@@ -659,7 +659,7 @@ const PurchaseOrderPage = () => {
                                                                         </tr>
                                                                         {isRejected && fullPo.rejectReason && (
                                                                           <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                            <td colSpan={6} style={{ padding: '4px 6px', fontSize: '11px', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
+                                                                            <td colSpan={5} style={{ padding: '4px 6px', fontSize: '11px', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
                                                                               <AlertCircle size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
                                                                               <strong>Alasan Penolakan:</strong> {fullPo.rejectReason}
                                                                             </td>
@@ -698,139 +698,11 @@ const PurchaseOrderPage = () => {
           </div>
         )}
 
-        {activeTab === 'riwayat-po' && (
+
+
+        {activeTab === 'manage-supplier' && (
           <div className={styles.tabContent}>
-            {loading ? (
-              <div className={styles.emptyState}>
-                <p>Memuat data PO...</p>
-              </div>
-            ) : error ? (
-              <div className={styles.emptyState}>
-                <p style={{ color: "#f87171" }}>{error}</p>
-              </div>
-            ) : (
-              <div className={styles.tableSection}>
-                <div className={styles.tableHeader}>
-                  <h3 className={styles.tableTitle}>Riwayat Surat PO</h3>
-                  <div className={styles.searchBox}>
-                    <Search size={14} className={styles.searchIcon} />
-                    <input
-                      type="text"
-                      placeholder="Cari No. PO, Supplier, Item..."
-                      className={styles.searchInput}
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.tableWrapper}>
-                  <table className={styles.poTable}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: '36px' }} />
-                        <th>NO. PO</th>
-                        <th>TANGGAL</th>
-                        <th>TOKO / SUPPLIER</th>
-                        <th>NAMA PROYEK</th>
-                        <th style={{ textAlign: 'center' }}>TOTAL ITEM</th>
-                        <th className={styles.cellRight}>GRAND TOTAL</th>
-                        <th style={{ textAlign: 'center' }}>STATUS</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredPOs.length === 0 ? (
-                        <tr>
-                          <td colSpan="9" style={{ textAlign: "center", padding: "30px", color: "#888" }}>
-                            Tidak ada data PO ditemukan.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredPOs.map((po) => {
-                          const isApproved = po.status === 'APPROVED' || po.status === 'approve' || po.status === 'Approved';
-                          const isRejected = po.status === 'REJECTED';
-                          const isPOOpen = !!expandedPOs[po.id];
-
-                          return (
-                            <React.Fragment key={po.id}>
-                              <tr
-                                className={styles.groupRow}
-                                onClick={() => togglePO(po.id)}
-                                style={{ cursor: 'pointer' }}
-                              >
-                                <td style={{ textAlign: 'center', padding: '14px 8px' }}>
-                                  <ChevronRight size={16} style={{
-                                    color: '#60a5fa',
-                                    transform: isPOOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-                                    transition: 'transform 0.2s ease',
-                                  }} />
-                                </td>
-                                <td className={styles.cellMono}>{po.poNumber}</td>
-                                <td>{new Date(po.tanggal).toLocaleDateString('id-ID')}</td>
-                                <td>{po.supplier?.name || po.supplierId}</td>
-                                <td>{projectList.find(p => p.id === po.projectId)?.name || 'Proyek tidak diketahui'}</td>
-                                <td style={{ textAlign: 'center', color: '#888' }}>
-                                  {po.items?.length || 0}
-                                </td>
-                                <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(po.grandTotal)}</td>
-                                <td style={{ textAlign: 'center' }}>
-                                  <span className={`${styles.statusBadge} ${isApproved ? styles.statusApproved : isRejected ? styles.statusNone : styles.statusPending}`} style={isRejected ? { backgroundColor: '#ef4444', color: 'white' } : {}}>
-                                    {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Belum Approve'}
-                                  </span>
-                                </td>
-                              </tr>
-
-                              {/* ── EXPANDED: SUB-TABLE ITEM PO ── */}
-                              {isPOOpen && (
-                                <tr>
-                                  <td colSpan={9} style={{ padding: 0, background: 'rgba(0,0,0,0.15)' }}>
-                                    <div className={styles.materialTableWrapper} style={{ paddingBottom: '16px', paddingTop: '12px' }}>
-                                      {isRejected && po.rejectReason && (
-                                        <div style={{ padding: '8px 16px', marginBottom: '12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontSize: '12px', borderRadius: '4px', borderLeft: '3px solid #ef4444' }}>
-                                          <AlertCircle size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
-                                          <strong>Alasan Penolakan:</strong> {po.rejectReason}
-                                        </div>
-                                      )}
-                                      <table className={styles.subTable}>
-                                        <thead>
-                                          <tr>
-                                            <th>DESKRIPSI ITEM</th>
-                                            <th className={styles.cellRight}>QTY</th>
-                                            <th>SAT.</th>
-                                            <th className={styles.cellRight}>HARGA SATUAN</th>
-                                            <th className={styles.cellRight}>TOTAL HARGA</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {(po.items || []).map((item, idx) => (
-                                            <tr key={item.id || idx} className={styles.subItemRow}>
-                                              <td style={{ color: '#ddd' }}>{item.description}</td>
-                                              <td className={`${styles.cellMono} ${styles.cellRight}`}>{item.qty}</td>
-                                              <td style={{ color: '#666', fontSize: '12px' }}>{item.unit}</td>
-                                              <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(item.unitPrice)}</td>
-                                              <td className={`${styles.cellMono} ${styles.cellRight}`} style={{ color: '#60a5fa' }}>{fmtRp(item.totalPrice)}</td>
-                                            </tr>
-                                          ))}
-                                          {(!po.items || po.items.length === 0) && (
-                                            <tr>
-                                              <td colSpan={5} style={{ textAlign: 'center', color: '#666', padding: '12px' }}>Tidak ada detail item pada PO ini.</td>
-                                            </tr>
-                                          )}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            <SupplierModal isInline={true} />
           </div>
         )}
       </main>

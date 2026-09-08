@@ -28,6 +28,8 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
     caraPembayaran: '',
     jadwalPenagihan: '',
     keterangan: '',
+    globalDiscount: 0,
+    taxNominal: 0,
   });
 
   // Receipt Mode States
@@ -37,6 +39,17 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
 
   // Items State (editable)
   const [items, setItems] = useState([]);
+  const [supplierItems, setSupplierItems] = useState([]);
+
+  useEffect(() => {
+    if (formData.supplierId) {
+      poService.getSupplierItems(formData.supplierId)
+        .then(data => setSupplierItems(data || []))
+        .catch(err => console.error('Failed to fetch supplier items', err));
+    } else {
+      setSupplierItems([]);
+    }
+  }, [formData.supplierId]);
 
   useEffect(() => {
     if (receiptItems && receiptItems.length > 0) {
@@ -45,6 +58,8 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
     }
 
     fetchSuppliers();
+
+
 
     if (editingPo) {
       setFormData({
@@ -57,16 +72,23 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
         caraPembayaran: editingPo.caraPembayaran || '',
         jadwalPenagihan: editingPo.jadwalPenagihan || '',
         keterangan: editingPo.keterangan || '',
+        globalDiscount: editingPo.globalDiscount || 0,
+        taxNominal: editingPo.taxNominal || 0,
       });
 
       const initialItems = (editingPo.items || []).map(item => ({
         materialRequestId: item.materialRequestId,
         description: item.description,
+        description2: item.description2 || '',
         estVol: '-',
         sisa: '-',
         qty: item.qty,
         unit: item.unit || '',
         unitPrice: item.unitPrice || 0,
+        estimasiRAB: item.unitPrice || 0,
+        supplierItemId: '',
+        disc1Percent: item.disc1Percent || 0,
+        disc2Nominal: item.disc2Nominal || 0,
         total: item.total || 0
       }));
       setItems(initialItems);
@@ -76,11 +98,16 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
         return {
           materialRequestId: item.mrItemId || item.id,
           description: item.itemName,
+          description2: '',
           estVol: `${fmtVol(item.estimatedVolume)} ${item.unit || ''}`,
           sisa: `${fmtVol(sisaHitung)} ${item.unit || ''}`,
           qty: parseFloat(Number(sisaHitung).toFixed(2)),
           unit: item.unit || '',
           unitPrice: item.pricePerUnit || 0,
+          estimasiRAB: item.pricePerUnit || 0,
+          supplierItemId: '',
+          disc1Percent: 0,
+          disc2Nominal: 0,
           total: 0 // dihitung nanti
         };
       });
@@ -107,17 +134,49 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
     setItems(newItems);
   };
 
+  const handleMappingChange = async (index, suppItemId) => {
+    const selectedItem = supplierItems.find(i => i.id === suppItemId);
+    const newItems = [...items];
+    newItems[index].supplierItemId = suppItemId;
+
+    if (selectedItem) {
+      newItems[index].unitPrice = Number(selectedItem.currentPrice || 0);
+      newItems[index].description2 = selectedItem.variantName || '';
+
+      try {
+        await poService.saveAhspMapping({
+          itemName: newItems[index].description,
+          supplierItemId: suppItemId
+        });
+        toast.success(`Mapping item "${newItems[index].description}" tersimpan otomatis.`);
+      } catch (err) {
+        console.error('Mapping save failed', err);
+      }
+    }
+
+    setItems(newItems);
+  };
+
   // Calculations
   const calculatedItems = useMemo(() => {
     return items.map(item => {
       const qty = Number(item.qty || 0);
       const price = Number(item.unitPrice || 0);
-      const total = qty * price;
+      const disc1Pct = Number(item.disc1Percent || 0);
+      const disc2Nom = Number(item.disc2Nominal || 0);
+
+      const basePrice = qty * price;
+      const discount1 = basePrice * (disc1Pct / 100);
+      const total = basePrice - discount1 - disc2Nom;
+
       return { ...item, total: total > 0 ? total : 0 };
     });
   }, [items]);
 
-  const grandTotal = calculatedItems.reduce((sum, item) => sum + item.total, 0);
+  const subTotal = calculatedItems.reduce((sum, item) => sum + item.total, 0);
+  const globalDiscount = Number(formData.globalDiscount || 0);
+  const taxNominal = Number(formData.taxNominal || 0);
+  const grandTotal = Math.max(0, subTotal - globalDiscount + taxNominal);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -134,10 +193,10 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
     const payload = {
       ...formData,
       projectId: editingPo ? editingPo.projectId : projectId,
-      subTotal: grandTotal,
-      globalDiscount: 0,
-      taxNominal: 0,
-      grandTotal,
+      subTotal: subTotal,
+      globalDiscount: globalDiscount,
+      taxNominal: taxNominal,
+      grandTotal: grandTotal,
       items: calculatedItems
     };
 
@@ -320,13 +379,6 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                 <input type="date" name="tanggal" required className={styles.formInput} value={formData.tanggal} onChange={handleHeaderChange} />
               </div>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Tanggal Pengiriman</label>
-                <input type="date" name="deliveryDate" className={styles.formInput} value={formData.deliveryDate} onChange={handleHeaderChange} />
-              </div>
-            </div>
-
-            <div className={styles.formGrid}>
-              <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Kategori</label>
                 <select name="kategori" className={styles.formSelect} value={formData.kategori} onChange={handleHeaderChange}>
                   <option value="">-- Pilih Kategori --</option>
@@ -334,13 +386,13 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                   <option value="ALAT">Alat</option>
                 </select>
               </div>
+            </div>
+
+            <div className={styles.formGrid}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Penerima Barang</label>
                 <input type="text" name="penerimaBarang" className={styles.formInput} value={formData.penerimaBarang} onChange={handleHeaderChange} placeholder="Nama penerima di lapangan" />
               </div>
-            </div>
-
-            <div className={styles.formGrid}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Cara Pembayaran</label>
                 <select name="caraPembayaran" className={styles.formSelect} value={formData.caraPembayaran} onChange={handleHeaderChange}>
@@ -349,10 +401,6 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                   <option value="TRANSFER">Transfer Bank</option>
                   <option value="TEMPO">Tempo / Kredit</option>
                 </select>
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Jadwal Penagihan</label>
-                <input type="text" name="jadwalPenagihan" className={styles.formInput} value={formData.jadwalPenagihan} onChange={handleHeaderChange} placeholder="Cth: Net 30 hari" />
               </div>
             </div>
 
@@ -370,10 +418,13 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                   <thead>
                     <tr>
                       <th>Deskripsi Barang</th>
+                      <th>Mapping (Pilih Item Toko)</th>
                       <th>Est Vol</th>
                       <th>Sisa Butuh</th>
                       <th>Qty Beli</th>
                       <th>Harga Satuan (Rp)</th>
+                      <th>Disc 1 (%)</th>
+                      <th>Disc 2 (Rp)</th>
                       <th>Subtotal (Rp)</th>
                     </tr>
                   </thead>
@@ -384,6 +435,22 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                       calculatedItems.map((item, index) => (
                         <tr key={index}>
                           <td>{item.description}</td>
+                          <td>
+                            <select
+                              className={styles.smallInput}
+                              style={{ minWidth: '150px', backgroundColor: '#111' }}
+                              value={item.supplierItemId || ''}
+                              onChange={(e) => handleMappingChange(index, e.target.value)}
+                              disabled={!formData.supplierId}
+                            >
+                              <option value="">-- Pilih dari Toko --</option>
+                              {supplierItems.map(si => (
+                                <option key={si.id} value={si.id}>
+                                  {si.itemName} {si.variantName ? `(${si.variantName})` : ''} - {fmtRp(si.currentPrice)}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
                           <td><span style={{ color: '#888', fontSize: '0.9rem' }}>{item.estVol}</span></td>
                           <td><strong style={{ color: '#fb923c' }}>{item.sisa}</strong></td>
                           <td>
@@ -406,12 +473,45 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                               min="0"
                               required
                             />
+                            {item.estimasiRAB > 0 && (
+                              <div style={{ marginTop: '4px', fontSize: '11px', textAlign: 'center' }}>
+                                {(() => {
+                                  const diff = Number(item.unitPrice) - Number(item.estimasiRAB);
+                                  if (diff === 0) return <span style={{ color: '#888' }}>Sesuai RAB</span>;
+                                  if (diff > 0) return <span style={{ color: '#ef4444' }}>▲ Over {fmtRp(diff)}</span>;
+                                  return <span style={{ color: '#22c55e' }}>▼ Hemat {fmtRp(Math.abs(diff))}</span>;
+                                })()}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              className={styles.smallInput}
+                              style={{ width: '60px' }}
+                              value={item.disc1Percent}
+                              onChange={(e) => handleItemChange(index, 'disc1Percent', e.target.value)}
+                              min="0"
+                              max="100"
+                              step="any"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              className={styles.smallInput}
+                              style={{ width: '90px' }}
+                              value={item.disc2Nominal}
+                              onChange={(e) => handleItemChange(index, 'disc2Nominal', e.target.value)}
+                              min="0"
+                            />
                           </td>
                           <td>
                             <input
                               type="text"
                               className={styles.smallInput}
-                              value={item.total}
+                              style={{ minWidth: '100px' }}
+                              value={item.total > 0 ? fmtRp(item.total) : '0'}
                               readOnly
                             />
                           </td>
@@ -422,9 +522,37 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                 </table>
               </div>
 
-              <div className={styles.grandTotalRow}>
-                <span className={styles.grandTotalLabel}>GRAND TOTAL</span>
-                <span className={styles.grandTotalValue}>{fmtRp(grandTotal)}</span>
+              <div className={styles.summarySection} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '300px' }}>
+                  <span style={{ color: '#888' }}>Sub Total:</span>
+                  <span style={{ color: '#e5e5e5' }}>{fmtRp(subTotal)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '300px', alignItems: 'center' }}>
+                  <span style={{ color: '#888' }}>Diskon Global (Rp):</span>
+                  <input
+                    type="number"
+                    name="globalDiscount"
+                    style={{ width: '120px', padding: '6px', backgroundColor: '#111', border: '1px solid #444', color: '#fff', borderRadius: '4px', textAlign: 'right' }}
+                    value={formData.globalDiscount}
+                    onChange={handleHeaderChange}
+                    min="0"
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '300px', alignItems: 'center' }}>
+                  <span style={{ color: '#888' }}>Pajak / PPN (Rp):</span>
+                  <input
+                    type="number"
+                    name="taxNominal"
+                    style={{ width: '120px', padding: '6px', backgroundColor: '#111', border: '1px solid #444', color: '#fff', borderRadius: '4px', textAlign: 'right' }}
+                    value={formData.taxNominal}
+                    onChange={handleHeaderChange}
+                    min="0"
+                  />
+                </div>
+                <div className={styles.grandTotalRow} style={{ width: '300px', borderTop: '1px solid #333', paddingTop: '10px', marginTop: '4px' }}>
+                  <span className={styles.grandTotalLabel}>GRAND TOTAL</span>
+                  <span className={styles.grandTotalValue}>{fmtRp(grandTotal)}</span>
+                </div>
               </div>
             </div>
           </form>

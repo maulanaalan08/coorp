@@ -11,6 +11,20 @@ const getAuthHeaders = () => {
 };
 
 export const poService = {
+  // AHSP Mapping
+  getAhspMappingSuggest: (itemName) => {
+    return fetchAPI(`/finance/ahsp-mapping/suggest?itemName=${encodeURIComponent(itemName)}`, {
+      headers: getAuthHeaders()
+    });
+  },
+  saveAhspMapping: (payload) => {
+    return fetchAPI('/finance/ahsp-mapping', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+  },
+
   // Ambil daftar supplier
   getSuppliers: () => {
     return fetchAPI('/suppliers', {
@@ -24,6 +38,23 @@ export const poService = {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(supplierData),
+    });
+  },
+
+  // Ambil daftar item supplier
+  getSupplierItems: (supplierId) => {
+    const url = supplierId ? `/supplier-items?supplierId=${supplierId}` : '/supplier-items';
+    return fetchAPI(url, {
+      headers: getAuthHeaders()
+    });
+  },
+
+  // Tambah item supplier baru
+  createSupplierItem: (itemData) => {
+    return fetchAPI('/supplier-items', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(itemData),
     });
   },
 
