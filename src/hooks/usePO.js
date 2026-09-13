@@ -31,6 +31,12 @@ export const usePO = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const onRefresh = () => fetchPOs();
+    window.addEventListener('po-status-changed', onRefresh);
+    return () => window.removeEventListener('po-status-changed', onRefresh);
+  }, [fetchPOs]);
+
   const createNewPO = async (poData) => {
     try {
       const res = await poService.createPO(poData);

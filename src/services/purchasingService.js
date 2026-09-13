@@ -55,6 +55,12 @@ export const purchasingService = {
     const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
     return fetchAPI(`/pengajuan-bayar/po-siap-ajukan${qs}`, { headers: getAuthHeaders() });
   },
+  // PO APPROVED + pengajuannya (untuk tabel "Daftar Pengajuan Bayar" yang
+  // menampilkan NOMOR PO sebagai info utama, nomor PPB sebagai info sekunder)
+  getPOApproved: (projectId) => {
+    const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    return fetchAPI(`/pengajuan-bayar/po-approved${qs}`, { headers: getAuthHeaders() });
+  },
   // PO yang sudah disetujui finance + pengajuan bayarnya (panel atasan)
   getRiwayatPembelian: (projectId) => {
     const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';

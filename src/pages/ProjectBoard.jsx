@@ -19,13 +19,18 @@ const ProjectBoard = ({ onProjectClick }) => {
 
   const renderCard = (project) => {
     const imageSeed = project.id ? project.id.substring(0, 5) : 'arch';
-    const imageUrl = project.discipline === 'INTERIOR'
+    // Proyek baru bersifat campuran/general.
+    const isInterior = project.discipline === 'INTERIOR';
+    const isSipil = project.discipline === 'SIPIL';
+    const imageUrl = isInterior
       ? `https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=500&sig=${imageSeed}`
-      : `https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=500&sig=${imageSeed}`;
+      : isSipil
+      ? `https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=500&sig=${imageSeed}`
+      : `https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=500&sig=${imageSeed}`;
 
     return (
-      <div 
-        key={project.id} 
+      <div
+        key={project.id}
         className={`${styles.kanbanCard} cursor-pointer hover:ring-2 hover:ring-[#d4af37] transition-all`}
         onClick={() => onProjectClick && onProjectClick(project.id)}
       >
@@ -34,14 +39,21 @@ const ProjectBoard = ({ onProjectClick }) => {
           style={{ backgroundImage: `url('${imageUrl}')` }}
         />
         <div className={styles.cardBody}>
-          <span className={`${styles.badge} ${project.discipline === 'INTERIOR' ? styles.badgeResidential : styles.badgeCommercial}`}>
+          <span className={`${styles.badge} ${isInterior ? styles.badgeResidential : isSipil ? styles.badgeCommercial : styles.badgeCommercial}`}>
             {project.discipline || 'GENERAL'}
           </span>
           <h4>{project.name}</h4>
           <p className={styles.clientText}>Client: {project.client?.name || '-'}</p>
-          <p className={styles.clientText} style={{ marginBottom: '8px' }}>
+          <p className={styles.clientText} style={{ marginBottom: '4px' }}>
             📍 {project.location || '-'}
           </p>
+          {(project.interiorGrade || project.sipilGrade) && (
+            <p className={styles.clientText} style={{ marginBottom: '8px', fontSize: 11 }}>
+              {project.interiorGrade && `Interior: ${project.interiorGrade}`}
+              {project.interiorGrade && project.sipilGrade ? ' · ' : ''}
+              {project.sipilGrade && `Sipil: ${project.sipilGrade}`}
+            </p>
+          )}
           <div className={styles.progressBarContainer}>
             <div className={styles.progressInfo}>
               <span>PROGRESS</span>

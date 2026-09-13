@@ -89,6 +89,17 @@ const PurchaseOrderPage = () => {
     refreshFinanceMR();
   };
 
+  // Refresh saat PO berubah status (approve/reject) agar riwayat PO & kebutuhan material sinkron
+  useEffect(() => {
+    const onPoChanged = () => {
+      refreshPOs();
+      refreshMaterialRequests();
+      refreshFinanceMR();
+    };
+    window.addEventListener('po-status-changed', onPoChanged);
+    return () => window.removeEventListener('po-status-changed', onPoChanged);
+  }, [refreshPOs, refreshMaterialRequests, refreshFinanceMR]);
+
   const handlePrint = (id) => {
     poService.printPO(id);
   };
@@ -196,7 +207,7 @@ const PurchaseOrderPage = () => {
     setIsPoModalOpen(true);
   };
 
-  const handlePoSuccess = () => {
+  const handlePoSuccess = (res) => {
     setIsPoModalOpen(false);
     setEditingPo(null);
     setSelectedItems([]);
@@ -204,6 +215,16 @@ const PurchaseOrderPage = () => {
     refreshMaterialRequests();
     refreshFinanceMR();
     if (refreshPOs) refreshPOs();
+    if (res?.warnings?.length) {
+      toast((t) => (
+        <div style={{ fontSize: '13px' }}>
+          <strong style={{ color: '#fb923c' }}>⚠️ Perhatian</strong>
+          <ul style={{ margin: '6px 0 0', paddingLeft: '16px' }}>
+            {res.warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      ), { duration: 6000, icon: null });
+    }
   };
 
   // Buat PO langsung dari tab "Dari RAB per Supplier"
@@ -218,7 +239,7 @@ const PurchaseOrderPage = () => {
   const handleCreateFromHabisPakai = (row) => {
     setHpContext({
       permintaanHabisPakaiId: row.id,
-      sumberPo: 'HABIS_PAKAI',
+      sumberPo: row.poId || null, // ID PO induk (bukan string 'HABIS_PAKAI')
       alasanHabisPakai: row.alasan || null,
     });
     setSelectedItems([
@@ -654,9 +675,16 @@ const PurchaseOrderPage = () => {
                                                                 <tbody>
                                                                   {poItemsOnly.map(poI => {
                                                                     const fullPo = pos.find(p => p.poNumber === poI.poNumber);
-                                                                    const isApproved = fullPo && (fullPo.status === 'APPROVED' || fullPo.status === 'approve' || fullPo.status === 'Approved');
-                                                                    const isRejected = fullPo && fullPo.status === 'REJECTED';
-                                                                    const isBelumApprove = fullPo && (!isApproved && !isRejected);
+                                                                    const statusClass =
+                                                                      fullPo?.status === 'APPROVED' ? styles.statusApproved :
+                                                                      fullPo?.status === 'REJECTED' ? styles.statusRejected :
+                                                                      fullPo?.status === 'MENUNGGU_ATASAN' ? styles.statusPending :
+                                                                      styles.statusNone;
+                                                                    const statusLabel =
+                                                                      fullPo?.status === 'APPROVED' ? 'Approved' :
+                                                                      fullPo?.status === 'REJECTED' ? 'Rejected' :
+                                                                      fullPo?.status === 'MENUNGGU_ATASAN' ? 'Menunggu Atasan' :
+                                                                      'Belum Approve';
 
                                                                     return (
                                                                       <React.Fragment key={poI.id}>
@@ -668,59 +696,7 @@ const PurchaseOrderPage = () => {
                                                                           <td style={{ padding: '6px', textAlign: 'center' }}>
                                                                             {fullPo ? (
                                                                               <div className={styles.actionCell} style={{ justifyContent: 'center' }}>
-                                                                                {isBelumApprove && (
-                                                                                  <>
-                                                                                    <button
-                                                                                      className={styles.approveBtn}
-                                                                                      onClick={(e) => { e.stopPropagation(); handleApprove(fullPo.id); }}
-                                                                                      title="Approve PO"
-                                                                                    >
-                                                                                      <CheckCircle size={14} />
-                                                                                    </button>
-                                                                                    <button
-                                                                                      onClick={(e) => { e.stopPropagation(); handleReject(fullPo.id); }}
-                                                                                      title="Tolak PO"
-                                                                                      style={{ backgroundColor: '#ef4444', color: 'white', padding: '4px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '11px' }}
-                                                                                    >
-                                                                                      Tolak
-                                                                                    </button>
-                                                                                    <button
-                                                                                      className={styles.printBtn}
-                                                                                      onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        setEditingPo(fullPo);
-                                                                                        setIsPoModalOpen(true);
-                                                                                      }}
-                                                                                      title="Edit PO"
-                                                                                      style={{ backgroundColor: '#2563eb' }}
-                                                                                    >
-                                                                                      <Edit size={14} />
-                                                                                    </button>
-                                                                                  </>
-                                                                                )}
-                                                                                {isRejected && (
-                                                                                  <>
-                                                                                    <button
-                                                                                      onClick={(e) => { e.stopPropagation(); handleCancelReject(fullPo.id); }}
-                                                                                      title="Batal Tolak PO"
-                                                                                      style={{ backgroundColor: '#f59e0b', color: 'white', padding: '4px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '11px' }}
-                                                                                    >
-                                                                                      Cancel Reject
-                                                                                    </button>
-                                                                                    <button
-                                                                                      className={styles.printBtn}
-                                                                                      onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        setEditingPo(fullPo);
-                                                                                        setIsPoModalOpen(true);
-                                                                                      }}
-                                                                                      title="Edit PO (Ajukan Ulang)"
-                                                                                      style={{ backgroundColor: '#2563eb' }}
-                                                                                    >
-                                                                                      <Edit size={14} />
-                                                                                    </button>
-                                                                                  </>
-                                                                                )}
+                                                                                <span className={`${styles.statusBadge} ${statusClass}`}>{statusLabel}</span>
                                                                                 <button
                                                                                   className={styles.printBtn}
                                                                                   onClick={(e) => { e.stopPropagation(); handlePrint(fullPo.id); }}
@@ -734,7 +710,7 @@ const PurchaseOrderPage = () => {
                                                                             )}
                                                                           </td>
                                                                         </tr>
-                                                                        {isRejected && fullPo.rejectReason && (
+                                                                        {fullPo?.status === 'REJECTED' && fullPo.rejectReason && (
                                                                           <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                                                             <td colSpan={5} style={{ padding: '4px 6px', fontSize: '11px', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
                                                                               <AlertCircle size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />

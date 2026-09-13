@@ -9,53 +9,88 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
   const [projectName, setProjectName] = useState("");
   const [client, setClient] = useState("");
   const [location, setLocation] = useState("");
-  
-  // State baru untuk filter disiplin
-  const [selectedDiscipline, setSelectedDiscipline] = useState("");
-  
-  const [selectedComboIndex, setSelectedComboIndex] = useState("");
-  const [hspkOptions, setHspkOptions] = useState([]);
+
+  // State untuk periode dan grade ganda
+  const [periods, setPeriods] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState("");
+  const [interiorGrades, setInteriorGrades] = useState([]);
+  const [sipilGrades, setSipilGrades] = useState([]);
+  const [selectedInteriorGrade, setSelectedInteriorGrade] = useState("");
+  const [selectedSipilGrade, setSelectedSipilGrade] = useState("");
+
   const [hspkLoading, setHspkLoading] = useState(true);
 
   useEffect(() => {
-    const fetchHspk = async () => {
+    const fetchPeriods = async () => {
       try {
         const result = await hspkService.getAvailableCombos();
-        setHspkOptions(result);
+        // ambil periode unik dari combo
+        const uniqPeriods = Array.from(
+          new Set((Array.isArray(result) ? result : []).map((r) => r.period))
+        ).sort((a, b) => Number(b) - Number(a));
+        setPeriods(uniqPeriods);
       } catch (err) {
         console.error(err);
-        setHspkOptions([]);
+        setPeriods([]);
       } finally {
         setHspkLoading(false);
       }
     };
     if (isOpen) {
-      fetchHspk();
+      fetchPeriods();
     }
   }, [isOpen]);
 
+  // Load grade Interior saat periode dipilih
+  useEffect(() => {
+    if (!selectedPeriod) {
+      setInteriorGrades([]);
+      setSelectedInteriorGrade("");
+      return;
+    }
+    hspkService
+      .getGradesByPeriodDiscipline(selectedPeriod, "INTERIOR")
+      .then((res) => {
+        const grades = Array.isArray(res) ? res : [];
+        setInteriorGrades(grades);
+        if (grades.length === 1) setSelectedInteriorGrade(grades[0]);
+        else if (!grades.includes(selectedInteriorGrade))
+          setSelectedInteriorGrade("");
+      })
+      .catch((err) => {
+        console.error("Gagal load grade interior:", err);
+        setInteriorGrades([]);
+      });
+  }, [selectedPeriod]);
+
+  // Load grade Sipil saat periode dipilih
+  useEffect(() => {
+    if (!selectedPeriod) {
+      setSipilGrades([]);
+      setSelectedSipilGrade("");
+      return;
+    }
+    hspkService
+      .getGradesByPeriodDiscipline(selectedPeriod, "SIPIL")
+      .then((res) => {
+        const grades = Array.isArray(res) ? res : [];
+        setSipilGrades(grades);
+        if (grades.length === 1) setSelectedSipilGrade(grades[0]);
+        else if (!grades.includes(selectedSipilGrade)) setSelectedSipilGrade("");
+      })
+      .catch((err) => {
+        console.error("Gagal load grade sipil:", err);
+        setSipilGrades([]);
+      });
+  }, [selectedPeriod]);
+
   if (!isOpen) return null;
-
-  // Filter HSPK berdasarkan disiplin yang dipilih user
-  const filteredHspkOptions = hspkOptions.filter((combo) => {
-    if (!selectedDiscipline) return false;
-    return combo.discipline?.toUpperCase() === selectedDiscipline.toUpperCase();
-  });
-
-  // Handler saat disiplin diubah (Sipil -> Interior atau sebaliknya)
-  const handleDisciplineChange = (e) => {
-    setSelectedDiscipline(e.target.value);
-    setSelectedComboIndex(""); // Reset pilihan combo agar index tidak meleset
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Mengambil combo berdasarkan array yang sudah difilter
-    const selectedCombo = filteredHspkOptions[Number(selectedComboIndex)];
-
-    if (!selectedCombo?.period) {
-      toast.error("Pilih data HSPK dulu.");
+    if (!selectedPeriod || !selectedInteriorGrade || !selectedSipilGrade) {
+      toast.error("Pilih periode, grade Interior, dan grade Sipil.");
       return;
     }
     if (!projectName.trim() || !location.trim() || !client.trim()) {
@@ -67,31 +102,29 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
       name: projectName.trim(),
       clientName: client.trim(),
       location: location.trim(),
-      hspkPeriod: selectedCombo?.period,
-      discipline: selectedCombo?.discipline,
-      grade: selectedCombo?.grade,
+      hspkPeriod: Number(selectedPeriod),
+      interiorGrade: selectedInteriorGrade,
+      sipilGrade: selectedSipilGrade,
     });
 
-    toast.promise(createPromise, {
-      loading: "Membuat project...",
-      success: "Project berhasil dibuat!",
-      error: "Gagal membuat project."
-    }).then(() => {
-      // Reset form
-      setProjectName("");
-      setClient("");
-      setLocation("");
-      setSelectedDiscipline("");
-      setSelectedComboIndex("");
+    toast
+      .promise(createPromise, {
+        loading: "Membuat project...",
+        success: "Project berhasil dibuat!",
+        error: "Gagal membuat project.",
+      })
+      .then(() => {
+        setProjectName("");
+        setClient("");
+        setLocation("");
+        setSelectedPeriod("");
+        setSelectedInteriorGrade("");
+        setSelectedSipilGrade("");
 
-      if (onProjectCreated) {
-        onProjectCreated();
-      }
-
-      onClose();
-    }).catch((err) => {
-      console.error(err);
-    });
+        if (onProjectCreated) onProjectCreated();
+        onClose();
+      })
+      .catch((err) => console.error(err));
   };
 
   return (
@@ -138,40 +171,61 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
                 />
               </div>
 
-              {/* Input Pilihan Disiplin Pekerjaan */}
               <div className="form-group full">
-                <label>Kategori Pekerjaan</label>
+                <label>Periode Data HSPK</label>
                 <select
-                  value={selectedDiscipline}
-                  onChange={handleDisciplineChange}
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
                   required
                 >
-                  <option value="" disabled>-- Pilih Kategori --</option>
-                  <option value="SIPIL">Sipil</option>
-                  <option value="INTERIOR">Interior</option>
+                  <option value="" disabled>
+                    {hspkLoading ? "-- memuat --" : "-- pilih periode --"}
+                  </option>
+                  {periods.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
                 </select>
               </div>
 
-              {/* Input Pilihan Data HSPK (Muncul mengikuti Filter di atas) */}
-              <div className="form-group full">
-                <label htmlFor="hspkCombo">Pilih Data HSPK</label>
+              <div className="form-group">
+                <label>Grade Interior</label>
                 <select
-                  id="hspkCombo"
-                  value={selectedComboIndex}
-                  onChange={(e) => setSelectedComboIndex(e.target.value)}
+                  value={selectedInteriorGrade}
+                  onChange={(e) => setSelectedInteriorGrade(e.target.value)}
                   required
-                  disabled={!selectedDiscipline} // Disable kalau belum pilih disiplin
+                  disabled={!selectedPeriod}
                 >
                   <option value="" disabled>
-                    {hspkLoading
-                      ? "-- memuat --"
-                      : !selectedDiscipline
-                      ? "-- Pilih kategori pekerjaan dulu --"
-                      : "-- pilih data HSPK --"}
+                    {!selectedPeriod
+                      ? "Pilih periode dulu"
+                      : "-- pilih grade interior --"}
                   </option>
-                  {filteredHspkOptions.map((combo, index) => (
-                    <option key={index} value={index}>
-                      {combo.period} — {combo.discipline} — Grade {combo.grade}
+                  {interiorGrades.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Grade Sipil</label>
+                <select
+                  value={selectedSipilGrade}
+                  onChange={(e) => setSelectedSipilGrade(e.target.value)}
+                  required
+                  disabled={!selectedPeriod}
+                >
+                  <option value="" disabled>
+                    {!selectedPeriod
+                      ? "Pilih periode dulu"
+                      : "-- pilih grade sipil --"}
+                  </option>
+                  {sipilGrades.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
                     </option>
                   ))}
                 </select>

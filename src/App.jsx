@@ -1,42 +1,69 @@
 // src/App.jsx
-import React, { useState } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Toaster } from 'react-hot-toast';
 
-// --- Komponen Autentikasi ---
+// --- Komponen Autentikasi (dimuat langsung: gerbang utama) ---
 import { useAuth } from "./hooks/useAuth";
 import AuthPage from "./pages/AuthPage";
 import "./styles/Auth.css";
 
-// --- Komponen Layout & Halaman Dashboard ---
+// --- Komponen Layout (dimuat langsung: selalu dipakai) ---
 import Sidebar from "./components/Sidebar";
-import Dashboard from "./pages/Dashboard";
-import ProjectBoard from "./pages/ProjectBoard";
-import ProjectDetailDashboard from "./pages/ProjectDetailDashboard";
-import UploadHspk from "./pages/UploadHspk";
-import BackUpVolume from "./pages/BackUpVolume";
-import DataSurvey from "./pages/DataSurvey";
-import RabBudgeting from "./pages/RabBudgeting";
-import TimeSchedulePage from "./pages/TimeSchedulePage";
-import JoinOpnamePage from "./pages/JoinOpnamePage";
-import FinancePage from "./pages/FinancePage";
-import PurchaseOrderPage from "./pages/PurchaseOrderPage";
-import ReturPembelianPage from "./pages/ReturPembelianPage";
-import PengajuanBayarPage from "./pages/PengajuanBayarPage";
-import PembayaranSupplierPage from "./pages/PembayaranSupplierPage";
-import InvoicePenagihanPage from "./pages/InvoicePenagihanPage";
-import LaporanHarianPage from "./pages/LaporanHarianPage";
-import ComplaintPage from "./pages/ComplaintPage";
-import PrintPOPage from "./pages/PrintPOPage";
-import BastPage from "./pages/BastPage";
-import ItemTrackingPage from "./pages/ItemTrackingPage";
-import RiwayatHabisPakaiPage from "./pages/RiwayatHabisPakaiPage";
 import { Bot } from "lucide-react";
 import { NavContext } from "./contexts/NavContext";
+
+// --- Halaman di-lazy-load per route: tidak semua data dimuat saat buka app ---
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const ProjectBoard = lazy(() => import("./pages/ProjectBoard"));
+const ProjectDetailDashboard = lazy(() => import("./pages/ProjectDetailDashboard"));
+const UploadHspk = lazy(() => import("./pages/UploadHspk"));
+const BackUpVolume = lazy(() => import("./pages/BackUpVolume"));
+const DataSurvey = lazy(() => import("./pages/DataSurvey"));
+const RabBudgeting = lazy(() => import("./pages/RabBudgeting"));
+const TimeSchedulePage = lazy(() => import("./pages/TimeSchedulePage"));
+const JoinOpnamePage = lazy(() => import("./pages/JoinOpnamePage"));
+const FinancePage = lazy(() => import("./pages/FinancePage"));
+const PurchaseOrderPage = lazy(() => import("./pages/PurchaseOrderPage"));
+const ReturPembelianPage = lazy(() => import("./pages/ReturPembelianPage"));
+const PengajuanBayarPage = lazy(() => import("./pages/PengajuanBayarPage"));
+const PembayaranSupplierPage = lazy(() => import("./pages/PembayaranSupplierPage"));
+const InvoicePenagihanPage = lazy(() => import("./pages/InvoicePenagihanPage"));
+const LaporanHarianPage = lazy(() => import("./pages/LaporanHarianPage"));
+const ComplaintPage = lazy(() => import("./pages/ComplaintPage"));
+const PrintPOPage = lazy(() => import("./pages/PrintPOPage"));
+const BastPage = lazy(() => import("./pages/BastPage"));
+const ItemTrackingPage = lazy(() => import("./pages/ItemTrackingPage"));
+const RiwayatHabisPakaiPage = lazy(() => import("./pages/RiwayatHabisPakaiPage"));
+
+function RouteLoader() {
+  return (
+    <div className="auth-splash" style={{ height: '100%' }}>
+      <div className="splash-logo" style={{ fontSize: '1rem' }}>DIVES CORP.</div>
+      <div className="splash-spinner" />
+    </div>
+  );
+}
 
 function App() {
   const { isAuthenticated, loginAuth, logoutAuth, user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [globalProjectId, setGlobalProjectId] = useState(null);
+
+  // Sinkronkan tab saat pertama load dengan URL path, agar /finance, /bv, dll berfungsi saat diakses langsung
+  useEffect(() => {
+    const path = window.location.pathname.replace(/^\//, '').replace(/\/$/, '') || 'dashboard';
+    const tabFromPath = path.split('/')[0];
+    const validTabs = [
+      'dashboard', 'project-board', 'project-detail', 'upload-hspk', 'data-survey',
+      'bv', 'backup-volume', 'rab', 'finance', 'pembelian-siap-pakai', 'purchase-orders',
+      'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'invoice-penagihan',
+      'laporan-harian', 'time-schedule', 'join-opname', 'bast', 'complain',
+      'item-tracking', 'habis-pakai'
+    ];
+    if (validTabs.includes(tabFromPath)) {
+      setActiveTab(tabFromPath);
+    }
+  }, []);
 
   // Notifikasi bell: lompat ke halaman tujuan + proyeknya langsung terpilih
   const navigateDariNotifikasi = (tab, projectId) => {
@@ -52,7 +79,11 @@ function App() {
 
   // Jika URL memiliki parameter print-po, langsung render halaman print tanpa layout biasa
   if (printPoId) {
-    return <PrintPOPage poId={printPoId} />;
+    return (
+      <Suspense fallback={<RouteLoader />}>
+        <PrintPOPage poId={printPoId} />
+      </Suspense>
+    );
   }
 
   // Tampilkan splash screen saat masih mengecek session (mencegah flash ke login)
@@ -104,72 +135,74 @@ function App() {
 
       {/* Konten Utama berdasarkan tab yang aktif */}
       <main className="flex-1 h-screen overflow-y-auto relative w-full">
-        {activeTab === "dashboard" && (
-          <Dashboard
-            onCreateBv={(projectId) => {
-              setGlobalProjectId(projectId);
-              setActiveTab("bv");
-            }}
-            onCreateSurvey={(projectId) => {
-              setGlobalProjectId(projectId);
-              setActiveTab("data-survey");
-            }}
-            onViewDetails={() => setActiveTab("project-board")}
-          />
-        )}
-        {activeTab === "project-board" && (
-          <ProjectBoard 
-            onProjectClick={(projectId) => {
-              setGlobalProjectId(projectId);
-              setActiveTab("project-detail");
-            }} 
-          />
-        )}
-        {activeTab === "project-detail" && (
-          <ProjectDetailDashboard 
-            projectId={globalProjectId} 
-            onBack={() => setActiveTab("project-board")} 
-          />
-        )}
-        {activeTab === "upload-hspk" && <UploadHspk />}
-        {activeTab === "data-survey" && <DataSurvey initialProjectId={globalProjectId} />}
-        {(activeTab === "bv" || activeTab === "backup-volume") && (
-          <BackUpVolume
-            initialProjectId={globalProjectId}
-            onProjectChange={setGlobalProjectId}
-            onGoToRab={(pid) => {
-              setGlobalProjectId(pid);
-              setActiveTab("rab");
-              window.location.hash = "rab";
-            }}
-          />
-        )}
-        {activeTab === "rab" && (
-          <RabBudgeting
-            key={globalProjectId || "none"}
-            initialProjectId={globalProjectId}
-            onProjectChange={setGlobalProjectId}
-            onBackToBv={(pid) => {
-              if (pid) setGlobalProjectId(pid);
-              setActiveTab("bv");
-              window.location.hash = "bv";
-            }}
-          />
-        )}
-        {activeTab === "finance" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
-        {activeTab === "pembelian-siap-pakai" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />} 
-        {activeTab === "purchase-orders" && <PurchaseOrderPage />}
-        {activeTab === "retur-pembelian" && <ReturPembelianPage />}
-        {activeTab === "pengajuan-bayar" && <PengajuanBayarPage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
-        {activeTab === "pembayaran-supplier" && <PembayaranSupplierPage />}
-        {activeTab === "invoice-penagihan" && <InvoicePenagihanPage />}
-        {activeTab === "laporan-harian" && <LaporanHarianPage />}
-        {activeTab === "time-schedule" && <TimeSchedulePage />}
-        {activeTab === "join-opname" && <JoinOpnamePage />}
-        {activeTab === "bast" && <BastPage />}
-        {activeTab === "complain" && <ComplaintPage />}
-        {activeTab === "item-tracking" && <ItemTrackingPage onNavigate={setActiveTab} />}
-        {activeTab === "habis-pakai" && <RiwayatHabisPakaiPage />}
+        <Suspense fallback={<RouteLoader />}>
+          {activeTab === "dashboard" && (
+            <Dashboard
+              onCreateBv={(projectId) => {
+                setGlobalProjectId(projectId);
+                setActiveTab("bv");
+              }}
+              onCreateSurvey={(projectId) => {
+                setGlobalProjectId(projectId);
+                setActiveTab("data-survey");
+              }}
+              onViewDetails={() => setActiveTab("project-board")}
+            />
+          )}
+          {activeTab === "project-board" && (
+            <ProjectBoard 
+              onProjectClick={(projectId) => {
+                setGlobalProjectId(projectId);
+                setActiveTab("project-detail");
+              }} 
+            />
+          )}
+          {activeTab === "project-detail" && (
+            <ProjectDetailDashboard 
+              projectId={globalProjectId} 
+              onBack={() => setActiveTab("project-board")} 
+            />
+          )}
+          {activeTab === "upload-hspk" && <UploadHspk />}
+          {activeTab === "data-survey" && <DataSurvey initialProjectId={globalProjectId} />}
+          {(activeTab === "bv" || activeTab === "backup-volume") && (
+            <BackUpVolume
+              initialProjectId={globalProjectId}
+              onProjectChange={setGlobalProjectId}
+              onGoToRab={(pid) => {
+                setGlobalProjectId(pid);
+                setActiveTab("rab");
+                window.location.hash = "rab";
+              }}
+            />
+          )}
+          {activeTab === "rab" && (
+            <RabBudgeting
+              key={globalProjectId || "none"}
+              initialProjectId={globalProjectId}
+              onProjectChange={setGlobalProjectId}
+              onBackToBv={(pid) => {
+                if (pid) setGlobalProjectId(pid);
+                setActiveTab("bv");
+                window.location.hash = "bv";
+              }}
+            />
+          )}
+          {activeTab === "finance" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
+          {activeTab === "pembelian-siap-pakai" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />} 
+          {activeTab === "purchase-orders" && <PurchaseOrderPage />}
+          {activeTab === "retur-pembelian" && <ReturPembelianPage />}
+          {activeTab === "pengajuan-bayar" && <PengajuanBayarPage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
+          {activeTab === "pembayaran-supplier" && <PembayaranSupplierPage />}
+          {activeTab === "invoice-penagihan" && <InvoicePenagihanPage />}
+          {activeTab === "laporan-harian" && <LaporanHarianPage />}
+          {activeTab === "time-schedule" && <TimeSchedulePage />}
+          {activeTab === "join-opname" && <JoinOpnamePage />}
+          {activeTab === "bast" && <BastPage />}
+          {activeTab === "complain" && <ComplaintPage />}
+          {activeTab === "item-tracking" && <ItemTrackingPage onNavigate={setActiveTab} />}
+          {activeTab === "habis-pakai" && <RiwayatHabisPakaiPage />}
+        </Suspense>
       </main>
 
       {/* Floating Chatbot Placeholder */}

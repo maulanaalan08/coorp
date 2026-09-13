@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  FileInput, Plus, Search, Check, X, Save, ShieldCheck, Truck,
-  ChevronRight, Package, AlertCircle, CalendarDays, UserCheck,
+  FileInput, Search, Check, X, ChevronRight, ChevronDown, Package, AlertCircle,
+  CalendarDays, UserCheck, Clock,
 } from 'lucide-react';
 import Header from '../components/Header';
 import { purchasingService } from '../services/purchasingService';
 import { poService } from '../services/poService';
-import ApprovalPengajuanPanel from '../components/ApprovalPengajuanPanel';
 import POItemDetail from '../components/POItemDetail';
 import ProjectSelector from '../components/ProjectSelector';
 import { projectService } from '../services/projectService';
 import toast from 'react-hot-toast';
 
 const fmtRp = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
+const fmtNum = (n) => Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 4 });
 
 const statusBadge = (status) => {
   const map = {
@@ -26,7 +26,7 @@ const statusBadge = (status) => {
 
 const statusLabel = (status) => {
   const map = {
-    PENDING: 'Menunggu Finance',
+    PENDING: 'Menunggu Atasan',
     APPROVED_FINANCE: 'Menunggu Atasan',
     APPROVED: 'Disetujui',
     REJECTED: 'Ditolak',
@@ -34,30 +34,50 @@ const statusLabel = (status) => {
   return map[status] || status || 'PENDING';
 };
 
+const poStatusBadge = (status) => {
+  const map = {
+    BELUM_APPROVE: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+    MENUNGGU_ATASAN: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    APPROVED: 'bg-green-500/10 text-green-400 border-green-500/30',
+    REJECTED: 'bg-red-500/10 text-red-400 border-red-500/30',
+  };
+  return map[status] || 'bg-gray-500/10 text-gray-400 border-gray-500/30';
+};
+
+const poStatusLabel = (status) => {
+  const map = {
+    BELUM_APPROVE: 'Belum Approve',
+    MENUNGGU_ATASAN: 'Menunggu Atasan',
+    APPROVED: 'Disetujui',
+    REJECTED: 'Ditolak',
+  };
+  return map[status] || status || 'BELUM_APPROVE';
+};
+
+// Ambil pengajuan terbaru (non-rejected) dari daftar pengajuan sebuah PO
+const pengajuanAktif = (po) => {
+  const list = (po?.pengajuanPembayaran || []).filter(
+    (p) => p.status !== 'REJECTED',
+  );
+  return list[0] || null;
+};
+
 const PengajuanBayarPage = ({ initialProjectId = null }) => {
-  const [pengajuans, setPengajuans] = useState([]);
+  const [poApproved, setPoApproved] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [expandedRow, setExpandedRow] = useState({});
 
-  // PO yang sudah lolos Finance — ini sumber "item apa saja yang di-PO kan"
-  const [poSiap, setPoSiap] = useState([]);
+  const [poMenungguAtasan, setPoMenungguAtasan] = useState([]);
   const [loadingPo, setLoadingPo] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null);
+  const [expandedPO, setExpandedPO] = useState({});
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    poId: '',
-    supplierId: '',
-    totalTagihan: '',
-    catatan: '',
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Proyek + refresh silang antar panel approval
   const [projectId, setProjectId] = useState(initialProjectId);
   const [projectList, setProjectList] = useState([]);
   const [approvalTick, setApprovalTick] = useState(0);
   const bumpApproval = () => setApprovalTick((t) => t + 1);
+  const [busyId, setBusyId] = useState(null);
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -68,40 +88,36 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
     }
   }, []);
 
-  const fetchPengajuans = useCallback(async () => {
-    // Tanpa proyek jangan ambil data — kalau tidak, pengajuan semua proyek
-    // tampil duluan lalu "hilang" begitu proyek dipilih.
+  const fetchPoApproved = useCallback(async () => {
     if (!projectId) {
-      setPengajuans([]);
+      setPoApproved([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const data = await purchasingService.getPengajuanBayar(projectId);
-      setPengajuans(Array.isArray(data) ? data : []);
+      const data = await purchasingService.getPOApproved(projectId);
+      setPoApproved(Array.isArray(data) ? data : []);
     } catch (err) {
-      toast.error('Gagal memuat data pengajuan bayar');
+      toast.error('Gagal memuat data PO approved');
     } finally {
       setLoading(false);
     }
   }, [projectId]);
 
-  // Daftar PO hasil approve Finance (belum diajukan bayar)
-  const fetchPoSiap = useCallback(async () => {
-    // Sama: daftar PO baru diambil setelah proyek dipilih.
+  const fetchPoMenungguAtasan = useCallback(async () => {
     if (!projectId) {
-      setPoSiap([]);
+      setPoMenungguAtasan([]);
       setLoadingPo(false);
       return;
     }
     setLoadingPo(true);
     try {
-      const data = await purchasingService.getPOSiapAjukan(projectId);
-      setPoSiap(Array.isArray(data) ? data : []);
+      const data = await poService.getPOs({ projectId, status: 'MENUNGGU_ATASAN' });
+      setPoMenungguAtasan(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Gagal memuat PO siap diajukan:', err);
-      setPoSiap([]);
+      console.error('Gagal memuat PO menunggu atasan:', err);
+      setPoMenungguAtasan([]);
     } finally {
       setLoadingPo(false);
     }
@@ -109,23 +125,41 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
   useEffect(() => {
-    fetchPengajuans();
-    fetchPoSiap();
-  }, [fetchPengajuans, fetchPoSiap]);
+    fetchPoApproved();
+    fetchPoMenungguAtasan();
+  }, [fetchPoApproved, fetchPoMenungguAtasan, approvalTick]);
 
-  const filteredPengajuans = useMemo(() => {
-    if (!search.trim()) return pengajuans;
-    const q = search.toLowerCase();
-    return pengajuans.filter((p) =>
-      p.noPengajuan?.toLowerCase().includes(q) ||
-      p.supplier?.name?.toLowerCase().includes(q)
-    );
-  }, [pengajuans, search]);
+  useEffect(() => {
+    const onChanged = () => {
+      bumpApproval();
+      fetchPoApproved();
+      fetchPoMenungguAtasan();
+    };
+    window.addEventListener('po-status-changed', onChanged);
+    return () => window.removeEventListener('po-status-changed', onChanged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
-  const filteredPoSiap = useMemo(() => {
-    if (!search.trim()) return poSiap;
+  const filteredPoApproved = useMemo(() => {
+    if (!search.trim()) return poApproved;
     const q = search.toLowerCase();
-    return poSiap.filter((po) => {
+    return poApproved.filter((po) => {
+      const pengajuan = pengajuanAktif(po);
+      const cocokHeader =
+        po.poNumber?.toLowerCase().includes(q) ||
+        po.supplier?.name?.toLowerCase().includes(q) ||
+        pengajuan?.noPengajuan?.toLowerCase().includes(q);
+      const cocokItem = (po.items || []).some((it) =>
+        (it.description || '').toLowerCase().includes(q)
+      );
+      return cocokHeader || cocokItem;
+    });
+  }, [poApproved, search]);
+
+  const filteredPoMenunggu = useMemo(() => {
+    if (!search.trim()) return poMenungguAtasan;
+    const q = search.toLowerCase();
+    return poMenungguAtasan.filter((po) => {
       const cocokHeader =
         po.poNumber?.toLowerCase().includes(q) ||
         po.supplier?.name?.toLowerCase().includes(q);
@@ -134,92 +168,38 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
       );
       return cocokHeader || cocokItem;
     });
-  }, [poSiap, search]);
+  }, [poMenungguAtasan, search]);
 
-  // Klik PO -> modal detail item + form pengajuan
-  const openModalUntukPO = (po) => {
-    setFormData({
-      poId: po.id,
-      supplierId: po.supplierId || po.supplier?.id || '',
-      totalTagihan: String(po.grandTotal ?? ''),
-      catatan: '',
-    });
-    setIsModalOpen(true);
-  };
-
-  const openModalKosong = () => {
-    setFormData({ poId: '', supplierId: '', totalTagihan: '', catatan: '' });
-    setIsModalOpen(true);
-  };
-
-  const poDiForm = useMemo(
-    () => poSiap.find((p) => p.id === formData.poId) || null,
-    [poSiap, formData.poId]
-  );
-
-  const handleVerify = async (id) => {
+  const handleApprovePO = async (po) => {
+    setBusyId(po.id);
     try {
-      await purchasingService.verifyPengajuan(id, '');
-      toast.success('Pengajuan diverifikasi, diteruskan ke atasan');
-      fetchPengajuans();
+      await poService.approvePO(po.id);
+      toast.success(`${po.poNumber} disetujui`);
       bumpApproval();
     } catch (err) {
-      toast.error(err.message || 'Gagal memverifikasi pengajuan');
-    }
-  };
-
-  const handleApprove = async (id) => {
-    try {
-      await purchasingService.approvePengajuan(id);
-      toast.success('Pengajuan disetujui');
-      fetchPengajuans();
-      bumpApproval();
-    } catch (err) {
-      toast.error(err.message || 'Gagal menyetujui pengajuan');
-    }
-  };
-
-  const handleReject = async (id) => {
-    const reason = window.prompt('Masukkan alasan penolakan:');
-    if (reason === null) return;
-    if (!reason.trim()) { toast.error('Alasan tidak boleh kosong'); return; }
-    try {
-      await purchasingService.rejectPengajuan(id, reason);
-      toast.success('Pengajuan ditolak');
-      fetchPengajuans();
-      bumpApproval();
-    } catch (err) {
-      toast.error(err.message || 'Gagal menolak pengajuan');
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.supplierId) { toast.error('Supplier belum terisi — pilih PO-nya dulu'); return; }
-    if (!formData.totalTagihan || Number(formData.totalTagihan) <= 0) {
-      toast.error('Total tagihan harus lebih dari 0');
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await purchasingService.createPengajuan({
-        supplierId: formData.supplierId,
-        poId: formData.poId || null,
-        projectId: poDiForm?.projectId || projectId || null,
-        totalTagihan: Number(formData.totalTagihan),
-        catatan: formData.catatan,
-      });
-      toast.success('Pengajuan pembayaran dibuat!');
-      setIsModalOpen(false);
-      fetchPengajuans();
-      fetchPoSiap();
-      bumpApproval();
-    } catch (err) {
-      toast.error(err.message || 'Gagal membuat pengajuan');
+      toast.error(err.message || 'Gagal menyetujui PO');
     } finally {
-      setIsSubmitting(false);
+      setBusyId(null);
     }
   };
+
+  const handleRejectPO = async (po) => {
+    const reason = window.prompt(`Alasan menolak ${po.poNumber}:`);
+    if (!reason || !reason.trim()) return;
+    setBusyId(po.id);
+    try {
+      await poService.rejectPO(po.id, reason.trim());
+      toast.success(`${po.poNumber} ditolak`);
+      bumpApproval();
+    } catch (err) {
+      toast.error(err.message || 'Gagal menolak PO');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const toggleRow = (id) =>
+    setExpandedRow((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
     <div className="min-h-screen bg-[#0c0b09]">
@@ -230,15 +210,9 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
             <p className="text-[#888] text-xs uppercase tracking-wider mb-1">Purchasing</p>
             <h2 className="text-2xl md:text-3xl text-[#f2ead9] font-bold">Pengajuan Bayar</h2>
             <p className="text-[#888] text-sm mt-1">
-              Pilih proyek, lalu klik PO hasil persetujuan Finance untuk melihat itemnya.
+              PO yang sudah diverifikasi Finance dan menunggu persetujuan Atasan.
             </p>
           </div>
-          <button
-            onClick={openModalKosong}
-            className="flex items-center gap-2 border border-[#2a2a2a] text-[#ccc] font-semibold px-4 py-2.5 rounded-lg hover:border-[#d4af37] hover:text-[#d4af37] transition-colors w-fit"
-          >
-            <Plus size={18} /> Pengajuan Manual
-          </button>
         </div>
 
         <ProjectSelector
@@ -248,31 +222,44 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
           onChange={(e) => { setProjectId(e.target.value || null); setSelectedPO(null); }}
         />
 
-        {/* DAFTAR PO: hanya yang sudah disetujui Finance */}
+        <div className="mb-4 relative w-full md:w-80 mt-6">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888]" />
+          <input
+            type="text"
+            placeholder="Cari no PO / no PPB / supplier / item..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-[#1a1814] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#666] focus:border-[#d4af37] outline-none"
+          />
+        </div>
+
+        {/* DAFTAR PO MENUNGGU ATASAN */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
-            <Truck size={16} className="text-[#d4af37]" />
+            <Clock size={16} className="text-[#d4af37]" />
             <h3 className="text-sm font-bold text-[#f2ead9] uppercase tracking-wider">
-              PO Disetujui Finance
+              Menunggu Persetujuan Atasan
             </h3>
-            <span className="text-xs text-[#666]">({filteredPoSiap.length})</span>
+            <span className="text-xs text-[#666]">({filteredPoMenunggu.length})</span>
           </div>
 
           {loadingPo ? (
             <div className="text-center py-8 text-[#888] text-sm">Memuat PO...</div>
-          ) : filteredPoSiap.length === 0 ? (
+          ) : filteredPoMenunggu.length === 0 ? (
             <div className="bg-[#1a1814] border border-[#2a2a2a] rounded-xl px-5 py-8 text-center">
               <AlertCircle size={22} className="text-[#555] mx-auto mb-2" />
               <p className="text-sm text-[#888]">
                 {projectId
-                  ? 'Belum ada PO yang disetujui Finance di proyek ini.'
+                  ? 'Tidak ada PO yang menunggu persetujuan Atasan.'
                   : 'Pilih proyek dulu untuk melihat PO-nya.'}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {filteredPoSiap.map((po) => {
+              {filteredPoMenunggu.map((po) => {
                 const aktif = selectedPO?.id === po.id;
+                const open = !!expandedPO[po.id];
+                const busy = busyId === po.id;
                 return (
                   <div
                     key={po.id}
@@ -282,7 +269,7 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                   >
                     <button
                       type="button"
-                      onClick={() => setSelectedPO(aktif ? null : po)}
+                      onClick={() => setExpandedPO((p) => ({ ...p, [po.id]: !p[po.id] }))}
                       className="w-full text-left"
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
@@ -291,11 +278,11 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                         </span>
                         <ChevronRight
                           size={16}
-                          className={`text-[#888] shrink-0 transition-transform ${aktif ? 'rotate-90' : ''}`}
+                          className={`text-[#888] shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}
                         />
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-[#38bdf8] mb-1">
-                        <Truck size={11} /> {po.supplier?.name || 'Tanpa Supplier'}
+                        <UserCheck size={11} /> {po.supplier?.name || 'Tanpa Supplier'}
                       </div>
                       <div className="flex items-center gap-3 text-[11px] text-[#888] mb-2">
                         <span className="inline-flex items-center gap-1">
@@ -314,26 +301,34 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                         <span className="text-sm font-bold text-[#f2ead9] font-mono">
                           {fmtRp(po.grandTotal)}
                         </span>
-                        {po.kategoriPO === 'HABIS_PAKAI' && (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/30">
-                            Habis Pakai
-                          </span>
-                        )}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${poStatusBadge(po.status)}`}>
+                          {poStatusLabel(po.status)}
+                        </span>
                       </div>
                     </button>
 
-                    {aktif && (
+                    {open && (
                       <div className="mt-3 pt-3 border-t border-[#2a2a2a]">
                         <p className="text-[11px] text-[#888] uppercase tracking-wider mb-2">
                           Item dalam PO ini
                         </p>
                         <POItemDetail po={po} showHeader={false} />
-                        <button
-                          onClick={() => openModalUntukPO(po)}
-                          className="mt-3 w-full flex items-center justify-center gap-2 bg-[#d4af37] text-[#0c0b09] text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-[#e8c874] transition-colors"
-                        >
-                          <FileInput size={15} /> Ajukan Pembayaran PO Ini
-                        </button>
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            disabled={busy}
+                            onClick={() => handleApprovePO(po)}
+                            className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            <Check size={15} /> Setujui
+                          </button>
+                          <button
+                            disabled={busy}
+                            onClick={() => handleRejectPO(po)}
+                            className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            <X size={15} /> Tolak
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -343,208 +338,154 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
           )}
         </div>
 
-        <ApprovalPengajuanPanel
-          mode="finance"
-          projectId={projectId}
-          refreshKey={approvalTick}
-          onChanged={() => { fetchPengajuans(); fetchPoSiap(); bumpApproval(); }}
-        />
-
-        <ApprovalPengajuanPanel
-          mode="atasan"
-          projectId={projectId}
-          refreshKey={approvalTick}
-          onChanged={() => { fetchPengajuans(); fetchPoSiap(); bumpApproval(); }}
-        />
-
-        <div className="mb-4 relative w-full md:w-80">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888]" />
-          <input
-            type="text"
-            placeholder="Cari no pengajuan / supplier / item..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[#1a1814] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#666] focus:border-[#d4af37] outline-none"
-          />
-        </div>
-
+        {/* DAFTAR PENGAJUAN BAYAR — PO APPROVED, NOMOR PO SEBAGAI INFO UTAMA */}
         <div className="bg-[#1a1814] border border-[#2a2a2a] rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#2a2a2a] flex items-center gap-2">
+            <FileInput size={16} className="text-[#d4af37]" />
+            <h3 className="text-sm font-bold text-[#f2ead9] uppercase tracking-wider">Daftar Pengajuan Bayar</h3>
+            <span className="text-xs text-[#666]">({filteredPoApproved.length})</span>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-[#22201c] text-[#888] text-left">
-                  <th className="px-4 py-3 font-semibold">No Pengajuan</th>
+                  <th className="px-4 py-3 font-semibold w-8"></th>
+                  <th className="px-4 py-3 font-semibold">No PO</th>
                   <th className="px-4 py-3 font-semibold">Supplier</th>
-                  <th className="px-4 py-3 font-semibold">PO</th>
                   <th className="px-4 py-3 font-semibold text-right">Total Tagihan</th>
                   <th className="px-4 py-3 font-semibold text-center">Status</th>
-                  <th className="px-4 py-3 font-semibold text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="text-center py-10 text-[#888]">Memuat data...</td></tr>
-                ) : filteredPengajuans.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-10 text-[#888]">Belum ada pengajuan bayar</td></tr>
+                  <tr><td colSpan={5} className="text-center py-10 text-[#888]">Memuat data...</td></tr>
+                ) : filteredPoApproved.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center py-10 text-[#888]">Belum ada PO yang disetujui</td></tr>
                 ) : (
-                  filteredPengajuans.map((p) => (
-                    <tr key={p.id} className="border-t border-[#2a2a2a] hover:bg-white/[0.02]">
-                      <td className="px-4 py-3 text-white font-medium">{p.noPengajuan || `PJ-${p.id}`}</td>
-                      <td className="px-4 py-3 text-[#ccc]">{p.supplier?.name || p.supplierName || '-'}</td>
-                      <td className="px-4 py-3 text-[#888] font-mono text-xs">
-                        {p.purchaseOrder?.poNumber || '-'}
-                        {p.purchaseOrder?.items?.length ? (
-                          <span className="ml-2 text-[#555]">({p.purchaseOrder.items.length} item)</span>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-3 text-right text-[#ccc]">{fmtRp(p.totalTagihan)}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge(p.status)}`}>
-                          {statusLabel(p.status)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {p.status === 'PENDING' && (
-                          <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => handleVerify(p.id)} className="text-blue-400 hover:text-blue-300 p-1" title="Verifikasi (Finance)"><ShieldCheck size={16} /></button>
-                            <button onClick={() => handleReject(p.id)} className="text-red-400 hover:text-red-300 p-1" title="Tolak"><X size={16} /></button>
-                          </div>
+                  filteredPoApproved.map((po) => {
+                    const open = !!expandedRow[po.id];
+                    const pengajuan = pengajuanAktif(po);
+                    const status = pengajuan?.status || po.status;
+                    return (
+                      <React.Fragment key={po.id}>
+                        <tr
+                          onClick={() => toggleRow(po.id)}
+                          className="border-t border-[#2a2a2a] hover:bg-white/[0.02] cursor-pointer transition-colors"
+                        >
+                          <td className="px-4 py-3 text-center text-[#888]">
+                            <ChevronDown
+                              size={16}
+                              className={`mx-auto transition-transform ${open ? 'rotate-180' : ''}`}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-mono text-white font-bold">
+                                {po.poNumber || `PO-${po.id.slice(0, 8)}`}
+                              </span>
+                              {pengajuan?.noPengajuan && (
+                                <span className="text-[11px] text-[#888] font-mono">
+                                  PPB: {pengajuan.noPengajuan}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-[#ccc]">
+                            <div className="flex items-center gap-1.5">
+                              <UserCheck size={12} className="text-[#38bdf8] shrink-0" />
+                              {po.supplier?.name || '-'}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right text-[#ccc] font-mono">
+                            {fmtRp(po.grandTotal)}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge(status)}`}>
+                              {statusLabel(status)}
+                            </span>
+                          </td>
+                        </tr>
+                        {open && (
+                          <tr className="border-t border-[#2a2a2a] bg-[#15130f]">
+                            <td colSpan={5} className="px-4 py-4">
+                              <div className="flex items-center gap-2 mb-3 text-[11px] text-[#888] uppercase tracking-wider">
+                                <Package size={12} className="text-[#d4af37]" />
+                                Detail Item PO
+                                <span className="text-[#555] normal-case tracking-normal">
+                                  · {po.items?.length || 0} item
+                                </span>
+                              </div>
+                              {(po.items || []).length === 0 ? (
+                                <p className="text-xs text-[#666] italic py-2">PO ini belum punya item.</p>
+                              ) : (
+                                <div className="border border-white/10 rounded-lg overflow-hidden">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="bg-white/[0.03] text-[#888] text-left">
+                                        <th className="px-3 py-2 font-semibold">Item Name</th>
+                                        <th className="px-3 py-2 font-semibold text-right">Qty</th>
+                                        <th className="px-3 py-2 font-semibold text-right">Unit</th>
+                                        <th className="px-3 py-2 font-semibold text-right">Price</th>
+                                        <th className="px-3 py-2 font-semibold text-right">Subtotal</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {po.items.map((it) => (
+                                        <tr key={it.id} className="border-t border-white/5">
+                                          <td className="px-3 py-2 text-white">
+                                            <div className="flex items-center gap-1.5">
+                                              <Package size={11} className="text-[#666] shrink-0" />
+                                              <span>{it.description || '—'}</span>
+                                            </div>
+                                            {it.description2 && (
+                                              <div className="text-[10px] text-[#666] mt-0.5">{it.description2}</div>
+                                            )}
+                                            {it.materialRequest?.groupName && (
+                                              <div className="text-[10px] text-[#555] mt-0.5">
+                                                {it.materialRequest.groupName}
+                                              </div>
+                                            )}
+                                          </td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">
+                                            {fmtNum(it.qty)}
+                                          </td>
+                                          <td className="px-3 py-2 text-right text-[#ccc] whitespace-nowrap">
+                                            {it.unit || '-'}
+                                          </td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">
+                                            {fmtRp(it.unitPrice)}
+                                          </td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#d4af37] whitespace-nowrap">
+                                            {fmtRp(it.total)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                              {po.approvedBy?.name && (
+                                <div className="mt-3 text-[11px] text-[#888] flex items-center gap-1.5">
+                                  <UserCheck size={11} /> Disetujui oleh {po.approvedBy.name}
+                                  {po.approvedAt && (
+                                    <span className="text-[#555]">
+                                      · {new Date(po.approvedAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
                         )}
-                        {p.status === 'APPROVED_FINANCE' && (
-                          <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => handleApprove(p.id)} className="text-green-400 hover:text-green-300 p-1" title="Setujui (Atasan)"><Check size={16} /></button>
-                            <button onClick={() => handleReject(p.id)} className="text-red-400 hover:text-red-300 p-1" title="Tolak"><X size={16} /></button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
         </div>
       </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={() => setIsModalOpen(false)}>
-          <div
-            className="bg-[#1a1814] border border-[#2a2a2a] rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a2a]">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <FileInput size={20} className="text-[#d4af37]" /> Ajukan Pembayaran
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-[#888] hover:text-white"><X size={22} /></button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="flex flex-col min-h-0">
-              <div className="px-6 py-4 space-y-4 overflow-y-auto">
-                <div>
-                  <label className="block text-sm text-[#888] mb-1">Purchase Order</label>
-                  <select
-                    value={formData.poId}
-                    onChange={(e) => {
-                      const po = poSiap.find((x) => x.id === e.target.value);
-                      setFormData({
-                        ...formData,
-                        poId: e.target.value,
-                        supplierId: po?.supplierId || po?.supplier?.id || '',
-                        totalTagihan: po ? String(po.grandTotal ?? '') : formData.totalTagihan,
-                      });
-                    }}
-                    className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
-                  >
-                    <option value="">-- Pilih PO (sudah disetujui Finance) --</option>
-                    {poSiap.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.poNumber || `PO-${p.id.slice(0, 8)}`} — {p.supplier?.name || 'Tanpa Supplier'} — {fmtRp(p.grandTotal)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {poDiForm && (
-                  <div className="bg-[#0c0b09] border border-[#2a2a2a] rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] text-[#888] uppercase tracking-wider">
-                        Detail Item PO
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 text-[11px] text-[#4caf50]">
-                        <UserCheck size={11} />
-                        {poDiForm.verifiedBy?.name
-                          ? `Diverifikasi ${poDiForm.verifiedBy.name}`
-                          : 'Disetujui Finance'}
-                      </span>
-                    </div>
-                    <POItemDetail po={poDiForm} />
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#2a2a2a]">
-                      <span className="text-xs text-[#888]">Total PO</span>
-                      <span className="text-sm font-bold text-[#d4af37] font-mono">
-                        {fmtRp(poDiForm.grandTotal)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm text-[#888] mb-1">Supplier</label>
-                  {formData.supplierId ? (
-                    <div className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-sm text-[#ccc]">
-                      {poSiap.find((p) => p.supplierId === formData.supplierId)?.supplier?.name || 'Terisi dari PO'}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-[#888] italic py-2">
-                      Pilih PO dulu — supplier otomatis mengikuti PO.
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm text-[#888] mb-1">Total Tagihan (Rp)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.totalTagihan}
-                    onChange={(e) => setFormData({ ...formData, totalTagihan: e.target.value })}
-                    required
-                    placeholder="0"
-                    className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
-                  />
-                  <p className="text-[11px] text-[#666] mt-1">
-                    Terisi otomatis dari total PO. Ubah kalau yang ditagih cuma sebagian.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-[#888] mb-1">Catatan</label>
-                  <textarea
-                    value={formData.catatan}
-                    onChange={(e) => setFormData({ ...formData, catatan: e.target.value })}
-                    rows={3}
-                    placeholder="Catatan tambahan..."
-                    className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#2a2a2a]">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-[#888] hover:text-white font-medium rounded-lg hover:bg-white/5 transition-colors">
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex items-center gap-2 bg-[#d4af37] text-[#0c0b09] font-semibold px-5 py-2.5 rounded-lg hover:bg-[#e8c874] transition-colors disabled:opacity-50"
-                >
-                  <Save size={16} /> {isSubmitting ? 'Menyimpan...' : 'Ajukan'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

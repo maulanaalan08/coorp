@@ -6,10 +6,11 @@ import { useProjects } from '../hooks/useProjects';
 import { useBvItems } from '../hooks/useBvItems';
 import { groupService } from '../services/groupService';
 import { hspkService } from '../services/hspkService';
-import { Pencil, Trash2, Plus, RefreshCw } from 'lucide-react';
+import { Pencil, Trash2, Plus, RefreshCw, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
+const DISCIPLINE_BADGE = { INTERIOR: '#a0522d', SIPIL: '#4682b4', GENERAL: '#666' };
 
 // ================================================================
 // MODAL GROUP / SUB-GROUP
@@ -86,16 +87,29 @@ function GroupModal({ isOpen, onClose, projectId, parentId, editGroup, onSuccess
 // ================================================================
 // MODAL TAMBAH / EDIT ITEM BV
 // ================================================================
-function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, editItem, hspkPeriod, onSuccess }) {
+function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, parentItem, editItem, project, activeFilter, onSuccess }) {
+  const hspkPeriod = project?.hspkPeriod;
   const [mode, setMode] = useState('hspk');
   const [sourceJobTypeId, setSourceJobTypeId] = useState('');
   const [name, setName] = useState('');
   const [keterangan, setKeterangan] = useState('');
   const [paymentUnit, setPaymentUnit] = useState('');
   const [ecommerceLink, setEcommerceLink] = useState('');
+  // Label disiplin hanya dipilih saat menambah/edit BARIS HEADER (level 1).
+  // Sub baris / anak otomatis mengikuti label induknya tanpa input pilihan.
+  const isHeaderLevel = !parentBvItemId;
+  const inheritedLabel = parentItem?.disciplineLabel || activeFilter || 'GENERAL';
+  const [disciplineLabel, setDisciplineLabel] = useState(inheritedLabel);
 
   const [jobTypes, setJobTypes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      const nextLabel = editItem?.disciplineLabel || parentItem?.disciplineLabel || activeFilter || 'GENERAL';
+      setDisciplineLabel(nextLabel);
+    }
+  }, [isOpen, activeFilter, editItem, parentItem?.disciplineLabel]);
 
   const [breakdowns, setBreakdowns] = useState([
     {
@@ -117,6 +131,18 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, edit
     if (isOpen) {
       const params = { limit: 100 };
       if (hspkPeriod) params.period = hspkPeriod;
+      // Saat memilih HSPK, default ke label terpilih agar item master juga
+      // tetap terfilter disiplin bila user memilih label INTERIOR/SIPIL.
+      if (disciplineLabel && disciplineLabel !== 'GENERAL') {
+        params.discipline = disciplineLabel;
+        const matchedGrade =
+          disciplineLabel === 'INTERIOR'
+            ? project?.interiorGrade
+            : disciplineLabel === 'SIPIL'
+            ? project?.sipilGrade
+            : null;
+        if (matchedGrade) params.grade = matchedGrade;
+      }
 
       hspkService.getJobTypes(params)
         .then(res => setJobTypes(Array.isArray(res) ? res : res?.data || []))
@@ -135,6 +161,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, edit
         setKeterangan(editItem.keterangan || '');
         setPaymentUnit(editItem.paymentUnit || '');
         setEcommerceLink(editItem.ecommerceLink || '');
+        setDisciplineLabel(editItem.disciplineLabel || 'GENERAL');
         if (editItem.breakdowns?.length > 0) {
           setBreakdowns(editItem.breakdowns.map(b => ({
             keterangan: b.keterangan || '',
@@ -216,6 +243,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, edit
         keterangan: keterangan.trim() || null,
         paymentUnit: isHeaderOnly ? null : paymentUnit.trim(),
         ecommerceLink: isHeaderOnly ? null : (ecommerceLink.trim() || null),
+        disciplineLabel: disciplineLabel || 'GENERAL',
         breakdowns: isHeaderOnly ? [] : breakdowns.map(b => ({
           keterangan: b.keterangan || null,
           panjang: b.panjang !== '' ? parseFloat(b.panjang) : null,
@@ -272,6 +300,20 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, edit
               <option value="custom">Custom (input manual)</option>
               {!parentBvItemId && <option value="header">Header / Judul Pekerjaan</option>}
             </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Label Disiplin {isHeaderLevel ? '' : <span style={{ color: '#888', fontSize: 11 }}>(otomatis mengikuti induk)</span>}</label>
+            <select value={disciplineLabel} onChange={(e) => setDisciplineLabel(e.target.value)} disabled={!isHeaderLevel}>
+              <option value="GENERAL">General</option>
+              <option value="INTERIOR">Interior</option>
+              <option value="SIPIL">Sipil</option>
+            </select>
+            {isHeaderLevel && (
+              <small style={{ color: '#888', fontSize: 10 }}>
+                Menentukan master HSPK mana yang tersedia dan saat filter halaman BV.
+              </small>
+            )}
           </div>
 
           {mode === 'hspk' && (
@@ -449,15 +491,66 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, edit
 // ================================================================
 // KOMPONEN UTAMA BACKUP VOLUME
 // ================================================================
+const FILTER_OPTIONS = ['GENERAL', 'INTERIOR', 'SIPIL'];
+
+function parseBvHash() {
+  const raw = window.location.hash.replace('#', '');
+  if (!raw.startsWith('bv')) return { tab: 'bv', filter: 'GENERAL' };
+  const parts = raw.split('/');
+  const filter = parts[1]?.toUpperCase();
+  return { tab: 'bv', filter: FILTER_OPTIONS.includes(filter) ? filter : 'GENERAL' };
+}
+
+function filterBvByDiscipline(items, label) {
+  if (label === 'GENERAL') return items;
+  return items.reduce((acc, it) => {
+    const matchingChildren = it.children?.length
+      ? filterBvByDiscipline(it.children, label)
+      : [];
+    const match = (it.disciplineLabel || 'GENERAL') === label;
+    if (match || matchingChildren.length > 0) {
+      acc.push({ ...it, children: matchingChildren });
+    }
+    return acc;
+  }, []);
+}
+
 export default function BackUpVolume({ initialProjectId = null, onProjectChange, onGoToRab }) {
   const { projects, loading: loadingProjects } = useProjects();
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
+  const [activeFilter, setActiveFilter] = useState(() => parseBvHash().filter);
+  const [groupPage, setGroupPage] = useState(1);
+  const GROUPS_PER_PAGE = 10;
+
+  // Sinkronkan filter dengan hash URL
+  useEffect(() => {
+    const onHash = () => {
+      const { filter } = parseBvHash();
+      setActiveFilter(filter);
+      setGroupPage(1);
+    };
+    window.addEventListener('hashchange', onHash);
+    onHash();
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  // Saat tab BV aktif tapi hash belum ada, default ke #bv/GENERAL
+  useEffect(() => {
+    const raw = window.location.hash.replace('#', '');
+    if (!raw.startsWith('bv')) {
+      window.location.hash = 'bv/GENERAL';
+    }
+  }, []);
 
   React.useEffect(() => {
     if (initialProjectId) {
       setSelectedProjectId(initialProjectId);
     }
   }, [initialProjectId]);
+
+  React.useEffect(() => {
+    setGroupPage(1);
+  }, [activeFilter, selectedProjectId]);
 
   const { bvItems, loading: loadingBv, refresh, deleteBvItem, deleteBulk, linkToRab, linkToRabBulk, syncBvItem, syncBulk } = useBvItems(selectedProjectId);
 
@@ -472,6 +565,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   const [isBvModalOpen, setIsBvModalOpen] = useState(false);
   const [bvModalGroupId, setBvModalGroupId] = useState(null);
   const [bvModalParentId, setBvModalParentId] = useState(null);
+  const [bvModalParentItem, setBvModalParentItem] = useState(null);
   const [editBvItem, setEditBvItem] = useState(null);
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
@@ -533,6 +627,8 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
     setEditBvItem(null);
     setBvModalGroupId(groupId);
     setBvModalParentId(parentBvItemId);
+    const parent = parentBvItemId ? bvItems.find(i => i.id === parentBvItemId) || null : null;
+    setBvModalParentItem(parent);
     setIsBvModalOpen(true);
   };
 
@@ -540,6 +636,8 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
     setEditBvItem(item);
     setBvModalGroupId(item.groupId);
     setBvModalParentId(item.parentBvItemId);
+    const parent = item.parentBvItemId ? bvItems.find(i => i.id === item.parentBvItemId) || null : null;
+    setBvModalParentItem(parent);
     setIsBvModalOpen(true);
   };
 
@@ -711,6 +809,22 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             <td>{no}</td>
             <td className="left" style={{ paddingLeft: isChild ? 18 : 6 }}>
               {isChild ? '-- ' : ''}{it.name}
+              {it.disciplineLabel && it.disciplineLabel !== 'GENERAL' && (
+                <span
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 9,
+                    textTransform: 'uppercase',
+                    padding: '1px 5px',
+                    borderRadius: 3,
+                    background: DISCIPLINE_BADGE[it.disciplineLabel] || '#666',
+                    color: '#fff',
+                    verticalAlign: 'middle',
+                  }}
+                >
+                  {it.disciplineLabel}
+                </span>
+              )}
             </td>
             <td>{it.paymentUnit || ''}</td>
             <td className="num">{it.isHeaderOnly ? '' : Number(it.totalVolume || 0).toFixed(2)}</td>
@@ -828,12 +942,49 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
     });
   };
 
+  const filteredBvItems = filterBvByDiscipline(bvItems, activeFilter);
+
   const bvByGroup = {};
-  bvItems.forEach(it => {
+  filteredBvItems.forEach(it => {
     const gid = it.groupId || 'none';
     if (!bvByGroup[gid]) bvByGroup[gid] = [];
     bvByGroup[gid].push(it);
   });
+
+  // Export seluruh BV ke Excel via backend endpoint
+  const exportBvToExcel = async () => {
+    if (!selectedProjectId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/projects/${selectedProjectId}/bv-items/export-excel`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('Export gagal');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const projectName = (selectedProject?.name || 'proyek').replace(/[^a-zA-Z0-9]/g, '_');
+      a.download = `BV_${projectName}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Export Excel berhasil');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal export Excel');
+    }
+  };
+  const sortedGroups = [...groups].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const visibleGroups = sortedGroups.filter(g => {
+    if (activeFilter === 'GENERAL') return true;
+    // Saat filter selain GENERAL, group hanya tampil jika punya item BV dengan label cocok
+    return bvByGroup[g.id]?.length > 0;
+  });
+  const totalGroupPages = Math.max(1, Math.ceil(visibleGroups.length / GROUPS_PER_PAGE));
+  const safeGroupPage = Math.min(groupPage, totalGroupPages);
+  const pagedGroups = visibleGroups.slice((safeGroupPage - 1) * GROUPS_PER_PAGE, safeGroupPage * GROUPS_PER_PAGE);
 
   return (
     <div className={styles.bvWrapper}>
@@ -857,22 +1008,55 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             >
               Lihat RAB &rarr;
             </button>
+            <button
+              type="button"
+              className={styles.btnOutline}
+              disabled={!selectedProjectId || filteredBvItems.length === 0}
+              onClick={exportBvToExcel}
+              title="Export Backup Volume ke Excel"
+            >
+              <Download size={16} style={{ marginRight: 4 }} />
+              Export Excel
+            </button>
           </div>
         </div>
       </div>
 
       <ProjectSelector
         projectId={selectedProjectId}
-        projectList={projects.map(p => ({
-          ...p,
-          displayName: `${p.name} — ${p.client?.name || '-'} (${p.discipline} ${p.hspkPeriod})`
-        }))}
+        projectList={projects.map(p => {
+          const int = p.interiorGrade || (p.discipline === 'INTERIOR' ? p.grade : null);
+          const sip = p.sipilGrade || (p.discipline === 'SIPIL' ? p.grade : null);
+          return {
+            ...p,
+            displayName: `${p.name} — ${p.client?.name || '-'} (${int ? `Int:${int}` : ''}${int && sip ? ' · ' : ''}${sip ? `Sip:${sip}` : ''}${!int && !sip ? 'General' : ''} ${p.hspkPeriod})`
+          };
+        })}
         loading={loadingProjects}
         onChange={(e) => {
           setSelectedProjectId(e.target.value);
           onProjectChange?.(e.target.value || null);
         }}
       />
+
+      {selectedProjectId && (
+        <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ color: '#888', fontSize: 12 }}>Filter tampilan:</span>
+          {FILTER_OPTIONS.map(opt => (
+            <a
+              key={opt}
+              href={`#bv/${opt}`}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.hash = `bv/${opt}`;
+              }}
+              className={`${styles.filterBtn} ${activeFilter === opt ? styles.filterBtnActive : ''}`}
+            >
+              {opt === 'GENERAL' ? 'General' : opt === 'INTERIOR' ? 'Interior' : 'Sipil'}
+            </a>
+          ))}
+        </div>
+      )}
 
       {checkedIds.length > 0 && (
         <div style={{ padding: '10px 14px', background: '#1c1c1c', border: '1px dashed #d4af37', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
@@ -911,12 +1095,15 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
               Memuat data BackUp Volume...
             </div>
-          ) : groups.length === 0 && bvItems.length === 0 ? (
+          ) : visibleGroups.length === 0 ? (
             <div className={styles.groupBlock} style={{ padding: 20, textAlign: 'center', color: '#888' }}>
-              Belum ada Group Pekerjaan. Klik "+ Tambah Group Pekerjaan" untuk memulai.
+              {activeFilter === 'GENERAL'
+                ? 'Belum ada Group Pekerjaan. Klik "+ Tambah Group Pekerjaan" untuk memulai.'
+                : `Tidak ada group yang memiliki baris pekerjaan bertipe ${activeFilter}.`}
             </div>
           ) : (
-            groups.map((g, idx) => {
+            <>
+            {pagedGroups.map((g, idx) => {
               const counter = { n: 1 };
               const groupItems = bvByGroup[g.id] || [];
 
@@ -975,7 +1162,31 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                   )}
                 </div>
               );
-            })
+            })}
+            {visibleGroups.length > GROUPS_PER_PAGE && (
+              <div className={styles.pagination}>
+                <button
+                  type="button"
+                  className={styles.btnOutline}
+                  disabled={safeGroupPage <= 1}
+                  onClick={() => setGroupPage(p => p - 1)}
+                >
+                  Prev
+                </button>
+                <span style={{ color: '#ccc', fontSize: 12 }}>
+                  Halaman {safeGroupPage} dari {totalGroupPages}
+                </span>
+                <button
+                  type="button"
+                  className={styles.btnOutline}
+                  disabled={safeGroupPage >= totalGroupPages}
+                  onClick={() => setGroupPage(p => p + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+            </>
           )}
         </div>
       )}
@@ -996,7 +1207,9 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
         groupId={bvModalGroupId}
         parentBvItemId={bvModalParentId}
         editItem={editBvItem}
-        hspkPeriod={selectedProject?.hspkPeriod}
+        parentItem={bvModalParentItem}
+        project={selectedProject}
+        activeFilter={activeFilter}
         onSuccess={() => { refresh(); fetchGroups(); }}
       />
     </div>

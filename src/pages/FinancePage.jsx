@@ -5,8 +5,6 @@ import {
   Scale,
   Percent,
   Search,
-  ChevronDown,
-  PieChart,
   ChevronRight,
   Save
 } from "lucide-react";
@@ -16,8 +14,8 @@ import ProjectSelector from "../components/ProjectSelector";
 import { useProjects } from "../hooks/useProjects";
 import { useRabGroups } from "../hooks/useRabGroups";
 import { useMaterialRequests } from "../hooks/useMaterialRequests";
+import { usePO } from "../hooks/usePO";
 import toast from "react-hot-toast";
-import CreatePOModal from "../components/CreatePOModal";
 import ApprovalPOPanel from "../components/ApprovalPOPanel";
 import POStatusBoard from "../components/POStatusBoard";
 
@@ -38,20 +36,23 @@ const FinancePage = ({ initialProjectId = null }) => {
   const project = useMemo(() => projectList.find((p) => p.id === projectId), [projectList, projectId]);
 
   const { rabGroups: groups = [], loadingGroups: loadingRab, errorGroups: rabError } = useRabGroups(projectId);
-  const { mrItems, loadingMr, mrError, updateBulkMaterialRequests } = useMaterialRequests(projectId);
+  const { mrItems, loadingMr, mrError, updateBulkMaterialRequests, refreshMaterialRequests } = useMaterialRequests(projectId);
+  const { refreshPOs } = usePO();
 
   // Local state for edited inputs
   const [editedItems, setEditedItems] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // PO Modal state
-  const [isPOModalOpen, setIsPOModalOpen] = useState(false);
-  const [selectedComponentForPO, setSelectedComponentForPO] = useState(null);
-  const [selectedMrItemForPO, setSelectedMrItemForPO] = useState(null);
-
   // Satu penghitung untuk semua panel approval/PO -> saling refresh
   const [approvalTick, setApprovalTick] = useState(0);
   const bumpApproval = () => setApprovalTick((t) => t + 1);
+
+  useEffect(() => {
+    if (projectId) {
+      refreshMaterialRequests();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approvalTick]);
 
   // Sync editedItems when mrItems loads
   useEffect(() => {
@@ -83,6 +84,17 @@ const FinancePage = ({ initialProjectId = null }) => {
       }
     }
   }, [loadingProjects, loadingRab, loadingMr, rabError, mrError]);
+
+  // Refresh saat PO status berubah (approve/reject) agar tabel kebutuhan material & PO board sinkron
+  useEffect(() => {
+    const onPoChanged = () => {
+      refreshPOs();
+      if (projectId) refreshMaterialRequests();
+      bumpApproval();
+    };
+    window.addEventListener('po-status-changed', onPoChanged);
+    return () => window.removeEventListener('po-status-changed', onPoChanged);
+  }, [projectId, refreshPOs, refreshMaterialRequests]);
 
   // Handle Input Changes
   const handleEditChange = (id, field, value) => {
@@ -117,18 +129,11 @@ const FinancePage = ({ initialProjectId = null }) => {
     });
   };
 
-  const handleOpenPOModal = (comp, mrItem, parentVolume) => {
-    setSelectedComponentForPO({ ...comp, parentVolume });
-    setSelectedMrItemForPO(mrItem);
-    setIsPOModalOpen(true);
-  };
-
   // Flatten items for display
   const flattenedItems = useMemo(() => {
     const list = [];
 
     const traverseGroup = (g, pathName) => {
-      // Backend uses 'buildPath(rabItem.group)'
       const currentName = pathName ? `${pathName} ▸ ${g.name}` : g.name;
 
       (g.items || []).forEach((item) => {
@@ -209,7 +214,7 @@ const FinancePage = ({ initialProjectId = null }) => {
       <main className={styles.content}>
         {!projectId ? (
           <div className={styles.emptyState}>
-            <PieChart size={48} className={styles.emptyIcon} />
+            <Wallet size={48} className={styles.emptyIcon} />
             <h3>No Project Selected</h3>
             <p>Select a project from the dropdown above to view financial details.</p>
           </div>
@@ -224,20 +229,12 @@ const FinancePage = ({ initialProjectId = null }) => {
         ) : (
           <>
             <ApprovalPOPanel
-              mode="finance"
               projectId={projectId}
               refreshKey={approvalTick}
               onChanged={bumpApproval}
             />
 
             <POStatusBoard
-              projectId={projectId}
-              refreshKey={approvalTick}
-              onChanged={bumpApproval}
-            />
-
-            <ApprovalPOPanel
-              mode="atasan"
               projectId={projectId}
               refreshKey={approvalTick}
               onChanged={bumpApproval}
@@ -473,14 +470,6 @@ const FinancePage = ({ initialProjectId = null }) => {
           </>
         )}
       </main>
-
-      <CreatePOModal 
-        isOpen={isPOModalOpen}
-        onClose={() => setIsPOModalOpen(false)}
-        selectedItem={selectedComponentForPO}
-        mrItem={selectedMrItemForPO}
-        projectId={projectId}
-      />
     </div>
   );
 };

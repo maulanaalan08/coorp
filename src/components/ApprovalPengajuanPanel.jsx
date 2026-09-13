@@ -115,13 +115,11 @@ const ApprovalPengajuanPanel = ({ mode = 'finance', projectId = null, refreshKey
       <div className={styles.panelHead}>
         <div>
           <h3 className={styles.panelTitle}>
-            {isAtasan ? 'Menunggu Persetujuan Atasan' : 'Menunggu Verifikasi Finance'}
+            {isAtasan ? 'Menunggu Persetujuan Atasan' : 'Antrian Pengajuan Bayar'}
           </h3>
           <p className={styles.panelSub}>
             {rows.length === 0
-              ? isAtasan
-                ? 'Pengajuan yang sudah di-ACC Finance akan muncul di sini.'
-                : 'Pengajuan baru dari purchasing yang belum diverifikasi.'
+              ? 'Pengajuan bayar otomatis dari PO yang sudah di-approve atasan akan muncul di sini.'
               : `${rows.length} pengajuan · total ${fmtRp(totalNilai)}`}
           </p>
         </div>

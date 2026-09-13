@@ -31,7 +31,7 @@ const TABS = [
  * Finance pilih proyek -> lihat semua PO + status approval -> PO APPROVED
  * bisa langsung diajukan pembayaran (masuk inbox Finance pengajuan).
  */
-const POStatusBoard = ({ projectId = null, refreshKey = 0, onChanged }) => {
+const POStatusBoard = ({ projectId = null, refreshKey = 0, onChanged, onAjukan }) => {
   const [pos, setPos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState('ALL');
@@ -226,7 +226,7 @@ const POStatusBoard = ({ projectId = null, refreshKey = 0, onChanged }) => {
                         )}
                       </div>
 
-                      {bisaAjukan && (
+                      {bisaAjukan && onAjukan && (
                         <button
                           type="button"
                           className={styles.btnOk}

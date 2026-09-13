@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styles from '../styles/PurchaseOrderModal.module.css';
-import { X, ShoppingCart, Plus, Package, CheckCircle } from 'lucide-react';
+import { X, ShoppingCart, Plus, Package, CheckCircle, Search } from 'lucide-react';
 import { poService } from '../services/poService';
 import toast from 'react-hot-toast';
 import SupplierModal from './SupplierModal';
@@ -32,6 +32,10 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
     taxNominal: 0,
   });
 
+  // Supplier autocomplete
+  const [supplierQuery, setSupplierQuery] = useState('');
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+
   // Receipt Mode States
   const [receivedVol, setReceivedVol] = useState(0);
   const [condition, setCondition] = useState('Baik');
@@ -58,8 +62,6 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
     }
 
     fetchSuppliers();
-
-
 
     if (editingPo) {
       setFormData({
@@ -95,8 +97,14 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
     } else {
       const initialItems = (selectedItems || []).map(item => {
         const sisaHitung = Math.max(0, (item.estimatedVolume || 0) - (item.orderedQty || 0));
+        // Habis pakai: mrItemId null, id berupa "php_xxx" — JANGAN kirim sebagai materialRequestId
+        // Hanya kirim materialRequestId yang valid (bukan php_ prefix, bukan null, bukan empty)
+        let mrId = item.mrItemId;
+        if (!mrId || mrId === '' || mrId === 'null' || mrId === 'undefined' || String(mrId).startsWith('php_')) {
+          mrId = null;
+        }
         return {
-          materialRequestId: item.mrItemId || item.id,
+          materialRequestId: mrId,
           description: item.itemName,
           description2: '',
           estVol: `${fmtVol(item.estimatedVolume)} ${item.unit || ''}`,
@@ -114,7 +122,6 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
       setItems(initialItems);
     }
 
-    // Supplier sudah ditentukan kalau PO dibuat dari tab "Dari RAB per Supplier"
     if (!editingPo && initialSupplierId) {
       setFormData((prev) => ({ ...prev, supplierId: initialSupplierId }));
     }
@@ -123,11 +130,24 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
   const fetchSuppliers = async () => {
     try {
       const data = await poService.getSuppliers();
-      setSuppliers(data);
+      setSuppliers(data || []);
     } catch (err) {
       toast.error('Gagal mengambil daftar supplier');
     }
   };
+
+  const selectedSupplier = useMemo(() => {
+    return suppliers.find(s => s.id === formData.supplierId) || null;
+  }, [suppliers, formData.supplierId]);
+
+  const filteredSuppliers = useMemo(() => {
+    const q = supplierQuery.trim().toLowerCase();
+    if (!q) return suppliers.slice(0, 20);
+    return suppliers.filter(s =>
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.code || '').toLowerCase().includes(q)
+    ).slice(0, 20);
+  }, [suppliers, supplierQuery]);
 
   const handleHeaderChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -362,14 +382,60 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Toko / Supplier</label>
+                <label className={styles.formLabel}>Toko / Supplier <span style={{ color: '#ef4444' }}>*</span></label>
                 <div className={styles.supplierSelectGroup}>
-                  <select name="supplierId" required className={styles.formSelect} value={formData.supplierId} onChange={handleHeaderChange}>
-                    <option value="">-- Pilih Supplier --</option>
-                    {suppliers.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#888' }} />
+                    <input
+                      type="text"
+                      className={styles.formInput}
+                      style={{ paddingLeft: 32 }}
+                      placeholder="Cari supplier..."
+                      value={selectedSupplier ? selectedSupplier.name : supplierQuery}
+                      onChange={(e) => {
+                        setSupplierQuery(e.target.value);
+                        setShowSupplierDropdown(true);
+                        if (selectedSupplier && e.target.value !== selectedSupplier.name) {
+                          setFormData(prev => ({ ...prev, supplierId: '' }));
+                        }
+                      }}
+                      onFocus={() => setShowSupplierDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowSupplierDropdown(false), 150)}
+                    />
+                    {showSupplierDropdown && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                        background: '#1a1814', border: '1px solid #444', borderRadius: '6px', marginTop: 4,
+                        maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+                      }}>
+                        {filteredSuppliers.length === 0 ? (
+                          <div style={{ padding: 12, color: '#888', fontSize: 12, textAlign: 'center' }}>
+                            Supplier tidak ditemukan
+                          </div>
+                        ) : (
+                          filteredSuppliers.map(s => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, supplierId: s.id }));
+                                setSupplierQuery('');
+                                setShowSupplierDropdown(false);
+                              }}
+                              style={{
+                                display: 'block', width: '100%', textAlign: 'left', padding: '10px 12px',
+                                background: 'transparent', border: 'none', color: '#eee', fontSize: 13,
+                                borderBottom: '1px solid #2a2a2a', cursor: 'pointer'
+                              }}
+                              onMouseDown={(e) => e.preventDefault()}
+                            >
+                              {s.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="button"
                     className={styles.addSupplierBtn}
@@ -439,26 +505,18 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                   </thead>
                   <tbody>
                     {calculatedItems.length === 0 ? (
-                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>Tidak ada barang yang dipesan.</td></tr>
+                      <tr><td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>Tidak ada barang yang dipesan.</td></tr>
                     ) : (
                       calculatedItems.map((item, index) => (
                         <tr key={index}>
                           <td>{item.description}</td>
                           <td>
-                            <select
-                              className={styles.smallInput}
-                              style={{ minWidth: '150px', backgroundColor: '#111' }}
+                            <AutocompleteSupplierItem
+                              items={supplierItems}
                               value={item.supplierItemId || ''}
-                              onChange={(e) => handleMappingChange(index, e.target.value)}
+                              onChange={(val) => handleMappingChange(index, val)}
                               disabled={!formData.supplierId}
-                            >
-                              <option value="">-- Pilih dari Toko --</option>
-                              {supplierItems.map(si => (
-                                <option key={si.id} value={si.id}>
-                                  {si.itemName} {si.variantName ? `(${si.variantName})` : ''} - {fmtRp(si.currentPrice)}
-                                </option>
-                              ))}
-                            </select>
+                            />
                           </td>
                           <td><span style={{ color: '#888', fontSize: '0.9rem' }}>{item.estVol}</span></td>
                           <td><strong style={{ color: '#fb923c' }}>{item.sisa}</strong></td>
@@ -589,5 +647,78 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
     </>
   );
 };
+
+function AutocompleteSupplierItem({ items, value, onChange, disabled }) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const selected = items.find(i => i.id === value);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items.slice(0, 20);
+    return items.filter(i =>
+      (i.itemName || '').toLowerCase().includes(q) ||
+      (i.variantName || '').toLowerCase().includes(q)
+    ).slice(0, 20);
+  }, [items, query]);
+
+  return (
+    <div style={{ position: 'relative', minWidth: '180px' }}>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <Search size={12} style={{ position: 'absolute', left: 8, color: '#888' }} />
+        <input
+          type="text"
+          disabled={disabled}
+          placeholder={disabled ? 'Pilih supplier dulu' : 'Cari item toko...'}
+          value={selected ? `${selected.itemName}${selected.variantName ? ` (${selected.variantName})` : ''}` : query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+            if (selected && e.target.value !== `${selected.itemName}${selected.variantName ? ` (${selected.variantName})` : ''}`) {
+              onChange('');
+            }
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          style={{
+            width: '100%', padding: '6px 8px 6px 26px', backgroundColor: disabled ? '#2a2a2a' : '#111',
+            border: '1px solid #444', borderRadius: '4px', color: '#fff', fontSize: '12px'
+          }}
+        />
+      </div>
+      {open && !disabled && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+          background: '#1a1814', border: '1px solid #444', borderRadius: '4px', marginTop: 4,
+          maxHeight: 180, overflowY: 'auto', boxShadow: '0 6px 18px rgba(0,0,0,0.5)'
+        }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: 10, color: '#888', fontSize: 11, textAlign: 'center' }}>Item tidak ditemukan</div>
+          ) : (
+            filtered.map(i => (
+              <button
+                key={i.id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onChange(i.id);
+                  setQuery('');
+                  setOpen(false);
+                }}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px',
+                  background: 'transparent', border: 'none', color: '#eee', fontSize: 12,
+                  borderBottom: '1px solid #2a2a2a', cursor: 'pointer'
+                }}
+              >
+                {i.itemName} {i.variantName ? `(${i.variantName})` : ''} — {fmtRp(i.currentPrice)}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default PurchaseOrderModal;

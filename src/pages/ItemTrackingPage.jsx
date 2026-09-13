@@ -625,6 +625,14 @@ const ItemTrackingPage = ({ onNavigate }) => {
                                   >
                                     <MapPin size={14} /> Catatan
                                   </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setHabisPakaiItem(item)}
+                                    title="Ajukan pembelian habis pakai"
+                                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/30 hover:bg-[#d4af37]/20 transition-colors"
+                                  >
+                                    <PackagePlus size={14} /> Habis Pakai
+                                  </button>
                                 </div>
                               </div>
                             );

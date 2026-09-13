@@ -5,6 +5,10 @@ export const hspkService = {
   // Get available period/discipline/grade combos
   getAvailableCombos: () => fetchAPI('/hspk/available-combos'),
 
+  // Get grades for a specific period + discipline
+  getGradesByPeriodDiscipline: (period, discipline) =>
+    fetchAPI(`/hspk/grades?period=${encodeURIComponent(period)}&discipline=${encodeURIComponent(discipline)}`),
+
   // Get job types / AHSP master data for modals
   getJobTypes: (params = {}) => {
     const query = new URLSearchParams(params).toString();

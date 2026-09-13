@@ -57,4 +57,31 @@ export const bvService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ itemIds }),
     }),
+
+  // Export Backup Volume ke Excel
+  exportExcel: (projectId) => {
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    return fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/projects/${projectId}/bv-items/export-excel`, {
+      method: 'GET',
+      headers,
+    }).then(async (res) => {
+      if (!res.ok) throw new Error('Gagal export Excel');
+      const disposition = res.headers.get('content-disposition');
+      let filename = 'Backup_Volume.xlsx';
+      if (disposition && disposition.includes('filename=')) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match) filename = match[1];
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    });
+  },
 };
