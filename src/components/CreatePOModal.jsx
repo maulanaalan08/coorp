@@ -4,15 +4,15 @@ import styles from '../styles/CreatePOModal.module.css';
 import { usePO } from '../hooks/usePO';
 import toast from 'react-hot-toast';
 
-const CreatePOModal = ({ isOpen, onClose, selectedItem, mrItem }) => {
+const CreatePOModal = ({ isOpen, onClose, selectedItem, mrItem, projectId }) => {
   const { suppliers, createNewPO } = usePO();
-  
+
   const [formData, setFormData] = useState({
-    nomorPO: '',
     supplierId: '',
     tanggalPO: new Date().toISOString().split('T')[0],
     qty: '',
     hargaDeal: '',
+    keterangan: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,16 +21,16 @@ const CreatePOModal = ({ isOpen, onClose, selectedItem, mrItem }) => {
   useEffect(() => {
     if (isOpen && selectedItem) {
       // Prioritize mrItem's orderedVolume if available, otherwise fallback to item's calculation
-      const defaultQty = mrItem?.estimatedVolume 
-        ? Number(mrItem.estimatedVolume) 
+      const defaultQty = mrItem?.estimatedVolume
+        ? Number(mrItem.estimatedVolume)
         : Number(selectedItem.coefficient || 0) * Number(selectedItem.parentVolume || 0);
-        
+
       setFormData({
-        nomorPO: `PO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
         supplierId: suppliers.length > 0 ? suppliers[0].id : '',
         tanggalPO: new Date().toISOString().split('T')[0],
         qty: defaultQty.toFixed(2),
         hargaDeal: selectedItem.unitPrice || 0,
+        keterangan: '',
       });
     }
   }, [isOpen, selectedItem, mrItem, suppliers]);
@@ -51,21 +51,45 @@ const CreatePOModal = ({ isOpen, onClose, selectedItem, mrItem }) => {
       toast.error('Silakan pilih Toko/Supplier');
       return;
     }
+    if (!projectId) {
+      toast.error('Project belum dipilih');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
+      const qty = Number(formData.qty || 0);
+      const unitPrice = Number(formData.hargaDeal || 0);
+      const total = qty * unitPrice;
+
+      // Payload mengikuti skema POST /api/finance/po
       const payload = {
-        mrItemId: mrItem?.id || null, // Link to Material Request if available
-        itemName: selectedItem.name,
-        nomorTransaksi: formData.nomorPO,
         supplierId: formData.supplierId,
-        tanggalPO: formData.tanggalPO,
-        qty: Number(formData.qty),
-        hargaDeal: Number(formData.hargaDeal),
+        projectId,
+        kategoriPO: 'MATERIAL',
+        tanggal: formData.tanggalPO,
+        keterangan: formData.keterangan || null,
+        subTotal: total,
+        globalDiscount: 0,
+        taxNominal: 0,
+        grandTotal: total,
+        items: [
+          {
+            materialRequestId: mrItem?.id || null,
+            description: selectedItem.name,
+            description2: null,
+            qty,
+            unit: selectedItem.unit || mrItem?.unit || '-',
+            unitPrice,
+            disc1Percent: 0,
+            disc2Nominal: 0,
+            total,
+          },
+        ],
       };
 
       await createNewPO(payload);
-      toast.success('PO berhasil dibuat!');
+      toast.success('PO dibuat. Menunggu verifikasi Finance.');
       onClose();
     } catch (error) {
       toast.error(error.message || 'Gagal menyimpan PO');
@@ -91,18 +115,6 @@ const CreatePOModal = ({ isOpen, onClose, selectedItem, mrItem }) => {
             <div className={styles.formGroup}>
               <label>Item Material</label>
               <input type="text" value={selectedItem.name} disabled />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>Nomor Transaksi PO</label>
-              <input 
-                type="text" 
-                name="nomorPO" 
-                value={formData.nomorPO} 
-                onChange={handleChange} 
-                required 
-                placeholder="Contoh: PO-2023-001"
-              />
             </div>
 
             <div className={styles.formGroup}>

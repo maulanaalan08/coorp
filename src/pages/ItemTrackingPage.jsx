@@ -8,7 +8,9 @@ import {
   Search,
   AlertCircle,
   RefreshCw,
-  FileText
+  FileText,
+  PackagePlus,
+  History
 } from 'lucide-react';
 import Header from '../components/Header';
 import ProjectSelector from '../components/ProjectSelector';
@@ -17,6 +19,9 @@ import { lapanganService } from '../services/lapanganService';
 import { poService } from '../services/poService';
 import toast from 'react-hot-toast';
 import BulkSuratJalanModal from '../components/BulkSuratJalanModal';
+import HabisPakaiModal from '../components/HabisPakaiModal';
+import UpdateLapanganModal from '../components/UpdateLapanganModal';
+import SuratJalanModal from '../components/SuratJalanModal';
 
 const toInputDate = (val) => {
   if (!val) return '';
@@ -31,7 +36,7 @@ const fmtNum = (n) => {
   return isNaN(num) ? '0' : num.toLocaleString('id-ID', { maximumFractionDigits: 2 });
 };
 
-const ItemTrackingPage = () => {
+const ItemTrackingPage = ({ onNavigate }) => {
   const { projects: projectList, loading: loadingProjects } = useProjects();
 
   const [projectId, setProjectId] = useState(null);
@@ -43,6 +48,14 @@ const ItemTrackingPage = () => {
   // State untuk Checklist & Modal
   const [selectedItems, setSelectedItems] = useState([]);
   const [isBulkSJModalOpen, setIsBulkSJModalOpen] = useState(false);
+
+  // State Pembelian Habis Pakai
+  const [habisPakaiItem, setHabisPakaiItem] = useState(null);
+  const [permintaanHP, setPermintaanHP] = useState([]);
+
+  // State Surat Jalan / catatan per baris
+  const [sjItem, setSjItem] = useState(null);
+  const [lapanganItem, setLapanganItem] = useState(null);
 
   const project = useMemo(
     () => projectList.find((p) => p.id === projectId),
@@ -68,8 +81,10 @@ const ItemTrackingPage = () => {
 
       // 3. Create a map of PO Number to Status
       const poStatusMap = {};
+      const poIdMap = {};
       poList.forEach(po => {
         poStatusMap[po.poNumber] = po.status;
+        poIdMap[po.poNumber] = po.id;
       });
 
       // 4. Inject poStatus into the items
@@ -79,12 +94,22 @@ const ItemTrackingPage = () => {
           ...item,
           poStatus: item.poNumber && item.poNumber !== '-'
             ? (poStatusMap[item.poNumber] || 'UNKNOWN')
-            : null
+            : null,
+          poId: item.poNumber ? (poIdMap[item.poNumber] || null) : null
         }))
       }));
 
       setMrData(enrichedMrList);
       setSelectedItems([]);
+
+      // 5. Ambil permintaan habis pakai proyek ini (riwayat pengajuan lapangan)
+      try {
+        const hp = await lapanganService.getPermintaanHabisPakai(projectId);
+        setPermintaanHP(Array.isArray(hp) ? hp : []);
+      } catch (e) {
+        console.error('Gagal memuat permintaan habis pakai', e);
+        setPermintaanHP([]);
+      }
     } catch (err) {
       console.error('Item Tracking fetch error:', err);
       toast.error('Gagal memuat data lapangan.');
@@ -276,6 +301,32 @@ const ItemTrackingPage = () => {
               </div>
             </div>
 
+            {/* Pembelian habis pakai: riwayatnya di halaman sendiri, tidak dicampur material */}
+            <div className="bg-[#11100e] border border-white/5 rounded-2xl px-5 py-4 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl">
+              <div>
+                <h3 className="m-0 text-base font-bold flex items-center gap-2 text-white">
+                  <PackagePlus size={18} className="text-[#d4af37]" />
+                  Pembelian Habis Pakai
+                </h3>
+                <p className="text-[#888] text-sm mt-1 mb-0">
+                  Pengajuan tambahan saat barang di PO sudah habis tapi lapangan masih butuh.
+                  Riwayatnya dibuka di halaman terpisah.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate?.('habis-pakai')}
+                className="flex items-center gap-2 bg-[#d4af37] text-[#0c0b09] text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-[#e8c874] transition-colors w-fit shrink-0"
+              >
+                <History size={16} /> Riwayat Habis Pakai
+                {permintaanHP.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded bg-[#0c0b09]/20 text-[10px] font-bold">
+                    {permintaanHP.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
             <div className="bg-[#11100e] border border-white/5 rounded-2xl overflow-hidden shadow-xl">
               <div className="p-5 border-b border-white/5 bg-[#161513] flex flex-col gap-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -362,13 +413,14 @@ const ItemTrackingPage = () => {
                             <th className="p-4 font-semibold w-[9%]">Status</th>
                             <th className="p-4 font-semibold w-[12%]">Tgl. Onsite</th>
                             <th className="p-4 font-semibold w-[18%]">Update Lapangan</th>
+                            <th className="p-4 font-semibold w-[10%] text-center">Aksi</th>
                           </tr>
                         </thead>
                         <tbody>
                           {Object.entries(grouped).map(([groupName, items]) => (
                             <React.Fragment key={groupName}>
                               <tr className="bg-[#161513]">
-                                <td colSpan={8} className="px-4 py-3 border-b border-white/5">
+                                <td colSpan={9} className="px-4 py-3 border-b border-white/5">
                                   <div className="flex items-center text-[#d4af37] text-xs font-bold uppercase tracking-wider">
                                     <Package size={14} className="mr-2" /> {groupName}
                                   </div>
@@ -441,6 +493,40 @@ const ItemTrackingPage = () => {
                                     <td className="p-4 align-top">
                                       <div className={`text-sm ${item.catatanRusak ? 'text-white' : 'text-[#555] italic'}`}>
                                         {item.catatanRusak || 'Belum ada catatan'}
+                                      </div>
+                                    </td>
+                                    <td className="p-4 align-top text-center">
+                                      <div className="flex flex-col gap-1.5 items-stretch">
+                                        {item.poStatus === 'APPROVED' ? (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() => setSjItem(item)}
+                                              title="Lihat riwayat / upload Surat Jalan"
+                                              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[#38bdf8]/10 text-[#38bdf8] border border-[#38bdf8]/30 hover:bg-[#38bdf8]/20 transition-colors"
+                                            >
+                                              <Truck size={12} /> Surat Jalan
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => setLapanganItem(item)}
+                                              title="Catatan & tanggal onsite"
+                                              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white/5 text-[#aaa] border border-white/10 hover:bg-white/10 transition-colors"
+                                            >
+                                              <MapPin size={12} /> Catatan
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => setHabisPakaiItem(item)}
+                                              title="Ajukan pembelian habis pakai"
+                                              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/30 hover:bg-[#d4af37]/20 transition-colors"
+                                            >
+                                              <PackagePlus size={12} /> Habis Pakai
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <span className="text-[11px] text-[#555] italic">—</span>
+                                        )}
                                       </div>
                                     </td>
                                   </tr>
@@ -521,6 +607,25 @@ const ItemTrackingPage = () => {
                                     {item.catatanRusak || 'Belum ada catatan...'}
                                   </div>
                                 </div>
+
+                                <div className="flex flex-col gap-2 border-t border-white/5 pt-3">
+                                  <button
+                                    type="button"
+                                    disabled={item.poStatus !== 'APPROVED'}
+                                    onClick={() => setSjItem(item)}
+                                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold bg-[#38bdf8]/10 text-[#38bdf8] border border-[#38bdf8]/30 hover:bg-[#38bdf8]/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                  >
+                                    <Truck size={14} /> Surat Jalan
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={item.poStatus !== 'APPROVED'}
+                                    onClick={() => setLapanganItem(item)}
+                                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold bg-white/5 text-[#aaa] border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                  >
+                                    <MapPin size={14} /> Catatan
+                                  </button>
+                                </div>
                               </div>
                             );
                           })}
@@ -546,6 +651,31 @@ const ItemTrackingPage = () => {
         isOpen={isBulkSJModalOpen}
         onClose={() => setIsBulkSJModalOpen(false)}
         items={selectedItems}
+        onSuccess={fetchData}
+      />
+
+      {/* Modal Surat Jalan per baris (1 barang = 1 Surat Jalan supplier) */}
+      <SuratJalanModal
+        isOpen={!!sjItem}
+        onClose={() => setSjItem(null)}
+        item={sjItem}
+        onSuccess={fetchData}
+      />
+
+      {/* Modal Catatan Lapangan (tanggal onsite + keterangan) */}
+      <UpdateLapanganModal
+        isOpen={!!lapanganItem}
+        onClose={() => setLapanganItem(null)}
+        item={lapanganItem}
+        onSuccess={fetchData}
+      />
+
+      {/* Modal Pembelian Habis Pakai */}
+      <HabisPakaiModal
+        isOpen={!!habisPakaiItem}
+        onClose={() => setHabisPakaiItem(null)}
+        projectId={projectId}
+        item={habisPakaiItem}
         onSuccess={fetchData}
       />
     </div>

@@ -58,10 +58,45 @@ export const poService = {
     });
   },
 
-  // Ambil daftar PO
-  getPOs: () => {
-    return fetchAPI('/finance/po', {
+  // Ambil daftar PO (bisa difilter)
+  getPOs: (params = {}) => {
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    ).toString();
+    return fetchAPI(`/finance/po${qs ? `?${qs}` : ''}`, {
       headers: getAuthHeaders()
+    });
+  },
+
+  // Rencana PO dari data RAB, dikelompokkan per supplier
+  getPOPlan: (projectId) => {
+    return fetchAPI(`/finance/po-plan?projectId=${encodeURIComponent(projectId)}`, {
+      headers: getAuthHeaders()
+    });
+  },
+
+  // Inbox verifikasi Finance (tingkat 1)
+  getInboxFinance: (projectId) => {
+    const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    return fetchAPI(`/finance/po/inbox-finance${qs}`, {
+      headers: getAuthHeaders()
+    });
+  },
+
+  // Inbox persetujuan atasan / PROJECT_MANAGER (tingkat 2)
+  getInboxAtasan: (projectId) => {
+    const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    return fetchAPI(`/finance/po/inbox-atasan${qs}`, {
+      headers: getAuthHeaders()
+    });
+  },
+
+  // Tingkat 1 — Finance verifikasi PO
+  verifyPO: (id, catatanFinance = '') => {
+    return fetchAPI(`/finance/po/${id}/verify`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ catatanFinance }),
     });
   },
 

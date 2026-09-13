@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, CheckCircle, Printer, ShoppingCart, Plus, Package, Edit, AlertCircle, Info, ChevronRight, Building } from 'lucide-react';
+import { Search, CheckCircle, Printer, ShoppingCart, Plus, Package, Edit, AlertCircle, Info, ChevronRight, Building, Truck, PackagePlus } from 'lucide-react';
 import styles from '../styles/PurchaseOrderPage.module.css';
 import Header from '../components/Header';
 import { usePO } from '../hooks/usePO';
@@ -9,6 +9,8 @@ import ProjectSelector from '../components/ProjectSelector';
 import { poService } from '../services/poService';
 import PurchaseOrderModal from '../components/PurchaseOrderModal';
 import SupplierModal from '../components/SupplierModal';
+import POFromRabPanel from '../components/POFromRabPanel';
+import HabisPakaiPanel from '../components/HabisPakaiPanel';
 import toast from 'react-hot-toast';
 
 const fmtRp = (n) =>
@@ -34,6 +36,9 @@ const PurchaseOrderPage = () => {
   // State untuk Goods Receipt
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [selectedReceiptItem, setSelectedReceiptItem] = useState(null);
+  const [initialSupplierId, setInitialSupplierId] = useState(null);
+  const [hpRefresh, setHpRefresh] = useState(0);
+  const [hpContext, setHpContext] = useState(null);
 
   const { projects: projectList, loading: loadingProjects } = useProjects();
   const { mrItems, loadingMr, refreshMaterialRequests, updateBulkMaterialRequests } = useMaterialRequests(projectId);
@@ -195,9 +200,50 @@ const PurchaseOrderPage = () => {
     setIsPoModalOpen(false);
     setEditingPo(null);
     setSelectedItems([]);
+    setInitialSupplierId(null);
     refreshMaterialRequests();
     refreshFinanceMR();
     if (refreshPOs) refreshPOs();
+  };
+
+  // Buat PO langsung dari tab "Dari RAB per Supplier"
+  const handleCreateFromPlan = ({ supplierId, items }) => {
+    setSelectedItems(items);
+    setInitialSupplierId(supplierId);
+    setEditingPo(null);
+    setIsPoModalOpen(true);
+  };
+
+  // Purchasing buat PO HABIS_PAKAI dari permintaan lapangan
+  const handleCreateFromHabisPakai = (row) => {
+    setHpContext({
+      permintaanHabisPakaiId: row.id,
+      sumberPo: 'HABIS_PAKAI',
+      alasanHabisPakai: row.alasan || null,
+    });
+    setSelectedItems([
+      {
+        id: `php_${row.id}`,
+        // Habis pakai bukan bagian sisa MR — jangan kena validasi sisa kebutuhan
+        mrItemId: null,
+        itemName: row.itemName,
+        description: row.itemName,
+        unit: row.unit,
+        estimatedVolume: Number(row.qty || 0),
+        orderedQty: 0,
+        pricePerUnit: 0,
+      },
+    ]);
+    setInitialSupplierId(null);
+    setEditingPo(null);
+    setIsPoModalOpen(true);
+  };
+
+  const resetPoModal = () => {
+    setIsPoModalOpen(false);
+    setEditingPo(null);
+    setInitialSupplierId(null);
+    setHpContext(null);
   };
 
   return (
@@ -211,7 +257,7 @@ const PurchaseOrderPage = () => {
           <p className={styles.subtitle}>Kelola pembuatan PO dari material request dan riwayat PO.</p>
         </div>
         <div style={{ minWidth: '300px' }}>
-          {activeTab === 'buat-po' && (
+          {(activeTab === 'buat-po' || activeTab === 'habis-pakai') && (
             <ProjectSelector
               projectId={projectId}
               projectList={projectList}
@@ -232,12 +278,43 @@ const PurchaseOrderPage = () => {
           </button>
 
           <button
+            className={`${styles.tabBtn} ${activeTab === 'dari-rab' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('dari-rab')}
+          >
+            <Truck size={16} /> Dari RAB per Supplier
+          </button>
+
+          <button
+            className={`${styles.tabBtn} ${activeTab === 'habis-pakai' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('habis-pakai')}
+          >
+            <PackagePlus size={16} /> Habis Pakai
+          </button>
+
+          <button
             className={`${styles.tabBtn} ${activeTab === 'manage-supplier' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('manage-supplier')}
           >
             <Building size={16} /> Manage Supplier
           </button>
         </div>
+
+        {activeTab === 'dari-rab' && (
+          <div className={styles.tabContent}>
+            <POFromRabPanel projectId={projectId} onCreatePO={handleCreateFromPlan} />
+          </div>
+        )}
+
+        {activeTab === 'habis-pakai' && (
+          <div className={styles.tabContent}>
+            <HabisPakaiPanel
+              projectId={projectId}
+              refreshKey={hpRefresh}
+              onCreatePO={handleCreateFromHabisPakai}
+              onChanged={() => setHpRefresh((v) => v + 1)}
+            />
+          </div>
+        )}
 
         {activeTab === 'buat-po' && (
           <div className={styles.tabContent}>
@@ -712,11 +789,16 @@ const PurchaseOrderPage = () => {
           selectedItems={selectedItems}
           projectId={projectId}
           editingPo={editingPo}
-          onClose={() => {
-            setIsPoModalOpen(false);
-            setEditingPo(null);
+          initialSupplierId={initialSupplierId}
+          kategoriPO={hpContext ? 'HABIS_PAKAI' : 'MATERIAL'}
+          sumberPo={hpContext?.sumberPo || null}
+          alasanHabisPakai={hpContext?.alasanHabisPakai || null}
+          permintaanHabisPakaiId={hpContext?.permintaanHabisPakaiId || null}
+          onClose={resetPoModal}
+          onSuccess={() => {
+            handlePoSuccess();
+            setHpRefresh((v) => v + 1);
           }}
-          onSuccess={handlePoSuccess}
         />
       )}
 

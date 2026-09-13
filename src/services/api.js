@@ -3,6 +3,16 @@ const API_BASE_URL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
   : 'http://localhost:4000/api';
 
+// Origin server backend (tanpa /api) — dipakai buat buka file upload
+export const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
+
+// Foto Surat Jalan disimpan sebagai path relatif ("/uploads/surat-jalan/xxx.jpg")
+export const fileUrl = (path) => {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path) || path.startsWith('data:')) return path;
+  return `${FILE_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
 export const fetchAPI = async (endpoint, options = {}) => {
   const headers = { ...options.headers };
 

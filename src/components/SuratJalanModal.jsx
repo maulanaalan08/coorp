@@ -2,7 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Save, FileImage, Trash2, History, PlusCircle } from 'lucide-react';
 import { lapanganService } from '../services/lapanganService';
 import { compressFiles } from '../utils/imageCompression';
+import { fileUrl } from '../services/api';
 import toast from 'react-hot-toast';
+
+const MAX_FOTO = 10;
 
 const SuratJalanModal = ({ isOpen, onClose, item, onSuccess }) => {
   const [activeTab, setActiveTab] = useState('history'); // 'history' | 'upload'
@@ -39,8 +42,9 @@ const SuratJalanModal = ({ isOpen, onClose, item, onSuccess }) => {
     setLoadingHistory(true);
     try {
       const res = await lapanganService.getSuratJalanHistory(item.poItemId);
-      setHistoryData(res.data || []);
-      if (res.data && res.data.length === 0) {
+      const rows = Array.isArray(res) ? res : (res?.data || []);
+      setHistoryData(rows);
+      if (rows.length === 0) {
         setActiveTab('upload');
       }
     } catch (err) {
@@ -61,11 +65,13 @@ const SuratJalanModal = ({ isOpen, onClose, item, onSuccess }) => {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const filesArray = Array.from(e.target.files);
-      if (photos.length + filesArray.length > 5) {
-        toast.error('Maksimal 5 foto!');
+      if (photos.length + filesArray.length > MAX_FOTO) {
+        toast.error(`Maksimal ${MAX_FOTO} foto!`);
+        e.target.value = '';
         return;
       }
       setPhotos(prev => [...prev, ...filesArray]);
+      e.target.value = '';
     }
   };
 
@@ -82,6 +88,26 @@ const SuratJalanModal = ({ isOpen, onClose, item, onSuccess }) => {
 
     if (!formData.volumeDiterima || formData.volumeDiterima <= 0) {
       toast.error('Volume diterima harus lebih dari 0');
+      return;
+    }
+
+    if (photos.length === 0) {
+      toast.error(
+        'Foto Surat Jalan wajib dilampirkan. Foto adalah bukti barang diterima di lapangan.'
+      );
+      return;
+    }
+
+    // Barang kurang: datang < sisa pesanan → catatan kekurangan wajib.
+    const sisa = Math.max(
+      0,
+      (item.estimatedVolume || 0) - (item.receivedVolume || 0)
+    );
+    const datang = Number(formData.volumeDiterima);
+    if (sisa > 0 && datang < sisa && !formData.catatan.trim()) {
+      toast.error(
+        `Barang datang kurang dari pesanan (pesan ${sisa}, datang ${datang}). Catatan kekurangan wajib diisi.`
+      );
       return;
     }
 
@@ -185,8 +211,8 @@ const SuratJalanModal = ({ isOpen, onClose, item, onSuccess }) => {
                     {sj.fotoUrls && sj.fotoUrls.length > 0 && (
                       <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
                         {sj.fotoUrls.map((url, uidx) => (
-                          <a key={uidx} href={`http://localhost:4000${url}`} target="_blank" rel="noreferrer" className="block shrink-0">
-                            <img src={`http://localhost:4000${url}`} alt="Bukti SJ" className="w-16 h-16 object-cover rounded border border-[#555] hover:opacity-80 transition-opacity" />
+                          <a key={uidx} href={fileUrl(url)} target="_blank" rel="noreferrer" className="block shrink-0">
+                            <img src={fileUrl(url)} alt="Bukti SJ" className="w-16 h-16 object-cover rounded border border-[#555] hover:opacity-80 transition-opacity" />
                           </a>
                         ))}
                       </div>
@@ -225,12 +251,13 @@ const SuratJalanModal = ({ isOpen, onClose, item, onSuccess }) => {
               </div>
 
               <div>
-                <label className="block mb-1.5 text-sm font-medium text-[#ccc]">Foto Bukti (Maks. 5)</label>
+                <label className="block mb-1.5 text-sm font-medium text-[#ccc]">Foto Bukti (wajib, maks. {MAX_FOTO})</label>
                 <div 
                   onClick={() => fileInputRef.current?.click()}
                   className="p-5 border-2 border-dashed border-[#555] rounded-lg text-center cursor-pointer bg-[#222] hover:bg-[#2a2a2a] transition-colors group">
                   <Upload size={24} className="text-[#888] mx-auto mb-2 group-hover:text-[#d4af37] transition-colors" />
                   <p className="m-0 text-sm text-[#888] group-hover:text-[#ccc] transition-colors">Klik untuk upload foto dari HP / PC</p>
+                  <p className="m-0 text-xs text-[#666] mt-1">{photos.length}/{MAX_FOTO} foto dipilih</p>
                 </div>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple accept="image/*" className="hidden" />
 

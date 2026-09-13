@@ -12,7 +12,7 @@ const fmtVol = (n) => {
 
 const fmtRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 });
 
-const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems, onConfirmReceipt, onClose, onSuccess }) => {
+const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems, onConfirmReceipt, initialSupplierId, kategoriPO, sumberPo, alasanHabisPakai, permintaanHabisPakaiId, onClose, onSuccess }) => {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSupplierModal, setShowSupplierModal] = useState(false);
@@ -113,7 +113,12 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
       });
       setItems(initialItems);
     }
-  }, [selectedItems, editingPo, receiptItems]);
+
+    // Supplier sudah ditentukan kalau PO dibuat dari tab "Dari RAB per Supplier"
+    if (!editingPo && initialSupplierId) {
+      setFormData((prev) => ({ ...prev, supplierId: initialSupplierId }));
+    }
+  }, [selectedItems, editingPo, receiptItems, initialSupplierId]);
 
   const fetchSuppliers = async () => {
     try {
@@ -193,6 +198,10 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
     const payload = {
       ...formData,
       projectId: editingPo ? editingPo.projectId : projectId,
+      kategoriPO: kategoriPO || 'MATERIAL',
+      sumberPo: sumberPo || null,
+      alasanHabisPakai: alasanHabisPakai || null,
+      permintaanHabisPakaiId: permintaanHabisPakaiId || null,
       subTotal: subTotal,
       globalDiscount: globalDiscount,
       taxNominal: taxNominal,

@@ -1,9 +1,12 @@
 import React from "react";
 import { Search, Bell, Grid, LogOut } from "lucide-react";
-import { useAuth } from "../hooks/useAuth"; 
+import { useAuth } from "../hooks/useAuth";
+import NotificationBell from "./NotificationBell";
+import { useNav } from "../contexts/NavContext";
 
 const Header = () => {
-  const { user, logoutAuth } = useAuth(); 
+  const { user, logoutAuth } = useAuth();
+  const nav = useNav();
 
   return (
     <header className="flex flex-col md:flex-row md:items-center justify-between w-full px-5 py-6 md:px-10 bg-[#0c0b09] gap-4 pl-16 md:pl-10 relative">
@@ -17,9 +20,7 @@ const Header = () => {
       </div>
 
       <div className="flex items-center gap-3 md:gap-4 self-end md:self-auto">
-        <button className="p-2 rounded-full text-[#a89c85] hover:text-[#e8c874] hover:bg-white/5 transition-colors" type="button">
-          <Bell size={20} />
-        </button>
+        <NotificationBell onNavigate={nav} />
 
         <button className="p-2 rounded-full text-[#a89c85] hover:text-[#e8c874] hover:bg-white/5 transition-colors" type="button">
           <Grid size={20} />

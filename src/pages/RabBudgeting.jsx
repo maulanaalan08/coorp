@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Wallet,
   ClipboardList,
@@ -43,7 +43,20 @@ const parseInputNumber = (val) => {
   return String(val).replace(/[^0-9]/g, "");
 };
 
-const RabBudgeting = ({ initialProjectId = null, onBack }) => {
+// Baris kosong untuk rincian bahan/alat manual (item custom yang tidak ada di AHSP)
+const blankComponent = () => ({
+  name: "",
+  unit: "",
+  section: "BAHAN",
+  coefficient: "1",
+  unitPrice: "",
+});
+
+// Subtotal satu baris komponen = koefisien x harga satuan
+const compLineTotal = (c) =>
+  (Number(c.coefficient) || 0) * (Number(String(c.unitPrice).replace(/[^0-9]/g, "")) || 0);
+
+const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBackToBv }) => {
   const [projectId, setProjectId] = useState(initialProjectId);
   const [search, setSearch] = useState("");
   
@@ -201,6 +214,15 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
   // EDIT ITEM INDIVIDUAL
   // ==========================================================
   const openEdit = (item) => {
+    const existingComps = Array.isArray(item.components)
+      ? item.components.map((c) => ({
+          name: c.name,
+          unit: c.unit,
+          section: c.section,
+          coefficient: String(c.coefficient),
+          unitPrice: String(c.unitPrice),
+        }))
+      : [blankComponent()];
     setEditModal({
       item,
       pricingMode: "manual",
@@ -211,6 +233,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
       sourceJobId: "",
       switchQuery: "",
       switchResults: [],
+      components: existingComps,
+      bahanQuery: "",
+      bahanResults: [],
+      bahanTargetIdx: null,
     });
   };
 
@@ -247,6 +273,62 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
     } catch {}
   };
 
+  // Cari bahan/alat dari master PriceItem untuk mengisi nama + satuan + harga
+  const searchBahan = async (query, targetIdx) => {
+    setEditModal((prev) => ({ ...prev, bahanQuery: query, bahanTargetIdx: targetIdx }));
+    if (query.trim().length < 2) {
+      return setEditModal((prev) => ({ ...prev, bahanResults: [] }));
+    }
+    try {
+      // cari BAHAN dan ALAT sekaligus, lalu gabung
+      const q = encodeURIComponent(query.trim());
+      const [rb, ra] = await Promise.all([
+        fetch(`${API_BASE}/price-items?type=BAHAN&q=${q}`),
+        fetch(`${API_BASE}/price-items?type=ALAT&q=${q}`),
+      ]);
+      const [db, da] = await Promise.all([
+        rb.ok ? rb.json() : [],
+        ra.ok ? ra.json() : [],
+      ]);
+      const merged = [...(Array.isArray(db) ? db : []), ...(Array.isArray(da) ? da : [])];
+      setEditModal((prev) => ({ ...prev, bahanResults: merged.slice(0, 30) }));
+    } catch {
+      setEditModal((prev) => ({ ...prev, bahanResults: [] }));
+    }
+  };
+
+  // Pilih bahan dari hasil pencarian -> isi baris komponen
+  const pickBahan = (priceItem) => {
+    setEditModal((prev) => {
+      const rows = [...prev.components];
+      const idx = prev.bahanTargetIdx ?? 0;
+      rows[idx] = {
+        ...rows[idx],
+        name: priceItem.name,
+        unit: priceItem.unit || rows[idx].unit,
+        section: priceItem.type === "ALAT" ? "ALAT" : "BAHAN",
+        unitPrice: String(Math.round(Number(priceItem.price) || 0)),
+      };
+      return { ...prev, components: rows, bahanResults: [], bahanQuery: "" };
+    });
+  };
+
+  const addComponentRow = () =>
+    setEditModal((prev) => ({ ...prev, components: [...prev.components, blankComponent()] }));
+
+  const removeComponentRow = (idx) =>
+    setEditModal((prev) => ({
+      ...prev,
+      components: prev.components.filter((_, i) => i !== idx),
+    }));
+
+  const setComponentField = (idx, field, value) =>
+    setEditModal((prev) => {
+      const rows = [...prev.components];
+      rows[idx] = { ...rows[idx], [field]: value };
+      return { ...prev, components: rows };
+    });
+
   const handleSaveEdit = async () => {
     const { item, pricingMode, isByOwner, isStip, overheadPercent, rapUnitPrice, sourceJobId } = editModal;
     if (pricingMode === "manual") {
@@ -282,6 +364,37 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
         loading: 'Menarik data Master AHSP...',
         success: 'Berhasil menghubungkan data AHSP!',
         error: 'Gagal menarik data Master AHSP.'
+      }).then(() => {
+        setEditModal(null);
+      }).catch(err => console.error(err));
+    } else if (pricingMode === "komponen") {
+      // Rincian bahan & alat manual untuk item custom (tidak ada padanan AHSP).
+      // Backend menghitung modal dari total komponen, lalu RAB = modal + overhead%.
+      const rows = (editModal.components || [])
+        .filter((c) => c.name.trim() && Number(c.coefficient) > 0)
+        .map((c) => ({
+          name: c.name.trim(),
+          unit: c.unit.trim() || "-",
+          section: c.section === "ALAT" ? "ALAT" : "BAHAN",
+          coefficient: Number(c.coefficient),
+          unitPrice: Number(String(c.unitPrice).replace(/[^0-9]/g, "")) || 0,
+        }));
+
+      if (rows.length === 0) {
+        return toast.error("Isi minimal satu baris bahan/alat.");
+      }
+
+      const compPromise = updateRabItem(item.id, {
+        components: rows,
+        overheadPercent: Number(overheadPercent) || 0,
+        isByOwner,
+        isStip,
+      }).then(() => refreshGroups());
+
+      toast.promise(compPromise, {
+        loading: 'Menyimpan rincian bahan & alat...',
+        success: 'Rincian bahan & alat tersimpan!',
+        error: 'Gagal menyimpan rincian bahan & alat.'
       }).then(() => {
         setEditModal(null);
       }).catch(err => console.error(err));
@@ -429,6 +542,12 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
             <ChevronLeft size={18} /> Kembali
           </button>
         )}
+        {/* Modul BV = hulu dari RAB: selalu tersedia, proyek ikut terbawa */}
+        {onBackToBv && (
+          <button className={styles["rab-back-btn"]} onClick={() => onBackToBv(projectId)} type="button">
+            <ChevronLeft size={18} /> Kembali ke BV
+          </button>
+        )}
         <div className={styles["rab-header-main"]}>
           <p className={styles["rab-eyebrow"]}>{project?.name ? `Project: ${project.name}` : "Financial Control"}</p>
           <h2 className={styles["rab-title"]}>RAB &amp; Budgeting</h2>
@@ -439,7 +558,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
             projectId={projectId}
             projectList={projectList}
             loading={loadingProjects}
-            onChange={(e) => setProjectId(e.target.value || null)}
+            onChange={(e) => {
+              setProjectId(e.target.value || null);
+              onProjectChange?.(e.target.value || null);
+            }}
           />
         </div>
       </header>
@@ -608,6 +730,9 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
               <button type="button" className={[styles["rab-tab-btn"], editModal.pricingMode === "ahsp" ? styles["active"] : ""].join(" ")} onClick={() => setEditModal({ ...editModal, pricingMode: "ahsp" })}>
                 🔄 Tarik Master AHSP
               </button>
+              <button type="button" className={[styles["rab-tab-btn"], editModal.pricingMode === "komponen" ? styles["active"] : ""].join(" ")} onClick={() => setEditModal({ ...editModal, pricingMode: "komponen" })}>
+                🧱 Rincian Bahan &amp; Alat
+              </button>
             </div>
 
             {editModal.pricingMode === "manual" && (
@@ -636,6 +761,133 @@ const RabBudgeting = ({ initialProjectId = null, onBack }) => {
                     </select>
                   </label>
                 )}
+              </div>
+            )}
+
+
+            {editModal.pricingMode === "komponen" && (
+              <div style={{ padding: '12px', background: '#1a1a1a', borderRadius: '6px', border: '1px solid #333' }}>
+                <p className={styles["rab-form-hint"]} style={{ marginTop: 0 }}>
+                  Dipakai untuk item yang tidak ada padanannya di AHSP (mis. furniture custom).
+                  Isi bahan dan alat, lalu sisanya dihitung dari overhead di atas.
+                </p>
+
+                <table className={styles["rab-komp-table"]}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '34%' }}>Bahan / Alat</th>
+                      <th style={{ width: '9%' }}>Satuan</th>
+                      <th style={{ width: '9%' }}>Jenis</th>
+                      <th style={{ width: '11%' }}>Koef./Qty</th>
+                      <th style={{ width: '17%' }}>Harga Satuan</th>
+                      <th style={{ width: '14%' }}>Subtotal</th>
+                      <th style={{ width: '6%' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(editModal.components || []).map((c, idx) => (
+                      <tr key={idx}>
+                        <td>
+                          <input
+                            className={styles["rab-form-input"]}
+                            style={{ marginTop: 0 }}
+                            placeholder="ketik min. 2 huruf untuk cari..."
+                            value={c.name}
+                            onChange={(e) => {
+                              setComponentField(idx, "name", e.target.value);
+                              searchBahan(e.target.value, idx);
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className={styles["rab-form-input"]}
+                            style={{ marginTop: 0 }}
+                            placeholder="-"
+                            value={c.unit}
+                            onChange={(e) => setComponentField(idx, "unit", e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <select
+                            className={styles["rab-form-input"]}
+                            style={{ marginTop: 0 }}
+                            value={c.section}
+                            onChange={(e) => setComponentField(idx, "section", e.target.value)}
+                          >
+                            <option value="BAHAN">Bahan</option>
+                            <option value="ALAT">Alat</option>
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            className={styles["rab-form-input"]}
+                            style={{ marginTop: 0 }}
+                            value={c.coefficient}
+                            onChange={(e) => setComponentField(idx, "coefficient", e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className={styles["rab-form-input"]}
+                            style={{ marginTop: 0 }}
+                            value={formatInputNumber(c.unitPrice)}
+                            onChange={(e) => setComponentField(idx, "unitPrice", parseInputNumber(e.target.value))}
+                          />
+                        </td>
+                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: 'var(--rab-gold-bright)' }}>
+                          {fmtRp(compLineTotal(c))}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
+                            onClick={() => removeComponentRow(idx)}
+                            title="Hapus baris"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {editModal.bahanResults.length > 0 && (
+                  <div className={styles["rab-komp-results"]}>
+                    {editModal.bahanResults.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={styles["rab-komp-result-item"]}
+                        onClick={() => pickBahan(p)}
+                      >
+                        <span>{p.name}</span>
+                        <span style={{ opacity: 0.7 }}>
+                          {p.type} · {p.unit} · {fmtRp(p.price)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '12px' }}>
+                  <button
+                    type="button"
+                    className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
+                    onClick={addComponentRow}
+                  >
+                    + Tambah Baris
+                  </button>
+                  <span className={styles["rab-form-hint"]} style={{ margin: 0 }}>
+                    Modal ({(editModal.components || []).length} baris):{" "}
+                    <strong>{fmtRp((editModal.components || []).reduce((s, c) => s + compLineTotal(c), 0))}</strong>
+                    {" "}· Harga jual: <strong>{fmtRp(
+                      (editModal.components || []).reduce((s, c) => s + compLineTotal(c), 0) *
+                      (1 + (Number(editModal.overheadPercent) || 0) / 100)
+                    )}</strong>
+                  </span>
+                </div>
               </div>
             )}
 

@@ -18,6 +18,8 @@ import { useRabGroups } from "../hooks/useRabGroups";
 import { useMaterialRequests } from "../hooks/useMaterialRequests";
 import toast from "react-hot-toast";
 import CreatePOModal from "../components/CreatePOModal";
+import ApprovalPOPanel from "../components/ApprovalPOPanel";
+import POStatusBoard from "../components/POStatusBoard";
 
 const fmtRp = (n) =>
   "Rp " +
@@ -27,8 +29,8 @@ const fmtRp = (n) =>
 
 const fmtPct = (n) => Number(n || 0).toFixed(2) + "%";
 
-const FinancePage = () => {
-  const [projectId, setProjectId] = useState(null);
+const FinancePage = ({ initialProjectId = null }) => {
+  const [projectId, setProjectId] = useState(initialProjectId);
   const [search, setSearch] = useState("");
   const [expandedRows, setExpandedRows] = useState({});
 
@@ -46,6 +48,10 @@ const FinancePage = () => {
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
   const [selectedComponentForPO, setSelectedComponentForPO] = useState(null);
   const [selectedMrItemForPO, setSelectedMrItemForPO] = useState(null);
+
+  // Satu penghitung untuk semua panel approval/PO -> saling refresh
+  const [approvalTick, setApprovalTick] = useState(0);
+  const bumpApproval = () => setApprovalTick((t) => t + 1);
 
   // Sync editedItems when mrItems loads
   useEffect(() => {
@@ -217,6 +223,26 @@ const FinancePage = () => {
           </div>
         ) : (
           <>
+            <ApprovalPOPanel
+              mode="finance"
+              projectId={projectId}
+              refreshKey={approvalTick}
+              onChanged={bumpApproval}
+            />
+
+            <POStatusBoard
+              projectId={projectId}
+              refreshKey={approvalTick}
+              onChanged={bumpApproval}
+            />
+
+            <ApprovalPOPanel
+              mode="atasan"
+              projectId={projectId}
+              refreshKey={approvalTick}
+              onChanged={bumpApproval}
+            />
+
             <div className={styles.statsGrid}>
               <div className={`${styles.statCard} ${styles.revenue}`}>
                 <div className={styles.statHeader}>
@@ -453,6 +479,7 @@ const FinancePage = () => {
         onClose={() => setIsPOModalOpen(false)}
         selectedItem={selectedComponentForPO}
         mrItem={selectedMrItemForPO}
+        projectId={projectId}
       />
     </div>
   );

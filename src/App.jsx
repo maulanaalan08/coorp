@@ -20,16 +20,31 @@ import TimeSchedulePage from "./pages/TimeSchedulePage";
 import JoinOpnamePage from "./pages/JoinOpnamePage";
 import FinancePage from "./pages/FinancePage";
 import PurchaseOrderPage from "./pages/PurchaseOrderPage";
+import ReturPembelianPage from "./pages/ReturPembelianPage";
+import PengajuanBayarPage from "./pages/PengajuanBayarPage";
+import PembayaranSupplierPage from "./pages/PembayaranSupplierPage";
+import InvoicePenagihanPage from "./pages/InvoicePenagihanPage";
+import LaporanHarianPage from "./pages/LaporanHarianPage";
 import ComplaintPage from "./pages/ComplaintPage";
 import PrintPOPage from "./pages/PrintPOPage";
 import BastPage from "./pages/BastPage";
 import ItemTrackingPage from "./pages/ItemTrackingPage";
+import RiwayatHabisPakaiPage from "./pages/RiwayatHabisPakaiPage";
 import { Bot } from "lucide-react";
+import { NavContext } from "./contexts/NavContext";
 
 function App() {
   const { isAuthenticated, loginAuth, logoutAuth, user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [globalProjectId, setGlobalProjectId] = useState(null);
+
+  // Notifikasi bell: lompat ke halaman tujuan + proyeknya langsung terpilih
+  const navigateDariNotifikasi = (tab, projectId) => {
+    if (projectId) setGlobalProjectId(projectId);
+    setActiveTab(tab || "dashboard");
+    window.location.hash = tab || "dashboard";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // Cek apakah mode khusus print PO (via URL parameter)
   const urlParams = new URLSearchParams(window.location.search);
@@ -57,6 +72,7 @@ function App() {
 
   // JIKA SUDAH LOGIN: Tampilkan Layout Utama (Sidebar + Main Content)
   return (
+    <NavContext.Provider value={navigateDariNotifikasi}>
     <div className="flex w-full h-screen bg-[#0c0b09] overflow-hidden">
 
       {/* Konfigurasi Notifikasi Toaster dari react-hot-toast */}
@@ -117,15 +133,43 @@ function App() {
         )}
         {activeTab === "upload-hspk" && <UploadHspk />}
         {activeTab === "data-survey" && <DataSurvey initialProjectId={globalProjectId} />}
-        {(activeTab === "bv" || activeTab === "backup-volume") && <BackUpVolume initialProjectId={globalProjectId} />}
-        {activeTab === "rab" && <RabBudgeting />}
-        {activeTab === "finance" && <FinancePage />}
+        {(activeTab === "bv" || activeTab === "backup-volume") && (
+          <BackUpVolume
+            initialProjectId={globalProjectId}
+            onProjectChange={setGlobalProjectId}
+            onGoToRab={(pid) => {
+              setGlobalProjectId(pid);
+              setActiveTab("rab");
+              window.location.hash = "rab";
+            }}
+          />
+        )}
+        {activeTab === "rab" && (
+          <RabBudgeting
+            key={globalProjectId || "none"}
+            initialProjectId={globalProjectId}
+            onProjectChange={setGlobalProjectId}
+            onBackToBv={(pid) => {
+              if (pid) setGlobalProjectId(pid);
+              setActiveTab("bv");
+              window.location.hash = "bv";
+            }}
+          />
+        )}
+        {activeTab === "finance" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
+        {activeTab === "pembelian-siap-pakai" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />} 
         {activeTab === "purchase-orders" && <PurchaseOrderPage />}
+        {activeTab === "retur-pembelian" && <ReturPembelianPage />}
+        {activeTab === "pengajuan-bayar" && <PengajuanBayarPage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
+        {activeTab === "pembayaran-supplier" && <PembayaranSupplierPage />}
+        {activeTab === "invoice-penagihan" && <InvoicePenagihanPage />}
+        {activeTab === "laporan-harian" && <LaporanHarianPage />}
         {activeTab === "time-schedule" && <TimeSchedulePage />}
         {activeTab === "join-opname" && <JoinOpnamePage />}
         {activeTab === "bast" && <BastPage />}
         {activeTab === "complain" && <ComplaintPage />}
-        {activeTab === "item-tracking" && <ItemTrackingPage />}
+        {activeTab === "item-tracking" && <ItemTrackingPage onNavigate={setActiveTab} />}
+        {activeTab === "habis-pakai" && <RiwayatHabisPakaiPage />}
       </main>
 
       {/* Floating Chatbot Placeholder */}
@@ -137,6 +181,7 @@ function App() {
         <Bot size={28} />
       </button>
     </div>
+    </NavContext.Provider>
   );
 }
 

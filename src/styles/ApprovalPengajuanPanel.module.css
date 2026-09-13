@@ -1,0 +1,260 @@
+.panel {
+  background: #14120e;
+  border: 1px solid #2a2620;
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.panelHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #e8e3d8;
+}
+
+.panelSub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #8a8272;
+}
+
+.badgeAntre {
+  background: rgba(212, 175, 55, 0.12);
+  color: #d4af37;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badgeKosong {
+  background: rgba(255, 255, 255, 0.04);
+  color: #6f6858;
+  border: 1px solid #2a2620;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.empty {
+  margin: 0;
+  font-size: 13px;
+  color: #8a8272;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card {
+  border: 1px solid #2a2620;
+  border-radius: 10px;
+  background: #191712;
+  overflow: hidden;
+}
+
+.cardHead {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.cardHead:hover {
+  background: rgba(212, 175, 55, 0.04);
+}
+
+.chev {
+  color: #6f6858;
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+
+.cardMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.noPengajuan {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: #d4af37;
+  font-weight: 600;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  font-size: 12px;
+  color: #9a9284;
+}
+
+.supplier {
+  color: #cfc7b8;
+}
+
+.dot {
+  color: #4a4438;
+}
+
+.verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #4ade80;
+}
+
+.amount {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.total {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: #e8e3d8;
+  font-weight: 600;
+}
+
+.detail {
+  border-top: 1px solid #2a2620;
+  padding: 12px 14px 14px;
+  background: #100e0a;
+}
+
+.catatan {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #9a9284;
+  line-height: 1.5;
+}
+
+.catatan strong {
+  color: #cfc7b8;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btnOk,
+.btnNo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnOk {
+  background: #16a34a;
+  color: #fff;
+}
+
+.btnOk:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.btnNo {
+  background: rgba(239, 68, 68, 0.14);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.btnNo:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.24);
+}
+
+.btnOk:disabled,
+.btnNo:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Blok PO di detail atasan: cukup lihat PO apa saja yang diajukan */
+.poBlok {
+  border: 1px solid #2a2620;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  background: #16130e;
+}
+
+.poBlokHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.poBlokTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d4af37;
+}
+
+.poItemCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #8a8272;
+}
+
+.poTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #2a2620;
+  font-size: 12px;
+  color: #9a9284;
+}
+
+.poTotalVal {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e8e3d8;
+}

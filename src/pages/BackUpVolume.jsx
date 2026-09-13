@@ -449,7 +449,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, edit
 // ================================================================
 // KOMPONEN UTAMA BACKUP VOLUME
 // ================================================================
-export default function BackUpVolume({ initialProjectId = null }) {
+export default function BackUpVolume({ initialProjectId = null, onProjectChange, onGoToRab }) {
   const { projects, loading: loadingProjects } = useProjects();
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
 
@@ -847,6 +847,16 @@ export default function BackUpVolume({ initialProjectId = null }) {
             <button className={styles.btnPrimary} onClick={() => handleOpenAddGroup(null)} disabled={!selectedProjectId}>
               + Tambah Group Pekerjaan
             </button>
+            {/* Link antar modul: BV -> RAB dengan proyek yang sama terpilih */}
+            <button
+              type="button"
+              className={styles.btnOutline}
+              disabled={!selectedProjectId}
+              onClick={() => onGoToRab?.(selectedProjectId)}
+              title="Buka RAB untuk proyek ini"
+            >
+              Lihat RAB &rarr;
+            </button>
           </div>
         </div>
       </div>
@@ -858,7 +868,10 @@ export default function BackUpVolume({ initialProjectId = null }) {
           displayName: `${p.name} — ${p.client?.name || '-'} (${p.discipline} ${p.hspkPeriod})`
         }))}
         loading={loadingProjects}
-        onChange={(e) => setSelectedProjectId(e.target.value)}
+        onChange={(e) => {
+          setSelectedProjectId(e.target.value);
+          onProjectChange?.(e.target.value || null);
+        }}
       />
 
       {checkedIds.length > 0 && (

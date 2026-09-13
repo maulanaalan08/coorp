@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, UploadCloud, FileText, CheckCircle, Package } from 'lucide-react';
 import { lapanganService } from '../services/lapanganService';
 import toast from 'react-hot-toast';
+
+import { compressFiles } from '../utils/imageCompression';
+
+const MAX_FOTO = 10;
 
 const toInputDate = (d = new Date()) => d.toISOString().slice(0, 10);
 
@@ -9,17 +13,18 @@ const BulkSuratJalanModal = ({ isOpen, onClose, items = [], onSuccess }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [nomorSJ, setNomorSJ] = useState('');
   const [tanggal, setTanggal] = useState(toInputDate());
-  const [fotoBukti, setFotoBukti] = useState(null);
+  const [fotoBukti, setFotoBukti] = useState([]);
 
   // State untuk input per barang (volume dan catatan)
   const [itemInputs, setItemInputs] = useState({});
+  const fileInputRef = useRef(null);
 
   // Reset form tiap kali modal dibuka
   useEffect(() => {
     if (isOpen) {
       setNomorSJ('');
       setTanggal(toInputDate());
-      setFotoBukti(null);
+      setFotoBukti([]);
 
       const initialInputs = {};
       items.forEach((item) => {
@@ -47,50 +52,21 @@ const BulkSuratJalanModal = ({ isOpen, onClose, items = [], onSuccess }) => {
   };
 
   const handleFotoChange = (e) => {
-    if (e.target.files) {
-      setFotoBukti(e.target.files);
+    const picked = Array.from(e.target.files || []);
+    if (picked.length === 0) return;
+
+    const sisa = MAX_FOTO - fotoBukti.length;
+    if (picked.length > sisa) {
+      toast.error(`Maksimal ${MAX_FOTO} foto Surat Jalan.`);
+      e.target.value = '';
+      return;
     }
+    setFotoBukti((prev) => [...prev, ...picked]);
+    e.target.value = '';
   };
 
-  const compressImage = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-          const img = new Image();
-          img.src = event.target.result;
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 500;
-            const MAX_HEIGHT = 500;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-              if (width > MAX_WIDTH) {
-                height *= MAX_WIDTH / width;
-                width = MAX_WIDTH;
-              }
-            } else {
-              if (height > MAX_HEIGHT) {
-                width *= MAX_HEIGHT / height;
-                height = MAX_HEIGHT;
-              }
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            // Compress using JPEG
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-            resolve(dataUrl);
-          };
-        img.onerror = (error) => reject(error);
-      };
-      reader.onerror = (error) => reject(error);
-    });
+  const handleRemoveFoto = (index) => {
+    setFotoBukti((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
@@ -114,28 +90,59 @@ const BulkSuratJalanModal = ({ isOpen, onClose, items = [], onSuccess }) => {
         return toast.error('Tidak ada barang yang dipilih!');
       }
 
+      // Barang harus punya baris PO dan volume diterima > 0
+      const tanpaPo = items.filter((i) => !i.poItemId);
+      if (tanpaPo.length > 0) {
+        return toast.error(
+          `${tanpaPo.length} barang belum di-PO (baris sisa), tidak bisa dicatat Surat Jalan.`
+        );
+      }
+      const nolVolume = payloadItems.filter((p) => !(Number(p.volumeDiterima) > 0));
+      if (nolVolume.length > 0) {
+        return toast.error('Volume diterima wajib diisi lebih dari 0 untuk semua barang!');
+      }
+
+      // Barang kurang: kalau volume datang < sisa yang dipesan, wajib ada catatan
+      // biar jelas kurangnya berapa dan kenapa. Surat Jalan tetap wajib.
+      const kurangTanpaCatatan = items.filter((item) => {
+        const sisa = Math.max(
+          0,
+          (item.estimatedVolume || 0) - (item.receivedVolume || 0)
+        );
+        const datang = Number(itemInputs[item.id]?.volumeDiterima || 0);
+        const kurang = sisa - datang;
+        const catatan = (itemInputs[item.id]?.catatan || '').trim();
+        return kurang > 0.0001 && !catatan;
+      });
+      if (kurangTanpaCatatan.length > 0) {
+        return toast.error(
+          `${kurangTanpaCatatan.length} barang datang kurang dari jumlah pesanan. Tulis catatan kekurangannya dulu (misal: "kurang 2 dus, sisa dikirim Jumat").`
+        );
+      }
+
       setIsUploading(true);
       try {
-        let fotoUrls = [];
-        if (fotoBukti && fotoBukti.length > 0) {
-          for (let i = 0; i < fotoBukti.length; i++) {
-            const base64 = await compressImage(fotoBukti[i]);
-            fotoUrls.push(base64);
-          }
+        // Foto wajib — Surat Jalan itu bukti barang nyampe lapangan.
+        if (fotoBukti.length === 0) {
+          setIsUploading(false);
+          return toast.error(
+            'Foto Surat Jalan wajib dilampirkan minimal 1. Foto adalah bukti barang diterima di lapangan.'
+          );
         }
 
-        const payload = {
-          nomorSJ,
-          tanggal,
-          items: payloadItems,
-          fotoUrls
-        };
+        const data = new FormData();
+        data.append('nomorSJ', nomorSJ);
+        data.append('tanggal', tanggal);
+        data.append('items', JSON.stringify(payloadItems));
 
-      await lapanganService.uploadBulkSuratJalan(payload);
-      toast.success('Penerimaan borongan berhasil dicatat!');
-      if (onSuccess) onSuccess();
-      onClose();
-    } catch (err) {
+        const compressed = await compressFiles(fotoBukti);
+        compressed.forEach((file) => data.append('fotoBukti', file));
+
+        await lapanganService.uploadBulkSuratJalan(data);
+        toast.success('Penerimaan borongan berhasil dicatat!');
+        if (onSuccess) onSuccess();
+        onClose();
+      } catch (err) {
       console.error('Error bulk upload:', err);
       toast.error(err.message || 'Gagal mengunggah Surat Jalan.');
     } finally {
@@ -208,16 +215,63 @@ const BulkSuratJalanModal = ({ isOpen, onClose, items = [], onSuccess }) => {
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-[#ccc] flex items-center gap-2">
                   <UploadCloud size={16} className="text-[#888]" />
-                  Upload Foto Bukti SJ (Bisa pilih banyak) <span className="text-red-500">*</span>
+                  Foto Surat Jalan (wajib, maks. {MAX_FOTO}{' '}
+                  <span className="text-red-500">*</span>
                 </label>
+                <p className="text-xs text-[#777] m-0">
+                  Semua supplier wajib melampirkan Surat Jalan sebagai bukti barang
+                  diterima di lapangan. Ambil foto suratnya dari beberapa sisi —
+                  biasanya lebih dari 1 foto.
+                </p>
+
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-5 border-2 border-dashed border-white/15 rounded-xl text-center cursor-pointer bg-black/40 hover:bg-white/5 transition-colors group"
+                >
+                  <UploadCloud
+                    size={26}
+                    className="text-[#888] mx-auto mb-2 group-hover:text-[#d4af37] transition-colors"
+                  />
+                  <p className="m-0 text-sm text-[#888] group-hover:text-[#ccc] transition-colors">
+                    Klik untuk pilih foto dari HP / PC
+                  </p>
+                  <p className="m-0 text-xs text-[#666] mt-1">
+                    {fotoBukti.length}/{MAX_FOTO} foto dipilih
+                  </p>
+                </div>
                 <input
                   type="file"
+                  ref={fileInputRef}
                   multiple
                   accept="image/*"
-                  required
                   onChange={handleFotoChange}
-                  className="w-full text-sm text-[#888] file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-white/5 file:text-white hover:file:bg-white/10 border border-white/10 rounded-lg p-1.5 bg-black/40"
+                  className="hidden"
                 />
+
+                {fotoBukti.length > 0 && (
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-3">
+                    {fotoBukti.map((file, i) => (
+                      <div
+                        key={`${file.name}-${i}`}
+                        className="relative aspect-square rounded-lg overflow-hidden border border-white/15 group"
+                      >
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Foto SJ ${i + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFoto(i)}
+                          title="Hapus foto"
+                          className="absolute top-1 right-1 bg-black/70 border-none text-[#ff6b6b] rounded-full p-1 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* List Barang */}

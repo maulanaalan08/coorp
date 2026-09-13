@@ -748,6 +748,57 @@
   .rab-modal-actions .rab-btn { width: 100%; }
 }
 
+/* ================= RINCIAN BAHAN & ALAT (ITEM CUSTOM) ================= */
+.rab-komp-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+.rab-komp-table th {
+  padding: 6px 5px;
+  text-align: left;
+  background: #12110f;
+  border-bottom: 1px solid var(--rab-border);
+  color: var(--rab-gold-dim);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.rab-komp-table td {
+  padding: 4px 5px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--rab-border-soft);
+}
+.rab-komp-results {
+  margin-top: 6px;
+  max-height: 190px;
+  overflow-y: auto;
+  background: #100f0d;
+  border: 1px solid #39342b;
+  border-radius: 4px;
+}
+.rab-komp-result-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--rab-border-soft);
+  color: var(--rab-text);
+  font-family: "Manrope", sans-serif;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.rab-komp-result-item:hover {
+  background: rgba(201, 162, 75, 0.12);
+  color: var(--rab-gold-bright);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rab-btn, .rab-back-btn, .rab-project-select, .rab-items-table tbody tr { transition: none; }
 }
