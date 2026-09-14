@@ -98,7 +98,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
   // Label disiplin hanya dipilih saat menambah/edit BARIS HEADER (level 1).
   // Sub baris / anak otomatis mengikuti label induknya tanpa input pilihan.
   const isHeaderLevel = !parentBvItemId;
-  const inheritedLabel = parentItem?.disciplineLabel || activeFilter || 'GENERAL';
+  const inheritedLabel = parentItem?.disciplineLabel || (activeFilter !== 'GENERAL' ? activeFilter : 'SIPIL');
   const [disciplineLabel, setDisciplineLabel] = useState(inheritedLabel);
 
   const [jobTypes, setJobTypes] = useState([]);
@@ -106,7 +106,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
 
   useEffect(() => {
     if (isOpen) {
-      const nextLabel = editItem?.disciplineLabel || parentItem?.disciplineLabel || activeFilter || 'GENERAL';
+      const nextLabel = editItem?.disciplineLabel || parentItem?.disciplineLabel || (activeFilter !== 'GENERAL' ? activeFilter : 'SIPIL');
       setDisciplineLabel(nextLabel);
     }
   }, [isOpen, activeFilter, editItem, parentItem?.disciplineLabel]);
@@ -161,7 +161,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
         setKeterangan(editItem.keterangan || '');
         setPaymentUnit(editItem.paymentUnit || '');
         setEcommerceLink(editItem.ecommerceLink || '');
-        setDisciplineLabel(editItem.disciplineLabel || 'GENERAL');
+        setDisciplineLabel(editItem.disciplineLabel || 'SIPIL');
         if (editItem.breakdowns?.length > 0) {
           setBreakdowns(editItem.breakdowns.map(b => ({
             keterangan: b.keterangan || '',
@@ -243,7 +243,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
         keterangan: keterangan.trim() || null,
         paymentUnit: isHeaderOnly ? null : paymentUnit.trim(),
         ecommerceLink: isHeaderOnly ? null : (ecommerceLink.trim() || null),
-        disciplineLabel: disciplineLabel || 'GENERAL',
+        disciplineLabel: disciplineLabel || 'SIPIL',
         breakdowns: isHeaderOnly ? [] : breakdowns.map(b => ({
           keterangan: b.keterangan || null,
           panjang: b.panjang !== '' ? parseFloat(b.panjang) : null,
@@ -304,11 +304,10 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
 
           <div className={styles.formGroup}>
             <label>Label Disiplin {isHeaderLevel ? '' : <span style={{ color: '#888', fontSize: 11 }}>(otomatis mengikuti induk)</span>}</label>
-            <select value={disciplineLabel} onChange={(e) => setDisciplineLabel(e.target.value)} disabled={!isHeaderLevel}>
-              <option value="GENERAL">General</option>
-              <option value="INTERIOR">Interior</option>
-              <option value="SIPIL">Sipil</option>
-            </select>
+              <select value={disciplineLabel} onChange={(e) => setDisciplineLabel(e.target.value)} disabled={!isHeaderLevel}>
+                <option value="INTERIOR">Interior</option>
+                <option value="SIPIL">Sipil</option>
+              </select>
             {isHeaderLevel && (
               <small style={{ color: '#888', fontSize: 10 }}>
                 Menentukan master HSPK mana yang tersedia dan saat filter halaman BV.
@@ -507,7 +506,8 @@ function filterBvByDiscipline(items, label) {
     const matchingChildren = it.children?.length
       ? filterBvByDiscipline(it.children, label)
       : [];
-    const match = (it.disciplineLabel || 'GENERAL') === label;
+    const itemLabel = it.disciplineLabel || 'GENERAL';
+    const match = itemLabel === 'GENERAL' || itemLabel === label;
     if (match || matchingChildren.length > 0) {
       acc.push({ ...it, children: matchingChildren });
     }
@@ -1243,3 +1243,6 @@ const renderCleanLink = (url) => {
     </a>
   );
 };
+
+
+
