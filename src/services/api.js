@@ -13,6 +13,9 @@ export const fileUrl = (path) => {
   return `${FILE_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
+// Flag untuk mencegah multiple 401 triggers bersamaan
+let _authExpiredDispatched = false;
+
 export const fetchAPI = async (endpoint, options = {}) => {
   const headers = { ...options.headers };
 
@@ -28,6 +31,22 @@ export const fetchAPI = async (endpoint, options = {}) => {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
   if (!response.ok) {
+    // 401 = token expired atau tidak valid.
+    // Trigger auto-logout SEKALI saja, lalu lempar error diam-diam
+    // (caller tangani via .catch(() => []) dll).
+    if (response.status === 401) {
+      if (!_authExpiredDispatched) {
+        _authExpiredDispatched = true;
+        // Hapus token expired dari localStorage
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        // Beri sinyal ke App.jsx untuk redirect ke login
+        window.dispatchEvent(new CustomEvent('auth-expired'));
+        // Reset flag setelah redirect
+        setTimeout(() => { _authExpiredDispatched = false; }, 1000);
+      }
+      throw new Error('Sesi login telah berakhir. Silakan login kembali.');
+    }
     const errorData = await response.json().catch(() => null);
     throw new Error(errorData?.message || errorData?.error || `HTTP Error: ${response.status}`);
   }

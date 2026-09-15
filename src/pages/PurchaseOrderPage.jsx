@@ -104,6 +104,33 @@ const PurchaseOrderPage = () => {
     poService.printPO(id);
   };
 
+  const handleEditPo = (fullPo) => {
+    setEditingPo(fullPo);
+    setIsPoModalOpen(true);
+    // Jika PO yang diedit adalah HABIS_PAKAI, set hpContext agar kategoriPO benar
+    if (fullPo.kategoriPO === 'HABIS_PAKAI') {
+      setHpContext({
+        permintaanHabisPakaiId: fullPo.permintaanHabisPakaiId || null,
+        sumberPo: fullPo.sumberPo || null,
+        alasanHabisPakai: fullPo.alasanHabisPakai || null,
+      });
+    } else {
+      setHpContext(null);
+    }
+    setSelectedItems(
+      (fullPo.items || []).map((it) => ({
+        id: it.id,
+        mrItemId: it.mrItemId || null,
+        itemName: it.description,
+        description: it.description,
+        unit: it.unit,
+        estimatedVolume: Number(it.qty || 0),
+        orderedQty: Number(it.qty || 0),
+        pricePerUnit: Number(it.unitPrice || 0),
+      }))
+    );
+  };
+
   const filteredPOs = useMemo(() => {
     if (!search.trim()) return pos;
     const query = search.toLowerCase();
@@ -332,6 +359,7 @@ const PurchaseOrderPage = () => {
               projectId={projectId}
               refreshKey={hpRefresh}
               onCreatePO={handleCreateFromHabisPakai}
+              onEditPo={handleEditPo}
               onChanged={() => setHpRefresh((v) => v + 1)}
             />
           </div>
@@ -704,6 +732,15 @@ const PurchaseOrderPage = () => {
                                                                                 >
                                                                                   <Printer size={14} />
                                                                                 </button>
+                                                                                {(fullPo?.status === 'REJECTED' || fullPo?.status === 'BELUM_APPROVE') && (
+                                                                                  <button
+                                                                                    className={styles.printBtn}
+                                                                                    onClick={(e) => { e.stopPropagation(); handleEditPo(fullPo); }}
+                                                                                    title="Edit PO"
+                                                                                  >
+                                                                                    <Edit size={14} />
+                                                                                  </button>
+                                                                                )}
                                                                               </div>
                                                                             ) : (
                                                                               <span style={{ fontSize: '11px', color: '#666' }}>-</span>

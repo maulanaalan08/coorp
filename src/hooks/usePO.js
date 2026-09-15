@@ -19,6 +19,9 @@ export const usePO = () => {
   }, []);
 
   const fetchPOs = useCallback(async () => {
+    // Jangan fetch sebelum token tersedia di localStorage
+    const token = localStorage.getItem('token');
+    if (!token) return;
     setLoading(true);
     setError(null);
     try {

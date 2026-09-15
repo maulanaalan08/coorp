@@ -43,12 +43,18 @@ const POStatusBoard = ({ projectId = null, refreshKey = 0, onChanged, onAjukan }
       setPos([]);
       return;
     }
+    // Jangan fetch sebelum token siap
+    const token = localStorage.getItem('token');
+    if (!token) return;
     setLoading(true);
     try {
       const data = await poService.getPOs({ projectId });
       setPos(Array.isArray(data) ? data : []);
     } catch (err) {
-      toast.error('Gagal memuat daftar PO');
+      // Jangan tampilkan toast untuk 401 (sudah ditangani auto-logout)
+      if (!err.message?.includes('Sesi login')) {
+        toast.error('Gagal memuat daftar PO');
+      }
       setPos([]);
     } finally {
       setLoading(false);

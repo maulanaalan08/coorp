@@ -52,6 +52,7 @@ const ItemTrackingPage = ({ onNavigate }) => {
   // State Pembelian Habis Pakai
   const [habisPakaiItem, setHabisPakaiItem] = useState(null);
   const [permintaanHP, setPermintaanHP] = useState([]);
+  const [hpTrackingItems, setHpTrackingItems] = useState([]);
 
   // State Surat Jalan / catatan per baris
   const [sjItem, setSjItem] = useState(null);
@@ -64,16 +65,18 @@ const ItemTrackingPage = ({ onNavigate }) => {
 
   const fetchData = useCallback(async () => {
     if (!projectId) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
     setLoading(true);
     try {
       // 1. Fetch Material Requests
       const data = await lapanganService.getMaterialRequests(projectId);
       const mrList = Array.isArray(data) ? data : [];
 
-      // 2. Fetch all POs to check their status (since backend doesn't send poStatus in mrData)
+      // 2. Fetch all POs (filter by project) to check their status
       let poList = [];
       try {
-        const pos = await poService.getPOs();
+        const pos = await poService.getPOs({ projectId });
         poList = Array.isArray(pos) ? pos : [];
       } catch (e) {
         console.error('Failed to fetch POs', e);
@@ -102,7 +105,38 @@ const ItemTrackingPage = ({ onNavigate }) => {
       setMrData(enrichedMrList);
       setSelectedItems([]);
 
-      // 5. Ambil permintaan habis pakai proyek ini (riwayat pengajuan lapangan)
+      // 5. Ambil PO HABIS_PAKAI yang APPROVED untuk ditampilkan di Item Tracking
+      // (item habis pakai tidak punya materialRequestId, jadi tidak muncul dari MR endpoint)
+      const hpApprovedPOs = poList.filter(
+        po => po.kategoriPO === 'HABIS_PAKAI' && po.status === 'APPROVED'
+      );
+      const hpItems = [];
+      hpApprovedPOs.forEach(po => {
+        (po.items || []).forEach(it => {
+          hpItems.push({
+            id: `hp_${it.id}`,
+            itemName: it.description,
+            materialName: it.description,
+            unit: it.unit || '',
+            estimatedVolume: Number(it.qty || 0),
+            orderedVolume: Number(it.qty || 0),
+            receivedVolume: 0,
+            pricePerUnit: Number(it.unitPrice || 0),
+            poNumber: po.poNumber,
+            poId: po.id,
+            poStatus: po.status,
+            supplierName: po.supplier?.name || '—',
+            groupName: 'HABIS PAKAI',
+            jobName: po.alasanHabisPakai || 'Pembelian Habis Pakai',
+            isHabisPakai: true,
+            sumberPo: po.sumberPo || null,
+            alasanHabisPakai: po.alasanHabisPakai || null,
+          });
+        });
+      });
+      setHpTrackingItems(hpItems);
+
+      // 6. Ambil permintaan habis pakai proyek ini (riwayat pengajuan lapangan)
       try {
         const hp = await lapanganService.getPermintaanHabisPakai(projectId);
         setPermintaanHP(Array.isArray(hp) ? hp : []);
@@ -131,8 +165,8 @@ const ItemTrackingPage = ({ onNavigate }) => {
     const result = [];
     mrData.forEach((mr) => {
       (mr.items || []).forEach((item) => {
-        // Filter: Hanya ambil data yang berasal dari PO
-        if (item.poNumber && item.poNumber !== '-') {
+        // Filter: Hanya ambil data dari PO yang sudah APPROVED
+        if (item.poNumber && item.poNumber !== '-' && item.poStatus === 'APPROVED') {
           // Hitung status secara lokal di frontend agar tidak perlu merubah backend
           let localStatus = item.procurementStatus || item.status;
 
@@ -153,8 +187,24 @@ const ItemTrackingPage = ({ onNavigate }) => {
         }
       });
     });
+
+    // Tambahkan item dari PO HABIS_PAKAI yang APPROVED
+    // (item habis pakai tidak punya materialRequestId, jadi tidak muncul dari MR endpoint)
+    hpTrackingItems.forEach((item) => {
+      let localStatus = 'PENDING';
+      if (Number((item.receivedVolume || 0).toFixed(4)) >= Number((item.orderedVolume || 0).toFixed(4)) && item.orderedVolume > 0) {
+        localStatus = 'COMPLETED';
+      } else if ((item.receivedVolume || 0) > 0) {
+        localStatus = 'PARTIAL';
+      }
+      result.push({
+        ...item,
+        status: localStatus
+      });
+    });
+
     return result;
-  }, [mrData]);
+  }, [mrData, hpTrackingItems]);
 
   const filteredItems = useMemo(() => {
     return allItems.filter((item) => {
@@ -276,7 +326,7 @@ const ItemTrackingPage = ({ onNavigate }) => {
                   <Package size={16} /> Total Item
                 </div>
                 <div className="text-3xl font-extrabold text-white mb-1">{stats.total}</div>
-                <div className="text-xs text-[#888]">Seluruh item material proyek</div>
+                <div className="text-xs text-[#888]">Item dari PO yang sudah approved</div>
               </div>
               <div className="bg-[#1f1616] border border-[#d32f2f]/30 p-4 rounded-xl flex flex-col">
                 <div className="flex items-center gap-2 text-[#f44336] font-bold text-sm mb-2">

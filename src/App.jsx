@@ -65,6 +65,15 @@ function App() {
     }
   }, []);
 
+  // Deteksi token expired (401 dari API) → auto-logout + redirect ke login
+  useEffect(() => {
+    const onAuthExpired = () => {
+      logoutAuth();
+    };
+    window.addEventListener('auth-expired', onAuthExpired);
+    return () => window.removeEventListener('auth-expired', onAuthExpired);
+  }, [logoutAuth]);
+
   // Notifikasi bell: lompat ke halaman tujuan + proyeknya langsung terpilih
   const navigateDariNotifikasi = (tab, projectId) => {
     if (projectId) setGlobalProjectId(projectId);

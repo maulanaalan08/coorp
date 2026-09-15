@@ -21,7 +21,7 @@ const fmtRp = (n) =>
  * atasan lewat notifikasi ini.
  */
 const NotificationBell = ({ onNavigate }) => {
-  const { user } = useAuth();
+  const { user, token, isLoading: authLoading } = useAuth();
   const [open, setOpen] = useState(false);
   const [data, setData] = useState({ poFinance: [], poAtasan: [], pjFinance: [], pjAtasan: [] });
   const wrapRef = useRef(null);
@@ -32,6 +32,9 @@ const NotificationBell = ({ onNavigate }) => {
   const isAtasan = role === 'PROJECT_MANAGER' || isAdmin;
 
   const muat = useCallback(async () => {
+    // Jangan fetch sampai auth selesai loading & token pasti ada.
+    // Mencegah 401 Unauthorized saat dashboard pertama kali dibuka.
+    if (authLoading || !token) return;
     try {
       // Penting: tanpa projectId. Ini inbox lintas proyek — jumlahnya
       // dipakai badge, dan tiap item bawa proyeknya sendiri.
@@ -51,7 +54,7 @@ const NotificationBell = ({ onNavigate }) => {
     } catch {
       /* diam — notifikasi tidak boleh bikin halaman error */
     }
-  }, [isFinance, isAtasan]);
+  }, [isFinance, isAtasan, authLoading, token]);
 
   useEffect(() => {
     muat();

@@ -78,22 +78,56 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
         taxNominal: editingPo.taxNominal || 0,
       });
 
-      const initialItems = (editingPo.items || []).map(item => ({
-        materialRequestId: item.materialRequestId,
-        description: item.description,
-        description2: item.description2 || '',
-        estVol: '-',
-        sisa: '-',
-        qty: item.qty,
-        unit: item.unit || '',
-        unitPrice: item.unitPrice || 0,
-        estimasiRAB: item.unitPrice || 0,
-        supplierItemId: '',
-        disc1Percent: item.disc1Percent || 0,
-        disc2Nominal: item.disc2Nominal || 0,
-        total: item.total || 0
-      }));
-      setItems(initialItems);
+      // Saat edit, fetch data MaterialRequest untuk dapatkan estimatedVolume & sisa
+      // sehingga EST VOL dan SISA BUTUH tidak menampilkan "-"
+      (async () => {
+        let mrMap = {};
+        const pid = editingPo.projectId;
+        if (pid) {
+          try {
+            const { fetchAPI } = await import('../services/api');
+            const token = localStorage.getItem('token');
+            const mrData = await fetchAPI(`/finance/projects/${pid}/material-requests`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+            const arr = Array.isArray(mrData) ? mrData : [];
+            arr.forEach(mr => {
+              (mr.items || []).forEach(it => {
+                if (it.id) mrMap[it.id] = it;
+              });
+            });
+          } catch (e) {
+            // Jangan block UI kalau fetch MR gagal — fallback ke '-'
+          }
+        }
+
+        const initialItems = (editingPo.items || []).map(item => {
+          const mr = item.materialRequestId ? mrMap[item.materialRequestId] : null;
+          const estVol = mr ? mr.estimatedVolume : null;
+          // Sisa = estimated - (ordered - qty item ini, karena qty ini sudah include di ordered)
+          let sisaVal = null;
+          if (mr) {
+            const otherOrdered = (mr.orderedVolume || 0) - Number(item.qty || 0);
+            sisaVal = Math.max(0, (mr.estimatedVolume || 0) - otherOrdered);
+          }
+          return {
+            materialRequestId: item.materialRequestId,
+            description: item.description,
+            description2: item.description2 || '',
+            estVol: mr ? `${fmtVol(estVol)} ${item.unit || mr.unit || ''}` : '-',
+            sisa: mr ? `${fmtVol(sisaVal)} ${item.unit || mr.unit || ''}` : '-',
+            qty: item.qty,
+            unit: item.unit || '',
+            unitPrice: item.unitPrice || 0,
+            estimasiRAB: mr?.pricePerUnit || item.unitPrice || 0,
+            supplierItemId: '',
+            disc1Percent: item.disc1Percent || 0,
+            disc2Nominal: item.disc2Nominal || 0,
+            total: item.total || 0
+          };
+        });
+        setItems(initialItems);
+      })();
     } else {
       const initialItems = (selectedItems || []).map(item => {
         const sisaHitung = Math.max(0, (item.estimatedVolume || 0) - (item.orderedQty || 0));
@@ -494,8 +528,6 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                     <tr>
                       <th>Deskripsi Barang</th>
                       <th>Mapping (Pilih Item Toko)</th>
-                      <th>Est Vol</th>
-                      <th>Sisa Butuh</th>
                       <th>Qty Beli</th>
                       <th>Harga Satuan (Rp)</th>
                       <th>Disc 1 (%)</th>
@@ -505,7 +537,7 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                   </thead>
                   <tbody>
                     {calculatedItems.length === 0 ? (
-                      <tr><td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>Tidak ada barang yang dipesan.</td></tr>
+                      <tr><td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Tidak ada barang yang dipesan.</td></tr>
                     ) : (
                       calculatedItems.map((item, index) => (
                         <tr key={index}>
@@ -518,8 +550,6 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                               disabled={!formData.supplierId}
                             />
                           </td>
-                          <td><span style={{ color: '#888', fontSize: '0.9rem' }}>{item.estVol}</span></td>
-                          <td><strong style={{ color: '#fb923c' }}>{item.sisa}</strong></td>
                           <td>
                             <input
                               type="number"
