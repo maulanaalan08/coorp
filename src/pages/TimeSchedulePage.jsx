@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { useTimeSchedule } from "../hooks/useTimeSchedule";
 import { timeScheduleService } from "../services/timeScheduleService";
-import { formatWeight } from "../services/utils";
 import TimeScheduleTable from "../components/TimeScheduleTable";
+import TimeScheduleCalendar from "../components/TimeScheduleCalendar";
 import ProjectSelector from "../components/ProjectSelector";
 import "../styles/TimeSchedulePage.css";
 import toast from "react-hot-toast";
@@ -11,10 +11,13 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
   const {
     projectId, setProjectId, projectList, loadingProjects, projectError, fetchProjects, fetchSchedule,
     data, loading, error, notice, showNotice, 
+    discipline, setDiscipline,
     startDateInput, setStartDateInput, savingStartDate, setSavingStartDate,
     editDrafts, setEditDrafts, busyItems, setBusyItems, hoverPoint, setHoverPoint, 
-    maxWeek, weekDates, items, scheduledCount, lastProgress, groupedItems, weekRange, chart
+    periods, items, scheduledCount, lastProgress, groupedItems, chart
   } = useTimeSchedule(initialProjectId);
+
+  const [activeTab, setActiveTab] = useState("input"); // "input" | "chart"
 
   const handleProjectChange = (e) => {
     setProjectId(e.target.value || null);
@@ -22,7 +25,6 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
     setHoverPoint(null);
   };
 
-  // Fungsi untuk menyimpan Tanggal Mulai Proyek
   const handleSaveStartDate = async () => {
     if (!projectId) return toast.error("Pilih project.");
     if (!startDateInput) return toast.error("Pilih tanggal mulai.");
@@ -44,7 +46,7 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
   const handleSaveItemSchedule = async (item, draft) => {
     setBusyItems((prev) => ({ ...prev, [item.rabItemId]: true }));
     
-    toast.promise(timeScheduleService.updateItemSchedule(item.rabItemId, Number(draft.startWeek), Number(draft.endWeek)), {
+    toast.promise(timeScheduleService.updateItemSchedule(item.rabItemId, draft.startDate, draft.endDate), {
       loading: 'Menyimpan jadwal...',
       success: `Jadwal "${item.name}" disimpan.`,
       error: 'Gagal menyimpan jadwal.'
@@ -105,9 +107,9 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
           <p className="tsp-subtitle">Kelola jadwal pelaksanaan dan pantau progres melalui Kurva S.</p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <div className="tsp-badge">{loading ? "Memuat..." : `${maxWeek} Minggu Proyek`}</div>
+          <div className="tsp-badge">{loading ? "Memuat..." : `${periods.length} Minggu Proyek`}</div>
           {projectId && (
-            <button className="tsp-btn tsp-btn-primary" onClick={() => timeScheduleService.exportExcel(projectId)} disabled={loading}>
+            <button className="tsp-btn tsp-btn-primary" onClick={() => timeScheduleService.exportExcel(projectId, discipline)} disabled={loading}>
               ⬇ Export Excel
             </button>
           )}
@@ -135,11 +137,24 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
         <div className="tsp-card tsp-empty-state tsp-error-state"><p>{error}</p><button className="tsp-btn tsp-btn-primary" onClick={() => fetchSchedule(projectId)}>Coba Lagi</button></div>
       ) : (
         <>
-          {/* ==============================================
-              START DATE
-          ============================================== */}
           <div className="tsp-controls-row">
             <div className="tsp-card tsp-control-card">
+              <h2 className="tsp-card-title">Filter Disiplin Pekerjaan</h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {["General", "INTERIOR", "SIPIL"].map((d) => (
+                  <button
+                    key={d}
+                    className={`tsp-btn ${discipline === d ? 'tsp-btn-primary' : ''}`}
+                    style={{ minWidth: '100px' }}
+                    onClick={() => setDiscipline(d)}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="tsp-card tsp-control-card" style={{ marginLeft: '16px' }}>
               <h2 className="tsp-card-title">Tanggal Mulai Proyek</h2>
               <div className="tsp-control-row">
                 <input 
@@ -159,19 +174,47 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
             </div>
           </div>
 
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+             <button 
+                className={`tsp-btn ${activeTab === 'input' ? 'tsp-btn-primary' : ''}`}
+                onClick={() => setActiveTab('input')}
+             >
+                Input Jadwal
+             </button>
+             <button 
+                className={`tsp-btn ${activeTab === 'chart' ? 'tsp-btn-primary' : ''}`}
+                onClick={() => setActiveTab('chart')}
+             >
+                Lihat Kalender Jadwal
+             </button>
+          </div>
+
           <div className="tsp-card tsp-gantt-card">
-            <h2 className="tsp-card-title">Tabel Jadwal Pekerjaan</h2>
-            <TimeScheduleTable 
-              items={items} 
-              groupedItems={groupedItems} 
-              weekRange={weekRange} 
-              weekDates={weekDates} 
-              editDrafts={editDrafts} 
-              setEditDrafts={setEditDrafts} 
-              busyItems={busyItems} 
-              handleSaveItemSchedule={handleSaveItemSchedule} 
-              handleDeleteItemSchedule={handleDeleteItemSchedule} 
-            />
+            <h2 className="tsp-card-title">{activeTab === 'input' ? "Tabel Jadwal Pekerjaan" : "Kalender Jadwal"}</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {activeTab === 'chart' && (
+                <TimeScheduleCalendar 
+                  items={items} 
+                  groupedItems={groupedItems} 
+                  periods={periods} 
+                  discipline={discipline}
+                  projectStartDate={data?.startDate}
+                />
+              )}
+              {activeTab === 'input' && (
+                <TimeScheduleTable 
+                  variant={activeTab}
+                  items={items} 
+                  groupedItems={groupedItems} 
+                  periods={periods} 
+                  editDrafts={editDrafts} 
+                  setEditDrafts={setEditDrafts} 
+                  busyItems={busyItems} 
+                  handleSaveItemSchedule={handleSaveItemSchedule} 
+                  handleDeleteItemSchedule={handleDeleteItemSchedule} 
+                />
+              )}
+            </div>
           </div>
         </>
       )}

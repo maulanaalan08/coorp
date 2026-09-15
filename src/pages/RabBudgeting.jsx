@@ -43,6 +43,9 @@ const parseInputNumber = (val) => {
   return String(val).replace(/[^0-9]/g, "");
 };
 
+const FILTER_OPTIONS = ['GENERAL', 'INTERIOR', 'SIPIL'];
+const DISCIPLINE_BADGE = { INTERIOR: '#a0522d', SIPIL: '#4682b4', GENERAL: '#666' };
+
 // Baris kosong untuk rincian bahan/alat manual (item custom yang tidak ada di AHSP)
 const blankComponent = () => ({
   name: "",
@@ -59,7 +62,44 @@ const compLineTotal = (c) =>
 const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBackToBv }) => {
   const [projectId, setProjectId] = useState(initialProjectId);
   const [search, setSearch] = useState("");
+  const [exportType, setExportType] = useState("rab");
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef(null);
   
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+  
+  const [activeFilter, setActiveFilter] = useState(() => {
+    const raw = window.location.hash.replace('#', '');
+    if (!raw.startsWith('rab')) return 'GENERAL';
+    const parts = raw.split('/');
+    const filter = parts[1]?.toUpperCase();
+    return FILTER_OPTIONS.includes(filter) ? filter : 'GENERAL';
+  });
+
+  useEffect(() => {
+    const onHash = () => {
+      const raw = window.location.hash.replace('#', '');
+      if (!raw.startsWith('rab')) {
+        window.location.hash = 'rab/GENERAL';
+        return;
+      }
+      const parts = raw.split('/');
+      const filter = parts[1]?.toUpperCase();
+      setActiveFilter(FILTER_OPTIONS.includes(filter) ? filter : 'GENERAL');
+    };
+    window.addEventListener('hashchange', onHash);
+    onHash();
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
   // ==========================================================
   // CUSTOM HOOKS
   // ==========================================================
@@ -130,7 +170,23 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     }).filter(Boolean);
   };
 
-  const visibleGroups = useMemo(() => filterGroups(groups, search.trim().toLowerCase()), [groups, search]);
+  const filterGroupByDiscipline = (groupList, label) => {
+    if (!label || label === "GENERAL") return groupList;
+    return (groupList || []).map((group) => {
+      const filteredItems = (group.items || []).filter((item) => {
+        const itemLabel = item.discipline || "GENERAL";
+        return itemLabel === "GENERAL" || itemLabel === label;
+      });
+      const filteredChildren = filterGroupByDiscipline(group.children, label);
+      if (filteredItems.length === 0 && filteredChildren.length === 0) return null;
+      return { ...group, items: filteredItems, children: filteredChildren };
+    }).filter(Boolean);
+  };
+
+  const visibleGroups = useMemo(() => {
+    const byDiscipline = filterGroupByDiscipline(groups, activeFilter);
+    return filterGroups(byDiscipline, search.trim().toLowerCase());
+  }, [groups, search, activeFilter]);
 
   useEffect(() => {
     if (loadingProjects || loadingGroups || loadingItems) {
@@ -477,9 +533,9 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // ==========================================================
   // EXPORT & VIEW
   // ==========================================================
-  const exportRabExcel = () => projectId && window.open(`${API_BASE}/projects/${projectId}/rab-items/export`, "_blank");
-  const exportBvExcel = () => projectId && window.open(`${API_BASE}/projects/${projectId}/bv-items/export`, "_blank");
-  const exportFullExcel = () => projectId && window.open(`${API_BASE}/projects/${projectId}/export-full`, "_blank");
+  const exportRabExcel = () => projectId && window.open(`${API_BASE}/projects/${projectId}/rab-items/export?discipline=${activeFilter}`, "_blank");
+  const exportBvExcel = () => projectId && window.open(`${API_BASE}/projects/${projectId}/bv-items/export?discipline=${activeFilter}`, "_blank");
+  const exportFullExcel = () => projectId && window.open(`${API_BASE}/projects/${projectId}/export-all-tabs`, "_blank");
   const scheduleExport = () => projectId && window.open(`${API_BASE}/projects/${projectId}/time-schedule/export`, "_blank");
   const viewRab = () => projectId && window.open(`${API_BASE}/projects/${projectId}/rab-items/view`, "_blank");
 
@@ -577,10 +633,64 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
           <>
             <div className={styles["rab-toolbar"]}>
               {/* TOMBOL EXPORT DLL */}
-              <button className={styles["rab-btn"]} onClick={exportRabExcel}>⬇ Export RAB</button>
-              <button className={styles["rab-btn"]} onClick={exportBvExcel}>⬇ Export BV</button>
-              <button className={styles["rab-btn"]} onClick={scheduleExport}>⬇ Export Schedule</button>
-              <button className={styles["rab-btn"]} onClick={exportFullExcel}>⬇ Export Lengkap</button>
+              <div style={{ position: 'relative' }} ref={exportMenuRef}>
+                <button 
+                  className={styles["rab-btn"]} 
+                  onClick={() => projectId ? setShowExportMenu(!showExportMenu) : toast.error("Pilih project terlebih dahulu!")}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  ⬇ Export <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: showExportMenu ? 'rotate(180deg)' : 'none' }} />
+                </button>
+                
+                {showExportMenu && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '8px',
+                    backgroundColor: '#1a1a1a',
+                    border: '1px solid #333',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
+                    zIndex: 100,
+                    minWidth: '220px',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '6px 0'
+                  }}>
+                    {[
+                      { label: `RAB (${activeFilter})`, action: exportRabExcel },
+                      { label: `BackUp Volume (${activeFilter})`, action: exportBvExcel },
+                      { divider: true },
+                      { label: 'Semua Label (Lengkap)', action: exportFullExcel },
+                      { label: 'Time Schedule', action: scheduleExport }
+                    ].map((item, idx) => item.divider ? (
+                      <div key={idx} style={{ height: '1px', backgroundColor: '#333', margin: '4px 0' }} />
+                    ) : (
+                      <button
+                        key={idx}
+                        onClick={() => { item.action(); setShowExportMenu(false); }}
+                        style={{
+                          padding: '10px 16px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#fff',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          width: '100%'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(212,175,55,0.15)'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <button className={styles["rab-btn"]} onClick={viewRab}>👁 View RAB</button>
               
               {project?.rabStatus === "LOCKED" ? (
@@ -622,6 +732,35 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                 Edit Harga (By Nama)
               </button>
             </div>
+
+            {projectId && (
+              <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ color: '#888', fontSize: 12 }}>Filter tampilan:</span>
+                {FILTER_OPTIONS.map(opt => (
+                  <a
+                    key={opt}
+                    href={`#rab/${opt}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.hash = `rab/${opt}`;
+                    }}
+                    style={{
+                      padding: '4px 12px',
+                      borderRadius: '4px',
+                      textDecoration: 'none',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      color: activeFilter === opt ? '#fff' : '#888',
+                      backgroundColor: activeFilter === opt ? '#d4af37' : 'transparent',
+                      border: `1px solid ${activeFilter === opt ? '#d4af37' : '#333'}`,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {opt === 'GENERAL' ? 'General' : opt === 'INTERIOR' ? 'Interior' : 'Sipil'}
+                  </a>
+                ))}
+              </div>
+            )}
 
             <div className={styles["rab-stats-grid"]}>
               <div className={[styles["rab-plate"], selisih > 0 ? styles["is-danger"] : ""].join(" ")}>
@@ -1069,10 +1208,24 @@ function RabItemsTable({ items, onEdit, onDelete, selectedItemIds, onToggleSelec
                   />
                 )}
               </td>
-              <td>
+              <td style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                 {isChild ? "— " : ""}
-                {item.name}
-                {hasChildren && <span style={{ fontSize: "10px", marginLeft: "6px", color: "#d4af37", background: "rgba(212,175,55,0.1)", padding: "2px 6px", borderRadius: "4px" }}>Parent</span>}
+                <span style={{ marginRight: '6px' }}>{item.name}</span>
+                {hasChildren && <span style={{ fontSize: "10px", marginRight: "6px", color: "#d4af37", background: "rgba(212,175,55,0.1)", padding: "2px 6px", borderRadius: "4px" }}>Parent</span>}
+                {item.discipline && item.discipline !== 'GENERAL' && (
+                  <span
+                    style={{
+                      fontSize: 9,
+                      textTransform: 'uppercase',
+                      padding: '1px 5px',
+                      borderRadius: 3,
+                      background: DISCIPLINE_BADGE[item.discipline] || '#666',
+                      color: '#fff',
+                    }}
+                  >
+                    {item.discipline}
+                  </span>
+                )}
               </td>
               <td>{hasChildren ? "" : item.paymentUnit}</td>
               <td className={styles["rab-mono"]}>{item.volume != null && !hasChildren ? Number(item.volume).toFixed(2) : ""}</td>

@@ -12,8 +12,10 @@ export const timeScheduleService = {
     return handleResponse(res);
   },
 
-  getSchedule: async (projectId) => {
-    const res = await fetch(`${API_BASE_URL}/projects/${projectId}/rap-time-schedule`);
+  getSchedule: async (projectId, discipline) => {
+    const url = new URL(`${API_BASE_URL}/projects/${projectId}/rap-time-schedule`);
+    if (discipline && discipline !== 'General') url.searchParams.append('discipline', discipline);
+    const res = await fetch(url.toString());
     return handleResponse(res);
   },
 
@@ -26,11 +28,11 @@ export const timeScheduleService = {
     return handleResponse(res);
   },
 
-  updateItemSchedule: async (rabItemId, startWeek, endWeek) => {
+  updateItemSchedule: async (rabItemId, startDate, endDate) => {
     const res = await fetch(`${API_BASE_URL}/rap-items/${rabItemId}/schedule`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ startWeek, endWeek }),
+      body: JSON.stringify({ startDate, endDate }),
     });
     return handleResponse(res);
   },
@@ -42,7 +44,9 @@ export const timeScheduleService = {
     return handleResponse(res);
   },
 
-  exportExcel: (projectId) => {
-    window.open(`${API_BASE_URL}/projects/${projectId}/time-schedule/export`, "_blank");
+  exportExcel(projectId, discipline) {
+    const url = new URL(`${API_BASE_URL}/projects/${projectId}/time-schedule/export`);
+    if (discipline && discipline !== 'General') url.searchParams.append('discipline', discipline);
+    window.open(url.toString(), "_blank");
   }
 };

@@ -1,14 +1,17 @@
 import React from 'react';
 import { formatWeight, formatDate } from '../services/utils';
 
-export default function TimeScheduleChart({ maxWeek, chart, hoverPoint, setHoverPoint }) {
-  if (maxWeek < 1 || chart.points.length === 0) {
+export default function TimeScheduleChart({ chart, hoverPoint, setHoverPoint, viewMode }) {
+  if (chart.points.length === 0) {
     return (
       <div className="tsp-empty-state tsp-chart-empty">
         <p>Belum ada data jadwal untuk ditampilkan pada kurva.</p>
       </div>
     );
   }
+
+  // Determine tick interval for X axis labels to prevent overlap
+  const tickInterval = Math.ceil(chart.points.length / 12) || 1;
 
   return (
     <div className="tsp-chart-wrap">
@@ -20,9 +23,9 @@ export default function TimeScheduleChart({ maxWeek, chart, hoverPoint, setHover
           </g>
         ))}
 
-        {chart.points.filter((_, i) => i % Math.ceil(maxWeek / 12 || 1) === 0).map((p) => (
-          <text key={`x-${p.week}`} x={p.x} y={chart.height - chart.padding.bottom + 18} className="tsp-axis-label" textAnchor="middle">
-            M{p.week}
+        {chart.points.filter((_, i) => i % tickInterval === 0).map((p) => (
+          <text key={`x-${p.index}`} x={p.x} y={chart.height - chart.padding.bottom + 18} className="tsp-axis-label" textAnchor="middle">
+            {p.label}
           </text>
         ))}
 
@@ -31,7 +34,7 @@ export default function TimeScheduleChart({ maxWeek, chart, hoverPoint, setHover
 
         {chart.points.map((p) => (
           <circle
-            key={p.week} cx={p.x} cy={p.y} r={hoverPoint?.week === p.week ? 5 : 3}
+            key={p.index} cx={p.x} cy={p.y} r={hoverPoint?.index === p.index ? 5 : 3}
             className="tsp-point"
             onMouseEnter={() => setHoverPoint(p)}
             onMouseLeave={() => setHoverPoint(null)}
@@ -41,8 +44,10 @@ export default function TimeScheduleChart({ maxWeek, chart, hoverPoint, setHover
 
       {hoverPoint && (
         <div className="tsp-tooltip" style={{ left: `${(hoverPoint.x / chart.width) * 100}%`, top: `${(hoverPoint.y / chart.height) * 100}%` }}>
-          <strong>Minggu {hoverPoint.week}</strong>
-          <span>{formatDate(hoverPoint.start)} — {formatDate(hoverPoint.end)}</span>
+          <strong>{hoverPoint.label}</strong>
+          {hoverPoint.start && hoverPoint.end && (
+            <span>{formatDate(hoverPoint.start)} — {formatDate(hoverPoint.end)}</span>
+          )}
           <span>Kumulatif: {formatWeight(hoverPoint.pct)}%</span>
         </div>
       )}

@@ -13,6 +13,7 @@ export function useTimeSchedule(initialProjectId) {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
 
+  const [discipline, setDiscipline] = useState("General");
   const [startDateInput, setStartDateInput] = useState("");
   const [savingStartDate, setSavingStartDate] = useState(false);
   
@@ -40,12 +41,12 @@ export function useTimeSchedule(initialProjectId) {
     }
   }, [projectId]);
 
-  const fetchSchedule = useCallback(async (id) => {
+  const fetchSchedule = useCallback(async (id, disc = discipline) => {
     if (!id) return setData(null);
     setLoading(true);
     setError(null);
     try {
-      const json = await timeScheduleService.getSchedule(id);
+      const json = await timeScheduleService.getSchedule(id, disc);
       setData(json);
       setStartDateInput(json?.startDate ? String(json.startDate).slice(0, 10) : "");
       setEditDrafts({});
@@ -54,22 +55,22 @@ export function useTimeSchedule(initialProjectId) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [discipline]);
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
-  useEffect(() => { if (projectId) fetchSchedule(projectId); else setData(null); }, [projectId, fetchSchedule]);
+  useEffect(() => { if (projectId) fetchSchedule(projectId, discipline); else setData(null); }, [projectId, discipline, fetchSchedule]);
 
-  const maxWeek = data?.maxWeek || 0;
-  const weekDates = data?.weekDates || [];
+  const periods = data?.periods || [];
   const items = data?.items || [];
   const cumulativeTotal = data?.cumulativeTotal || {};
 
-  const scheduledCount = useMemo(() => items.filter((it) => it.startWeek != null && it.endWeek != null).length, [items]);
+  const scheduledCount = useMemo(() => items.filter((it) => it.startDate != null && it.endDate != null).length, [items]);
   const lastProgress = useMemo(() => {
-    if (!maxWeek) return 0;
-    const raw = Number(cumulativeTotal[String(maxWeek)] ?? cumulativeTotal[maxWeek] ?? 0);
+    if (periods.length === 0) return 0;
+    const lastPeriodIndex = periods[periods.length - 1].index;
+    const raw = Number(cumulativeTotal[String(lastPeriodIndex)] ?? cumulativeTotal[lastPeriodIndex] ?? 0);
     return Number.isFinite(raw) ? Math.min(100, Math.max(0, raw)) : 0;
-  }, [cumulativeTotal, maxWeek]);
+  }, [cumulativeTotal, periods]);
 
   const groupedItems = useMemo(() => {
     const map = new Map();
@@ -81,37 +82,36 @@ export function useTimeSchedule(initialProjectId) {
     return Array.from(map.entries());
   }, [items]);
 
-  const weekRange = useMemo(() => Array.from({ length: maxWeek }, (_, i) => i + 1), [maxWeek]);
-
   const chart = useMemo(() => {
     const width = 720, height = 260;
     const padding = { top: 16, right: 20, bottom: 34, left: 46 };
     const innerW = width - padding.left - padding.right;
     const innerH = height - padding.top - padding.bottom;
 
-    if (!maxWeek || maxWeek < 1) return { width, height, padding, points: [], areaPath: "", linePath: "", innerW, innerH };
+    if (periods.length === 0) return { width, height, padding, points: [], areaPath: "", linePath: "", innerW, innerH };
 
-    const xFor = (week) => padding.left + (maxWeek === 1 ? innerW / 2 : ((week - 1) / (maxWeek - 1)) * innerW);
+    const xFor = (index, maxIdx) => padding.left + (maxIdx === 1 ? innerW / 2 : ((index - 1) / (maxIdx - 1)) * innerW);
     const yFor = (pct) => padding.top + innerH - (Math.min(100, Math.max(0, pct)) / 100) * innerH;
 
-    const points = weekRange.map((week) => {
-      const raw = Number(cumulativeTotal[String(week)] ?? cumulativeTotal[week] ?? 0);
+    const maxIdx = periods.length;
+    const points = periods.map((p, i) => {
+      const raw = Number(cumulativeTotal[String(p.index)] ?? cumulativeTotal[p.index] ?? 0);
       const pct = Number.isFinite(raw) ? Math.min(100, Math.max(0, raw)) : 0;
-      const weekInfo = weekDates.find((w) => w.week === week);
-      return { week, pct, x: xFor(week), y: yFor(pct), start: weekInfo?.start, end: weekInfo?.end };
+      return { index: p.index, label: p.label, pct, x: xFor(i + 1, maxIdx), y: yFor(pct), start: p.start, end: p.end };
     });
 
     const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
     const areaPath = points.length > 0 ? `${linePath} L${points[points.length - 1].x},${yFor(0)} L${points[0].x},${yFor(0)} Z` : "";
 
     return { width, height, padding, points, areaPath, linePath, innerW, innerH, xFor, yFor };
-  }, [maxWeek, weekRange, cumulativeTotal, weekDates]);
+  }, [periods, cumulativeTotal]);
 
   return {
     projectId, setProjectId, projectList, loadingProjects, projectError, fetchProjects, fetchSchedule,
     data, loading, error, notice, showNotice,
+    discipline, setDiscipline,
     startDateInput, setStartDateInput, savingStartDate, setSavingStartDate,
     editDrafts, setEditDrafts, busyItems, setBusyItems, hoverPoint, setHoverPoint,
-    maxWeek, weekDates, items, scheduledCount, lastProgress, groupedItems, weekRange, chart
+    periods, items, scheduledCount, lastProgress, groupedItems, chart
   };
 }
