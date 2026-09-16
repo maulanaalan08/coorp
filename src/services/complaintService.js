@@ -41,5 +41,10 @@ export const complaintService = {
 
   downloadBast2Pdf: (id) => {
     window.open(`${API_URL}/complaints2/${id}/pdf/view`, '_blank');
+  },
+
+  generateBast2Pdf: async (id, formData) => {
+    const params = new URLSearchParams(formData).toString();
+    window.open(`${API_URL}/complaints/${id}/bast2/pdf?${params}`, '_blank');
   }
 };

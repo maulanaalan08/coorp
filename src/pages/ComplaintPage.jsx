@@ -5,6 +5,7 @@ import { flattenComplaintItems } from '../utils/complaintHelper';
 import { formatDate } from '../services/utils';
 import ComplaintAddHeaderModal from "../components/ComplaintAddHeaderModal";
 import ComplaintEditItemModal from "../components/ComplaintEditItemModal";
+import Bast2Modal from "../components/Bast2Modal";
 import ProjectSelector from "../components/ProjectSelector";
 import toast from 'react-hot-toast';
 import { Image, FileText, CheckCircle, Clock } from 'lucide-react';
@@ -20,6 +21,7 @@ export default function ComplaintPage() {
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAddDefectModal, setShowAddDefectModal] = useState(null);
+  const [showBast2Modal, setShowBast2Modal] = useState(false);
   const [editData, setEditData] = useState(null);
 
   // Fetch projects list
@@ -170,6 +172,17 @@ export default function ComplaintPage() {
     }
   };
 
+  const handleBast2Submit = async (formData) => {
+    try {
+      if (complaintReport && complaintReport.id) {
+        await complaintService.generateBast2Pdf(complaintReport.id, formData);
+        setShowBast2Modal(false);
+      }
+    } catch (err) {
+      toast.error(err.message || "Gagal menggenerate BAST 2");
+    }
+  };
+
   const isAllDone = complaintReport && complaintReport.categories.length > 0 && complaintReport.categories.every(cat => 
     cat.items.every(item => item.status === true)
   );
@@ -225,6 +238,19 @@ export default function ComplaintPage() {
                     title={!isAllDone ? "Seluruh komplain harus berstatus Selesai" : "Lihat BAST"}
                   >
                     <FileText size={16} /> View BAST Complain
+                  </button>
+                  <button 
+                    className="btn-download" 
+                    onClick={() => setShowBast2Modal(true)} 
+                    disabled={!complaintReport || !isAllDone}
+                    style={{ 
+                      display: 'flex', alignItems: 'center', gap: '8px', 
+                      background: (!complaintReport || !isAllDone) ? '#333' : '#10b981',
+                      color: (!complaintReport || !isAllDone) ? '#666' : '#fff'
+                    }}
+                    title={!isAllDone ? "Seluruh komplain harus berstatus Selesai" : "Generate BAST 2"}
+                  >
+                    <FileText size={16} /> BAST 2
                   </button>
                   <button 
                     className="btn-primary" 
@@ -356,6 +382,13 @@ export default function ComplaintPage() {
           onSave={handleEditItemSave}
         />
       )}
+
+      <Bast2Modal 
+        isOpen={showBast2Modal}
+        onClose={() => setShowBast2Modal(false)}
+        onSubmit={handleBast2Submit}
+        isSubmitting={false}
+      />
     </div>
   );
 }
