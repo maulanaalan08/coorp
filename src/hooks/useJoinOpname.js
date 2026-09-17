@@ -18,6 +18,8 @@ export function useJoinOpname(initialProjectId) {
   const [progressInputs, setProgressInputs] = useState({});
   const [busyItems, setBusyItems] = useState({});
   const [notice, setNotice] = useState(null);
+  
+  const [discipline, setDiscipline] = useState("General");
 
   const showNotice = useCallback((type, message) => {
     if (type === 'success') {
@@ -30,10 +32,26 @@ export function useJoinOpname(initialProjectId) {
   const buildProgressInputs = useCallback((items, date) => {
     const result = {};
     if (!date) return result;
+    const targetTime = new Date(date).getTime();
+    
     items.forEach((item) => {
       const breakdown = (item.dailyBreakdown || []).find((day) => toInputDate(day.date) === date);
+      
+      let defaultPercent = "0";
+      if (breakdown) {
+        defaultPercent = String(breakdown.progress ?? 0);
+      } else {
+        let maxPrevProgress = 0;
+        (item.dailyBreakdown || []).forEach(day => {
+          if (new Date(day.date).getTime() < targetTime) {
+            maxPrevProgress = Math.max(maxPrevProgress, day.progress ?? 0);
+          }
+        });
+        defaultPercent = String(maxPrevProgress);
+      }
+
       result[item.rabItemId] = {
-        percent: breakdown ? String(breakdown.progress ?? 0) : "0",
+        percent: defaultPercent,
         files: null,
         existingPhotoUrls: breakdown?.photoUrls || []
       };
@@ -56,11 +74,11 @@ export function useJoinOpname(initialProjectId) {
     }
   }, [projectId]);
 
-  const fetchJoinOpname = useCallback(async (id) => {
+  const fetchJoinOpname = useCallback(async (id, disc = discipline) => {
     if (!id) { setData(null); return; }
     setLoading(true); setError(null);
     try {
-      const json = await joinOpnameService.getJoinOpname(id);
+      const json = await joinOpnameService.getJoinOpname(id, disc === "General" ? "" : disc);
       setData(json);
       if (!selectedDate && json?.days?.length) {
         const initDate = toInputDate(json.days[0].date);
@@ -70,11 +88,11 @@ export function useJoinOpname(initialProjectId) {
         setProgressInputs(buildProgressInputs(json.items || [], selectedDate));
       }
     } catch (err) { setError(err.message); } finally { setLoading(false); }
-  }, [selectedDate, buildProgressInputs]);
+  }, [selectedDate, buildProgressInputs, discipline]);
 
   useEffect(() => { if (initialProjectId) setProjectId(initialProjectId); }, [initialProjectId]);
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
-  useEffect(() => { if (projectId) fetchJoinOpname(projectId); else setData(null); }, [projectId, fetchJoinOpname]);
+  useEffect(() => { if (projectId) fetchJoinOpname(projectId, discipline); else setData(null); }, [projectId, discipline, fetchJoinOpname]);
 
   const handleProjectChange = (e) => {
     setProjectId(e.target.value);
@@ -164,6 +182,7 @@ export function useJoinOpname(initialProjectId) {
     data, loading, error, notice,
     selectedDate, progressInputs, busyItems,
     handleProjectChange, handleDateChange, handleProgressChange, handleFileChange, handleSaveProgress,
-    items, days, totalDays, startDate, groupedItems, selectedDay, summary
+    items, days, totalDays, startDate, groupedItems, selectedDay, summary,
+    discipline, setDiscipline
   };
 }

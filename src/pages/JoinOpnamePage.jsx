@@ -1,10 +1,12 @@
 import React from "react";
 import { useJoinOpname } from "../hooks/useJoinOpname";
 import { formatPercent, formatDate, formatNumber, toInputDate } from "../services/utils";
+import { joinOpnameService } from "../services/joinOpnameService";
 import JoinOpnameTable from "../components/JoinOpnameTable";
 import ProjectSelector from "../components/ProjectSelector";
 import { Image } from "lucide-react";
-import "../styles/JoinOpname.css"; // Menggunakan CSS bawaan tanpa modifikasi
+import "../styles/JoinOpname.css";
+import "../styles/TimeSchedulePage.css";
 import toast from "react-hot-toast";
 
 function JoinOpnamePage({ initialProjectId = null }) {
@@ -13,7 +15,8 @@ function JoinOpnamePage({ initialProjectId = null }) {
     data, loading, error, notice,
     selectedDate, progressInputs, busyItems,
     handleProjectChange, handleDateChange, handleProgressChange, handleFileChange, handleSaveProgress,
-    items, days, totalDays, startDate, groupedItems, selectedDay, summary
+    items, days, totalDays, startDate, groupedItems, selectedDay, summary,
+    discipline, setDiscipline
   } = useJoinOpname(initialProjectId);
 
   React.useEffect(() => {
@@ -88,24 +91,63 @@ function JoinOpnamePage({ initialProjectId = null }) {
           )}
 
           {!loading && !error && data && (
-            <div className="jo-card jo-table-card">
-              <div className="jo-table-header">
-                <div>
-                  <h2>Rekap Progress</h2>
-                  <p>Input progress dan upload foto pada tanggal yang dipilih, lalu simpan.</p>
+            <>
+              <div className="jo-card jo-control-card" style={{ marginBottom: '16px' }}>
+                  <h2 style={{ fontSize: '14px', marginBottom: '8px', color: '#9ca3af' }}>Filter Disiplin Pekerjaan</h2>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {["General", "INTERIOR", "SIPIL"].map((d) => (
+                      <button
+                        key={d}
+                        className={`tsp-btn ${discipline === d ? 'tsp-btn-primary' : ''}`}
+                        style={{ minWidth: '100px', cursor: 'pointer' }}
+                        onClick={() => setDiscipline(d)}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="jo-selected-date">{formatDate(selectedDate)}</div>
+                <div className="jo-card jo-table-card">
+                <div className="jo-table-header">
+                  <div>
+                    <h2>Rekap Progress</h2>
+                    <p>Input progress dan upload foto pada tanggal yang dipilih, lalu simpan.</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <div className="jo-selected-date">{formatDate(selectedDate)}</div>
+                    <button className="jo-btn jo-btn-primary" onClick={() => joinOpnameService.exportExcel(projectId, discipline, selectedDate)}>
+                      ⬇ Excel
+                    </button>
+                    <select 
+                      className="jo-btn jo-btn-primary"
+                      style={{ appearance: 'none', cursor: 'pointer' }}
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          joinOpnameService.exportPdf(projectId, discipline, selectedDate, e.target.value);
+                          e.target.value = "";
+                        }
+                      }}
+                    >
+                      <option value="" disabled>⬇ PDF</option>
+                      <option value="daily">Harian</option>
+                      <option value="weekly">Mingguan</option>
+                      <option value="monthly">Bulanan</option>
+                      <option value="overall">Keseluruhan</option>
+                    </select>
+                  </div>
+                </div>
+                <JoinOpnameTable 
+                  groupedItems={groupedItems} 
+                  progressInputs={progressInputs} 
+                  busyItems={busyItems} 
+                  selectedDate={selectedDate}
+                  handleProgressChange={handleProgressChange}
+                  handleFileChange={handleFileChange}
+                  handleSaveProgress={handleSaveProgress}
+                />
               </div>
-              <JoinOpnameTable 
-                groupedItems={groupedItems} 
-                progressInputs={progressInputs} 
-                busyItems={busyItems} 
-                selectedDate={selectedDate}
-                handleProgressChange={handleProgressChange}
-                handleFileChange={handleFileChange}
-                handleSaveProgress={handleSaveProgress}
-              />
-            </div>
+            </>
           )}
 
           {!loading && !error && data && items.length > 0 && (
@@ -134,11 +176,17 @@ function JoinOpnamePage({ initialProjectId = null }) {
                         <td className="jo-daily-sticky-weight">{formatPercent(item.weight)}%</td>
                         {days.map((day) => {
                           const breakdown = item.dailyBreakdown?.find((r) => r.dayNumber === day.dayNumber);
+                          const isOob = breakdown && !breakdown.inSchedule && !breakdown.hasProgress;
                           return (
                             <td key={day.dayNumber} className={selectedDate === toInputDate(day.date) ? "jo-current-day-cell" : ""}>
-                              <div className="jo-day-progress">
-                                <strong>{formatPercent(breakdown?.progress || 0)}%</strong>
-                                <small>Vol: {formatNumber(breakdown?.volume || 0)}</small>
+                              {item.hasChildren ? (
+                                <div className="jo-day-progress jo-muted" style={{opacity: 0.3}}>-</div>
+                              ) : isOob ? (
+                                <div className="jo-day-progress jo-muted" style={{opacity: 0.3}}>-</div>
+                              ) : (
+                                <div className="jo-day-progress">
+                                  <strong>{formatPercent(breakdown?.progress || 0)}%</strong>
+                                  <small>Vol: {formatNumber(breakdown?.volume || 0)}</small>
                                 
                                 {/* Fungsi untuk melihat foto aktual lapangan jika URL tersedia */}
                                 {breakdown?.photoUrls && breakdown.photoUrls.length > 0 && (
@@ -164,8 +212,8 @@ function JoinOpnamePage({ initialProjectId = null }) {
                                     Lihat Foto
                                   </button>
                                 )}
-                                
-                              </div>
+                                </div>
+                              )}
                             </td>
                           );
                         })}

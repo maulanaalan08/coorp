@@ -37,5 +37,20 @@ export const joinOpnameService = {
       body: formData, // fetch otomatis mengatur headers Content-Type multipart/form-data
     });
     return handleResponse(response);
+  },
+
+  exportPdf: (projectId, discipline, date, type) => {
+    const url = new URL(`${API_BASE_URL}/projects/${projectId}/join-opname/export/pdf`);
+    if (discipline && discipline !== "General") url.searchParams.append("discipline", discipline);
+    if (date) url.searchParams.append("date", date);
+    if (type) url.searchParams.append("type", type);
+    window.open(url.toString(), "_blank");
+  },
+
+  exportExcel: (projectId, discipline, date) => {
+    const url = new URL(`${API_BASE_URL}/projects/${projectId}/join-opname/export/excel`);
+    if (discipline && discipline !== "General") url.searchParams.append("discipline", discipline);
+    if (date) url.searchParams.append("date", date);
+    window.location.href = url.toString();
   }
 };

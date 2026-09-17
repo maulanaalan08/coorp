@@ -8,7 +8,6 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
       <table className="jo-table">
         <thead>
           <tr>
-            <th>Group</th>
             <th>Pekerjaan</th>
             <th>Satuan</th>
             <th>Volume</th>
@@ -24,7 +23,7 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
           {groupedItems.map(([groupName, groupItems]) => (
             <React.Fragment key={groupName}>
               <tr className="jo-group-row">
-                <td colSpan={10}>{groupName}</td>
+                <td colSpan={9}>{groupName}</td>
               </tr>
               {groupItems.map((item) => {
                 const inputData = progressInputs[item.rabItemId] || { percent: "0", files: null, existingPhotoUrls: [] };
@@ -32,12 +31,26 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
 
                 return (
                   <tr key={item.rabItemId}>
-                    <td>{item.groupName || "-"}</td>
                     <td className="jo-name-cell">
                       {item.name}
                       {item.isByOwner && <span className="jo-tag jo-tag-owner">By Owner</span>}
                       {item.isStip && <span className="jo-tag jo-tag-stip">Stip</span>}
                       {item.hasChildren && <span className="jo-tag jo-tag-parent">Parent</span>}
+                      {item.discipline && item.discipline !== 'GENERAL' && (
+                        <span
+                          style={{
+                            marginLeft: '6px',
+                            fontSize: '9px',
+                            textTransform: 'uppercase',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: { INTERIOR: '#a0522d', SIPIL: '#4682b4', GENERAL: '#666' }[item.discipline] || '#666',
+                            color: '#fff',
+                          }}
+                        >
+                          {item.discipline}
+                        </span>
+                      )}
                     </td>
                     <td>{item.paymentUnit || "-"}</td>
                     <td>{formatNumber(item.volume)}</td>
