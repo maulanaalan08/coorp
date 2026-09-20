@@ -12,6 +12,8 @@ const HabisPakaiModal = ({ isOpen, onClose, projectId, item, onSuccess }) => {
   const [unit, setUnit] = useState('-');
   const [alasan, setAlasan] = useState('');
   const [catatan, setCatatan] = useState('');
+  const [keteranganVolume, setKeteranganVolume] = useState('');
+  const [keteranganHarga, setKeteranganHarga] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -24,6 +26,8 @@ const HabisPakaiModal = ({ isOpen, onClose, projectId, item, onSuccess }) => {
       setUnit(item?.unit || '-');
       setAlasan('');
       setCatatan('');
+      setKeteranganVolume('');
+      setKeteranganHarga('');
     }
   }, [isOpen, item]);
 
@@ -45,6 +49,8 @@ const HabisPakaiModal = ({ isOpen, onClose, projectId, item, onSuccess }) => {
         qty: Number(qty),
         alasan,
         catatan,
+        keteranganVolume,
+        keteranganHarga,
       });
       toast.success('Permintaan habis pakai diajukan ke purchasing');
       if (onSuccess) onSuccess();
@@ -111,6 +117,29 @@ const HabisPakaiModal = ({ isOpen, onClose, projectId, item, onSuccess }) => {
                 type="text"
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
+                className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-[#888] mb-1">Ket. Volume</label>
+              <input
+                type="text"
+                value={keteranganVolume}
+                onChange={(e) => setKeteranganVolume(e.target.value)}
+                placeholder="Over/Under volume"
+                className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-[#888] mb-1">Ket. Harga</label>
+              <input
+                type="text"
+                value={keteranganHarga}
+                onChange={(e) => setKeteranganHarga(e.target.value)}
+                placeholder="Over/Under harga"
                 className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
               />
             </div>

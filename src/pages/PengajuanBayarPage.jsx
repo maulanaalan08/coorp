@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  FileInput, Search, Check, X, ChevronRight, ChevronDown, Package, AlertCircle,
-  CalendarDays, UserCheck, Clock,
+  FileInput, Search, Check, X, ChevronDown, Package, AlertCircle,
+  CalendarDays, UserCheck,
 } from 'lucide-react';
 import Header from '../components/Header';
 import { purchasingService } from '../services/purchasingService';
@@ -34,44 +34,34 @@ const statusLabel = (status) => {
   return map[status] || status || 'PENDING';
 };
 
-const poStatusBadge = (status) => {
-  const map = {
-    BELUM_APPROVE: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
-    MENUNGGU_ATASAN: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-    APPROVED: 'bg-green-500/10 text-green-400 border-green-500/30',
-    REJECTED: 'bg-red-500/10 text-red-400 border-red-500/30',
-  };
-  return map[status] || 'bg-gray-500/10 text-gray-400 border-gray-500/30';
-};
+const FILTER_TABS = [
+  { key: 'SEMUA', label: 'Semua' },
+  { key: 'MATERIAL', label: 'PO Material' },
+  { key: 'HABIS_PAKAI', label: 'PO Habis Pakai' },
+];
 
-const poStatusLabel = (status) => {
-  const map = {
-    BELUM_APPROVE: 'Belum Approve',
-    MENUNGGU_ATASAN: 'Menunggu Atasan',
-    APPROVED: 'Disetujui',
-    REJECTED: 'Ditolak',
-  };
-  return map[status] || status || 'BELUM_APPROVE';
-};
+const STATUS_TABS = [
+  { key: 'MENUNGGU', label: 'Menunggu Atasan' },
+  { key: 'DISETUJUI', label: 'Disetujui' },
+  { key: 'DITOLAK', label: 'Ditolak' },
+  { key: 'SEMUA', label: 'Semua' },
+];
 
-// Ambil pengajuan terbaru (non-rejected) dari daftar pengajuan sebuah PO
-const pengajuanAktif = (po) => {
-  const list = (po?.pengajuanPembayaran || []).filter(
-    (p) => p.status !== 'REJECTED',
-  );
-  return list[0] || null;
-};
+const typeLabel = (kategori) =>
+  kategori === 'HABIS_PAKAI' ? 'Habis Pakai' : 'Material';
+
+const typeBadge = (kategori) =>
+  kategori === 'HABIS_PAKAI'
+    ? 'bg-purple-500/10 text-purple-300 border-purple-500/30'
+    : 'bg-blue-500/10 text-blue-300 border-blue-500/30';
 
 const PengajuanBayarPage = ({ initialProjectId = null }) => {
-  const [poApproved, setPoApproved] = useState([]);
+  const [pengajuanList, setPengajuanList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [expandedRow, setExpandedRow] = useState({});
-
-  const [poMenungguAtasan, setPoMenungguAtasan] = useState([]);
-  const [loadingPo, setLoadingPo] = useState(false);
-  const [selectedPO, setSelectedPO] = useState(null);
-  const [expandedPO, setExpandedPO] = useState({});
+  const [activeFilter, setActiveFilter] = useState('SEMUA');
+  const [activeStatus, setActiveStatus] = useState('MENUNGGU');
 
   const [projectId, setProjectId] = useState(initialProjectId);
   const [projectList, setProjectList] = useState([]);
@@ -84,115 +74,93 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
       const data = await projectService.getAll();
       setProjectList(Array.isArray(data) ? data : data?.data || []);
     } catch (err) {
-      console.error('Gagal memuat project:', err);
+      // ignore
     }
   }, []);
 
-  const fetchPoApproved = useCallback(async () => {
+  const fetchPengajuan = useCallback(async () => {
     if (!projectId) {
-      setPoApproved([]);
+      setPengajuanList([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const data = await purchasingService.getPOApproved(projectId);
-      setPoApproved(Array.isArray(data) ? data : []);
+      // Ambil semua pengajuan pembayaran per proyek (menunggu, disetujui, ditolak)
+      const data = await purchasingService.getPengajuanBayar(projectId);
+      setPengajuanList(Array.isArray(data) ? data : []);
     } catch (err) {
-      toast.error('Gagal memuat data PO approved');
+      toast.error('Gagal memuat data pengajuan bayar');
     } finally {
       setLoading(false);
     }
   }, [projectId]);
 
-  const fetchPoMenungguAtasan = useCallback(async () => {
-    if (!projectId) {
-      setPoMenungguAtasan([]);
-      setLoadingPo(false);
-      return;
-    }
-    setLoadingPo(true);
-    try {
-      const data = await poService.getPOs({ projectId, status: 'MENUNGGU_ATASAN' });
-      setPoMenungguAtasan(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Gagal memuat PO menunggu atasan:', err);
-      setPoMenungguAtasan([]);
-    } finally {
-      setLoadingPo(false);
-    }
-  }, [projectId]);
-
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
   useEffect(() => {
-    fetchPoApproved();
-    fetchPoMenungguAtasan();
-  }, [fetchPoApproved, fetchPoMenungguAtasan, approvalTick]);
+    fetchPengajuan();
+  }, [fetchPengajuan, approvalTick]);
 
   useEffect(() => {
     const onChanged = () => {
       bumpApproval();
-      fetchPoApproved();
-      fetchPoMenungguAtasan();
+      fetchPengajuan();
     };
     window.addEventListener('po-status-changed', onChanged);
     return () => window.removeEventListener('po-status-changed', onChanged);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  const filteredPoApproved = useMemo(() => {
-    if (!search.trim()) return poApproved;
+  const filteredRows = useMemo(() => {
+    let list = pengajuanList;
+    // Filter jenis PO
+    if (activeFilter === 'MATERIAL') list = list.filter((p) => p.purchaseOrder?.kategoriPO !== 'HABIS_PAKAI');
+    else if (activeFilter === 'HABIS_PAKAI') list = list.filter((p) => p.purchaseOrder?.kategoriPO === 'HABIS_PAKAI');
+    // Filter status
+    if (activeStatus === 'MENUNGGU') list = list.filter((p) => p.status === 'APPROVED_FINANCE');
+    else if (activeStatus === 'DISETUJUI') list = list.filter((p) => p.status === 'APPROVED');
+    else if (activeStatus === 'DITOLAK') list = list.filter((p) => p.status === 'REJECTED');
+
+    if (!search.trim()) return list;
     const q = search.toLowerCase();
-    return poApproved.filter((po) => {
-      const pengajuan = pengajuanAktif(po);
+    return list.filter((p) => {
+      const po = p.purchaseOrder || {};
       const cocokHeader =
         po.poNumber?.toLowerCase().includes(q) ||
+        p.noPengajuan?.toLowerCase().includes(q) ||
         po.supplier?.name?.toLowerCase().includes(q) ||
-        pengajuan?.noPengajuan?.toLowerCase().includes(q);
+        p.supplier?.name?.toLowerCase().includes(q) ||
+        typeLabel(po.kategoriPO).toLowerCase().includes(q);
       const cocokItem = (po.items || []).some((it) =>
         (it.description || '').toLowerCase().includes(q)
       );
       return cocokHeader || cocokItem;
     });
-  }, [poApproved, search]);
+  }, [pengajuanList, activeFilter, activeStatus, search]);
 
-  const filteredPoMenunggu = useMemo(() => {
-    if (!search.trim()) return poMenungguAtasan;
-    const q = search.toLowerCase();
-    return poMenungguAtasan.filter((po) => {
-      const cocokHeader =
-        po.poNumber?.toLowerCase().includes(q) ||
-        po.supplier?.name?.toLowerCase().includes(q);
-      const cocokItem = (po.items || []).some((it) =>
-        (it.description || '').toLowerCase().includes(q)
-      );
-      return cocokHeader || cocokItem;
-    });
-  }, [poMenungguAtasan, search]);
-
-  const handleApprovePO = async (po) => {
-    setBusyId(po.id);
+  const handleApprovePengajuan = async (pengajuan) => {
+    setBusyId(pengajuan.id);
     try {
-      await poService.approvePO(po.id);
-      toast.success(`${po.poNumber} disetujui`);
+      await purchasingService.approvePengajuan(pengajuan.id);
+      toast.success(`${pengajuan.noPengajuan || pengajuan.id} disetujui`);
       bumpApproval();
     } catch (err) {
-      toast.error(err.message || 'Gagal menyetujui PO');
+      toast.error(err.message || 'Gagal menyetujui pengajuan');
     } finally {
       setBusyId(null);
     }
   };
 
-  const handleRejectPO = async (po) => {
-    const reason = window.prompt(`Alasan menolak ${po.poNumber}:`);
+  const handleRejectPengajuan = async (pengajuan) => {
+    const reason = window.prompt(`Alasan menolak ${pengajuan.noPengajuan || pengajuan.id}:`);
     if (!reason || !reason.trim()) return;
-    setBusyId(po.id);
+    setBusyId(pengajuan.id);
     try {
-      await poService.rejectPO(po.id, reason.trim());
-      toast.success(`${po.poNumber} ditolak`);
+      await purchasingService.rejectPengajuan(pengajuan.id, reason.trim());
+      toast.success(`${pengajuan.noPengajuan || pengajuan.id} ditolak`);
       bumpApproval();
     } catch (err) {
-      toast.error(err.message || 'Gagal menolak PO');
+      toast.error(err.message || 'Gagal menolak pengajuan');
     } finally {
       setBusyId(null);
     }
@@ -207,10 +175,10 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
       <div className="px-5 md:px-10 pb-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <p className="text-[#888] text-xs uppercase tracking-wider mb-1">Purchasing</p>
+            <p className="text-[#888] text-xs uppercase tracking-wider mb-1">Finance</p>
             <h2 className="text-2xl md:text-3xl text-[#f2ead9] font-bold">Pengajuan Bayar</h2>
             <p className="text-[#888] text-sm mt-1">
-              PO yang sudah diverifikasi Finance dan menunggu persetujuan Atasan.
+              Daftar PO yang sudah diverifikasi Finance dan siap diajukan / disetujui pembayarannya.
             </p>
           </div>
         </div>
@@ -219,131 +187,59 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
           projectId={projectId}
           projectList={projectList}
           loading={false}
-          onChange={(e) => { setProjectId(e.target.value || null); setSelectedPO(null); }}
+          onChange={(e) => { setProjectId(e.target.value || null); setExpandedRow({}); }}
         />
 
-        <div className="mb-4 relative w-full md:w-80 mt-6">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888]" />
-          <input
-            type="text"
-            placeholder="Cari no PO / no PPB / supplier / item..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[#1a1814] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#666] focus:border-[#d4af37] outline-none"
-          />
-        </div>
-
-        {/* DAFTAR PO MENUNGGU ATASAN */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <Clock size={16} className="text-[#d4af37]" />
-            <h3 className="text-sm font-bold text-[#f2ead9] uppercase tracking-wider">
-              Menunggu Persetujuan Atasan
-            </h3>
-            <span className="text-xs text-[#666]">({filteredPoMenunggu.length})</span>
+        <div className="flex flex-col md:flex-row gap-4 mt-6 mb-4 items-start md:items-center justify-between">
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              {STATUS_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setActiveStatus(tab.key); setExpandedRow({}); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                    activeStatus === tab.key
+                      ? 'bg-[#d4af37] text-black border-[#d4af37]'
+                      : 'bg-[#1a1814] text-[#aaa] border-[#2a2a2a] hover:border-[#d4af37]/50'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              {FILTER_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setActiveFilter(tab.key); setExpandedRow({}); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                    activeFilter === tab.key
+                      ? 'bg-[#4a7c9b] text-white border-[#4a7c9b]'
+                      : 'bg-[#1a1814] text-[#aaa] border-[#2a2a2a] hover:border-[#4a7c9b]/50'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
-
-          {loadingPo ? (
-            <div className="text-center py-8 text-[#888] text-sm">Memuat PO...</div>
-          ) : filteredPoMenunggu.length === 0 ? (
-            <div className="bg-[#1a1814] border border-[#2a2a2a] rounded-xl px-5 py-8 text-center">
-              <AlertCircle size={22} className="text-[#555] mx-auto mb-2" />
-              <p className="text-sm text-[#888]">
-                {projectId
-                  ? 'Tidak ada PO yang menunggu persetujuan Atasan.'
-                  : 'Pilih proyek dulu untuk melihat PO-nya.'}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {filteredPoMenunggu.map((po) => {
-                const aktif = selectedPO?.id === po.id;
-                const open = !!expandedPO[po.id];
-                const busy = busyId === po.id;
-                return (
-                  <div
-                    key={po.id}
-                    className={`bg-[#1a1814] border rounded-xl p-4 transition-colors ${
-                      aktif ? 'border-[#d4af37]' : 'border-[#2a2a2a] hover:border-[#d4af37]/50'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setExpandedPO((p) => ({ ...p, [po.id]: !p[po.id] }))}
-                      className="w-full text-left"
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <span className="font-mono text-sm text-[#d4af37] font-bold">
-                          {po.poNumber || `PO-${po.id.slice(0, 8)}`}
-                        </span>
-                        <ChevronRight
-                          size={16}
-                          className={`text-[#888] shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}
-                        />
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-[#38bdf8] mb-1">
-                        <UserCheck size={11} /> {po.supplier?.name || 'Tanpa Supplier'}
-                      </div>
-                      <div className="flex items-center gap-3 text-[11px] text-[#888] mb-2">
-                        <span className="inline-flex items-center gap-1">
-                          <Package size={10} /> {po.items?.length || 0} item
-                        </span>
-                        {po.tanggal && (
-                          <span className="inline-flex items-center gap-1">
-                            <CalendarDays size={10} />
-                            {new Date(po.tanggal).toLocaleDateString('id-ID', {
-                              day: '2-digit', month: 'short', year: 'numeric',
-                            })}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-[#f2ead9] font-mono">
-                          {fmtRp(po.grandTotal)}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${poStatusBadge(po.status)}`}>
-                          {poStatusLabel(po.status)}
-                        </span>
-                      </div>
-                    </button>
-
-                    {open && (
-                      <div className="mt-3 pt-3 border-t border-[#2a2a2a]">
-                        <p className="text-[11px] text-[#888] uppercase tracking-wider mb-2">
-                          Item dalam PO ini
-                        </p>
-                        <POItemDetail po={po} showHeader={false} />
-                        <div className="mt-3 flex gap-2">
-                          <button
-                            disabled={busy}
-                            onClick={() => handleApprovePO(po)}
-                            className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                          >
-                            <Check size={15} /> Setujui
-                          </button>
-                          <button
-                            disabled={busy}
-                            onClick={() => handleRejectPO(po)}
-                            className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                          >
-                            <X size={15} /> Tolak
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div className="relative w-full md:w-80">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888]" />
+            <input
+              type="text"
+              placeholder="Cari no PO / no PPB / supplier / item..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-[#1a1814] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#666] focus:border-[#d4af37] outline-none"
+            />
+          </div>
         </div>
 
-        {/* DAFTAR PENGAJUAN BAYAR — PO APPROVED, NOMOR PO SEBAGAI INFO UTAMA */}
         <div className="bg-[#1a1814] border border-[#2a2a2a] rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-[#2a2a2a] flex items-center gap-2">
             <FileInput size={16} className="text-[#d4af37]" />
             <h3 className="text-sm font-bold text-[#f2ead9] uppercase tracking-wider">Daftar Pengajuan Bayar</h3>
-            <span className="text-xs text-[#666]">({filteredPoApproved.length})</span>
+            <span className="text-xs text-[#666]">({filteredRows.length})</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -351,25 +247,32 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                 <tr className="bg-[#22201c] text-[#888] text-left">
                   <th className="px-4 py-3 font-semibold w-8"></th>
                   <th className="px-4 py-3 font-semibold">No PO</th>
+                  <th className="px-4 py-3 font-semibold">Jenis</th>
                   <th className="px-4 py-3 font-semibold">Supplier</th>
+                  <th className="px-4 py-3 font-semibold">Cara Bayar</th>
                   <th className="px-4 py-3 font-semibold text-right">Total Tagihan</th>
                   <th className="px-4 py-3 font-semibold text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={5} className="text-center py-10 text-[#888]">Memuat data...</td></tr>
-                ) : filteredPoApproved.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center py-10 text-[#888]">Belum ada PO yang disetujui</td></tr>
+                  <tr><td colSpan={6} className="text-center py-10 text-[#888]">Memuat data...</td></tr>
+                ) : !projectId ? (
+                  <tr><td colSpan={7} className="text-center py-10 text-[#888]">Pilih proyek dulu untuk melihat data.</td></tr>
+                ) : filteredRows.length === 0 ? (
+                  <tr><td colSpan={7} className="text-center py-10 text-[#888]">
+                    Tidak ada data pengajuan bayar {activeFilter === 'SEMUA' ? '' : activeFilter.toLowerCase()}.
+                  </td></tr>
                 ) : (
-                  filteredPoApproved.map((po) => {
-                    const open = !!expandedRow[po.id];
-                    const pengajuan = pengajuanAktif(po);
-                    const status = pengajuan?.status || po.status;
+                  filteredRows.map((pengajuan) => {
+                    const po = pengajuan.purchaseOrder || {};
+                    const open = !!expandedRow[pengajuan.id];
+                    const status = pengajuan.status || 'PENDING';
+                    const busy = busyId === pengajuan.id;
                     return (
-                      <React.Fragment key={po.id}>
+                      <React.Fragment key={pengajuan.id}>
                         <tr
-                          onClick={() => toggleRow(po.id)}
+                          onClick={() => toggleRow(pengajuan.id)}
                           className="border-t border-[#2a2a2a] hover:bg-white/[0.02] cursor-pointer transition-colors"
                         >
                           <td className="px-4 py-3 text-center text-[#888]">
@@ -381,7 +284,7 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-0.5">
                               <span className="font-mono text-white font-bold">
-                                {po.poNumber || `PO-${po.id.slice(0, 8)}`}
+                                {po.poNumber || `PO-${po.id?.slice(0, 8) || pengajuan.id.slice(0, 8)}`}
                               </span>
                               {pengajuan?.noPengajuan && (
                                 <span className="text-[11px] text-[#888] font-mono">
@@ -390,14 +293,26 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                               )}
                             </div>
                           </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-block px-2 py-0.5 rounded border text-[11px] font-semibold ${typeBadge(po.kategoriPO)}`}>
+                              {typeLabel(po.kategoriPO)}
+                            </span>
+                          </td>
                           <td className="px-4 py-3 text-[#ccc]">
                             <div className="flex items-center gap-1.5">
                               <UserCheck size={12} className="text-[#38bdf8] shrink-0" />
-                              {po.supplier?.name || '-'}
+                              {pengajuan.supplier?.name || po.supplier?.name || '-'}
                             </div>
                           </td>
+                          <td className="px-4 py-3">
+                            {po.caraPembayaran ? (
+                              <span className="text-[11px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded border border-blue-500/30 font-semibold">
+                                {po.caraPembayaran}
+                              </span>
+                            ) : <span className="text-[#555] text-xs">-</span>}
+                          </td>
                           <td className="px-4 py-3 text-right text-[#ccc] font-mono">
-                            {fmtRp(po.grandTotal)}
+                            {fmtRp(pengajuan.totalTagihan || po.grandTotal)}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge(status)}`}>
@@ -407,7 +322,7 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                         </tr>
                         {open && (
                           <tr className="border-t border-[#2a2a2a] bg-[#15130f]">
-                            <td colSpan={5} className="px-4 py-4">
+                            <td colSpan={7} className="px-4 py-4">
                               <div className="flex items-center gap-2 mb-3 text-[11px] text-[#888] uppercase tracking-wider">
                                 <Package size={12} className="text-[#d4af37]" />
                                 Detail Item PO
@@ -415,7 +330,7 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                                   · {po.items?.length || 0} item
                                 </span>
                               </div>
-                              {(po.items || []).length === 0 ? (
+                              {po.items?.length === 0 ? (
                                 <p className="text-xs text-[#666] italic py-2">PO ini belum punya item.</p>
                               ) : (
                                 <div className="border border-white/10 rounded-lg overflow-hidden">
@@ -424,9 +339,11 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                                       <tr className="bg-white/[0.03] text-[#888] text-left">
                                         <th className="px-3 py-2 font-semibold">Item Name</th>
                                         <th className="px-3 py-2 font-semibold text-right">Qty</th>
-                                        <th className="px-3 py-2 font-semibold text-right">Unit</th>
+                                        <th className="px-3 py-2 font-semibold">Unit</th>
                                         <th className="px-3 py-2 font-semibold text-right">Price</th>
                                         <th className="px-3 py-2 font-semibold text-right">Subtotal</th>
+                                        <th className="px-3 py-2 font-semibold" style={{ color: '#ef4444' }}>Ket. Volume</th>
+                                        <th className="px-3 py-2 font-semibold" style={{ color: '#f97316' }}>Ket. Harga</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -440,31 +357,68 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                                             {it.description2 && (
                                               <div className="text-[10px] text-[#666] mt-0.5">{it.description2}</div>
                                             )}
-                                            {it.materialRequest?.groupName && (
-                                              <div className="text-[10px] text-[#555] mt-0.5">
-                                                {it.materialRequest.groupName}
-                                              </div>
-                                            )}
                                           </td>
                                           <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">
-                                            {fmtNum(it.qty)}
+                                            {fmtNum(it.qty || 0)}
                                           </td>
-                                          <td className="px-3 py-2 text-right text-[#ccc] whitespace-nowrap">
-                                            {it.unit || '-'}
-                                          </td>
-                                          <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">
-                                            {fmtRp(it.unitPrice)}
-                                          </td>
-                                          <td className="px-3 py-2 text-right font-mono text-[#d4af37] whitespace-nowrap">
-                                            {fmtRp(it.total)}
-                                          </td>
+                                          <td className="px-3 py-2 text-right text-[#ccc] whitespace-nowrap">{it.unit || '-'}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">{fmtRp(it.unitPrice)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#d4af37] whitespace-nowrap">{fmtRp(it.total)}</td>
+                                          <td className="px-3 py-2 text-[11px]" style={{ color: '#ef4444', maxWidth: '140px' }}>
+                                              {it.keteranganVolume ? (
+                                                <span className="flex items-center gap-1">
+                                                  <AlertCircle size={10} /> {it.keteranganVolume}
+                                                </span>
+                                              ) : (() => {
+                                                const rap = po.kategoriPO === 'HABIS_PAKAI' ? (it.estimatedVolume || 0) : (it.materialRequest?.estimatedVolume || it.estimatedVolume || 0);
+                                                if (!rap) return <span style={{ color: '#444' }}>-</span>;
+                                                const diff = Number(it.qty || 0) - Number(rap);
+                                                if (diff > 0) return <span className="flex items-center gap-1"><AlertCircle size={10} /> Over +{fmtNum(diff)}</span>;
+                                                if (diff < 0) return <span style={{ color: '#f59e0b' }} className="flex items-center gap-1"><AlertCircle size={10} /> Under {fmtNum(diff)}</span>;
+                                                return <span style={{ color: '#22c55e' }}>Sesuai</span>;
+                                              })()}
+                                            </td>
+                                            <td className="px-3 py-2 text-[11px]" style={{ color: '#f97316', maxWidth: '140px' }}>
+                                              {it.keteranganHarga ? (
+                                                <span className="flex items-center gap-1">
+                                                  <AlertCircle size={10} /> {it.keteranganHarga}
+                                                </span>
+                                              ) : (() => {
+                                                const rapP = po.kategoriPO === 'HABIS_PAKAI' ? (it.pricePerUnit || 0) : (it.materialRequest?.pricePerUnit || it.pricePerUnit || 0);
+                                                if (!rapP) return <span style={{ color: '#444' }}>-</span>;
+                                                const diff = Number(it.unitPrice || 0) - Number(rapP);
+                                                if (diff > 0) return <span className="flex items-center gap-1"><AlertCircle size={10} /> Over +{fmtRp(diff)}</span>;
+                                                if (diff < 0) return <span style={{ color: '#f59e0b' }} className="flex items-center gap-1"><AlertCircle size={10} /> Under {fmtRp(diff)}</span>;
+                                                return <span style={{ color: '#22c55e' }}>Sesuai</span>;
+                                              })()}
+                                            </td>
                                         </tr>
                                       ))}
                                     </tbody>
                                   </table>
                                 </div>
                               )}
-                              {po.approvedBy?.name && (
+
+                              {activeStatus === 'MENUNGGU' && pengajuan.status === 'APPROVED_FINANCE' && (
+                                <div className="mt-3 flex gap-2 max-w-md">
+                                  <button
+                                    disabled={busy}
+                                    onClick={() => handleApprovePengajuan(pengajuan)}
+                                    className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                                  >
+                                    <Check size={15} /> Setujui Pembayaran
+                                  </button>
+                                  <button
+                                    disabled={busy}
+                                    onClick={() => handleRejectPengajuan(pengajuan)}
+                                    className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                                  >
+                                    <X size={15} /> Tolak Pembayaran
+                                  </button>
+                                </div>
+                              )}
+
+                              {pengajuan.status === 'APPROVED' && pengajuan.approvedBy?.name && (
                                 <div className="mt-3 text-[11px] text-[#888] flex items-center gap-1.5">
                                   <UserCheck size={11} /> Disetujui oleh {po.approvedBy.name}
                                   {po.approvedAt && (

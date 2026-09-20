@@ -186,7 +186,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-.right {
+.table .right {
   text-align: right;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }

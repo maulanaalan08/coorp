@@ -6,7 +6,11 @@ import {
   Percent,
   Search,
   ChevronRight,
-  Save
+  Save,
+  CheckCircle,
+  XCircle,
+  Package,
+  Clock,
 } from "lucide-react";
 import styles from "../styles/FinancePage.module.css";
 import Header from "../components/Header";
@@ -15,9 +19,8 @@ import { useProjects } from "../hooks/useProjects";
 import { useRabGroups } from "../hooks/useRabGroups";
 import { useMaterialRequests } from "../hooks/useMaterialRequests";
 import { usePO } from "../hooks/usePO";
+import { poService } from "../services/poService";
 import toast from "react-hot-toast";
-import ApprovalPOPanel from "../components/ApprovalPOPanel";
-import POStatusBoard from "../components/POStatusBoard";
 
 const fmtRp = (n) =>
   "Rp " +
@@ -26,11 +29,34 @@ const fmtRp = (n) =>
   });
 
 const fmtPct = (n) => Number(n || 0).toFixed(2) + "%";
+const fmtVol = (n) => {
+  const num = Number(n || 0);
+  return isNaN(num) ? "0" : parseFloat(num.toFixed(2)).toString();
+};
+
+const FILTER_TABS = [
+  { key: "BELUM_APPROVE", label: "Belum Approve" },
+  { key: "MENUNGGU_ATASAN", label: "Menunggu Atasan" },
+  { key: "REJECTED", label: "Ditolak" },
+  { key: "ALL", label: "Semua PO" },
+];
+
+const PO_TYPE_TABS = [
+  { key: "ALL", label: "Semua" },
+  { key: "MATERIAL", label: "PO Material" },
+  { key: "HABIS_PAKAI", label: "PO Habis Pakai" },
+];
 
 const FinancePage = ({ initialProjectId = null }) => {
-  const [projectId, setProjectId] = useState(initialProjectId);
-  const [search, setSearch] = useState("");
-  const [expandedRows, setExpandedRows] = useState({});
+const [projectId, setProjectId] = useState(initialProjectId);
+const [search, setSearch] = useState("");
+const [expandedRows, setExpandedRows] = useState({});
+const [poFilter, setPoFilter] = useState("BELUM_APPROVE");
+const [poTypeFilter, setPoTypeFilter] = useState("ALL");
+const [expandedPo, setExpandedPo] = useState({});
+const [poList, setPoList] = useState([]);
+const [loadingPo, setLoadingPo] = useState(false);
+const [busyPoId, setBusyPoId] = useState(null);
 
   const { projects: projectList, loading: loadingProjects } = useProjects();
   const project = useMemo(() => projectList.find((p) => p.id === projectId), [projectList, projectId]);
@@ -39,13 +65,33 @@ const FinancePage = ({ initialProjectId = null }) => {
   const { mrItems, loadingMr, mrError, updateBulkMaterialRequests, refreshMaterialRequests } = useMaterialRequests(projectId);
   const { refreshPOs } = usePO();
 
-  // Local state for edited inputs
   const [editedItems, setEditedItems] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // Satu penghitung untuk semua panel approval/PO -> saling refresh
   const [approvalTick, setApprovalTick] = useState(0);
   const bumpApproval = () => setApprovalTick((t) => t + 1);
+
+  const fetchPoList = async () => {
+    if (!projectId) {
+      setPoList([]);
+      return;
+    }
+    setLoadingPo(true);
+    try {
+      const data = await poService.getPOs({ projectId });
+      setPoList(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setPoList([]);
+    } finally {
+      setLoadingPo(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPoList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, approvalTick]);
 
   useEffect(() => {
     if (projectId) {
@@ -54,7 +100,6 @@ const FinancePage = ({ initialProjectId = null }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approvalTick]);
 
-  // Sync editedItems when mrItems loads
   useEffect(() => {
     if (mrItems && mrItems.length > 0) {
       const initialEdits = {};
@@ -72,6 +117,7 @@ const FinancePage = ({ initialProjectId = null }) => {
 
   useEffect(() => {
     setExpandedRows({});
+    setExpandedPo({});
   }, [projectId]);
 
   useEffect(() => {
@@ -85,7 +131,6 @@ const FinancePage = ({ initialProjectId = null }) => {
     }
   }, [loadingProjects, loadingRab, loadingMr, rabError, mrError]);
 
-  // Refresh saat PO status berubah (approve/reject) agar tabel kebutuhan material & PO board sinkron
   useEffect(() => {
     const onPoChanged = () => {
       refreshPOs();
@@ -96,56 +141,44 @@ const FinancePage = ({ initialProjectId = null }) => {
     return () => window.removeEventListener('po-status-changed', onPoChanged);
   }, [projectId, refreshPOs, refreshMaterialRequests]);
 
-  // Handle Input Changes
   const handleEditChange = (id, field, value) => {
-    setEditedItems(prev => ({
+    setEditedItems((prev) => ({
       ...prev,
       [id]: {
         ...prev[id],
-        [field]: value
-      }
+        [field]: value,
+      },
     }));
   };
 
-  // Handle Save
   const handleSave = async () => {
     setIsSaving(true);
-    const payloadItems = mrItems.map(item => ({
+    const payloadItems = mrItems.map((item) => ({
       id: item.id,
       orderedVolume: editedItems[item.id]?.orderedVolume !== "" ? Number(editedItems[item.id].orderedVolume) : 0,
-      catatanFinance: editedItems[item.id]?.catatanFinance || ""
+      catatanFinance: editedItems[item.id]?.catatanFinance || "",
     }));
 
     toast.promise(updateBulkMaterialRequests(payloadItems), {
       loading: 'Menyimpan data...',
       success: 'Data berhasil disimpan!',
-      error: 'Gagal menyimpan data.'
+      error: 'Gagal menyimpan data.',
     }).then(() => {
-      // success
-    }).catch(err => {
+    }).catch((err) => {
       console.error(err);
     }).finally(() => {
       setIsSaving(false);
     });
   };
 
-  // Flatten items for display
   const flattenedItems = useMemo(() => {
     const list = [];
-
     const traverseGroup = (g, pathName) => {
       const currentName = pathName ? `${pathName} ▸ ${g.name}` : g.name;
-
-      (g.items || []).forEach((item) => {
-        list.push({ ...item, groupName: currentName });
-      });
-
-      (g.children || []).forEach((child) => {
-        traverseGroup(child, currentName);
-      });
+      (g.items || []).forEach((item) => list.push({ ...item, groupName: currentName }));
+      (g.children || []).forEach((child) => traverseGroup(child, currentName));
     };
-
-    groups.forEach(g => traverseGroup(g, ""));
+    groups.forEach((g) => traverseGroup(g, ""));
     return list;
   }, [groups]);
 
@@ -160,30 +193,66 @@ const FinancePage = ({ initialProjectId = null }) => {
   }, [flattenedItems, search]);
 
   const toggleRow = (id) => {
-    setExpandedRows((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const findMrItem = (item, comp) => {
     const vol = Number((Number(comp.coefficient) * Number(item.volume)).toFixed(4));
-    return mrItems.find(mr =>
-      mr.itemName === comp.name &&
-      mr.estimatedVolume === vol &&
-      mr.pricePerUnit === Number(comp.unitPrice)
+    return mrItems.find(
+      (mr) =>
+        mr.itemName === comp.name &&
+        mr.estimatedVolume === vol &&
+        mr.pricePerUnit === Number(comp.unitPrice)
     );
   };
 
-  // Calculations
   const totalRap = flattenedItems.reduce((sum, item) => sum + Number(item.rapTotalPrice || 0), 0);
   const totalBeli = mrItems.reduce((sum, mr) => {
     const volume = Number(mr.orderedVolume || 0);
     const unitPrice = Number(mr.pricePerUnit || 0);
-    return sum + (volume * unitPrice);
+    return sum + volume * unitPrice;
   }, 0);
   const sisaBudget = totalRap - totalBeli;
   const persentasePemakaian = totalRap > 0 ? (totalBeli / totalRap) * 100 : 0;
+
+  const filteredPOs = useMemo(() => {
+    let list = poList;
+    if (poFilter === "BELUM_APPROVE") list = list.filter((p) => p.status === "BELUM_APPROVE");
+    else if (poFilter === "MENUNGGU_ATASAN") list = list.filter((p) => p.status === "MENUNGGU_ATASAN");
+    else if (poFilter === "REJECTED") list = list.filter((p) => p.status === "REJECTED");
+    if (poTypeFilter !== "ALL") list = list.filter((p) => p.kategoriPO === poTypeFilter);
+    return list;
+  }, [poList, poFilter, poTypeFilter]);
+
+  const handleVerifyPO = async (po) => {
+    setBusyPoId(po.id);
+    try {
+      await poService.verifyPO(po.id, "");
+      toast.success(`${po.poNumber} diverifikasi`);
+      bumpApproval();
+      window.dispatchEvent(new CustomEvent('po-status-changed', { detail: { poId: po.id } }));
+    } catch (err) {
+      toast.error(err.message || "Gagal verifikasi PO");
+    } finally {
+      setBusyPoId(null);
+    }
+  };
+
+  const handleRejectPO = async (po) => {
+    const reason = window.prompt(`Alasan menolak ${po.poNumber}:`);
+    if (!reason || !reason.trim()) return;
+    setBusyPoId(po.id);
+    try {
+      await poService.rejectPO(po.id, reason.trim());
+      toast.success(`${po.poNumber} ditolak`);
+      bumpApproval();
+      window.dispatchEvent(new CustomEvent('po-status-changed', { detail: { poId: po.id } }));
+    } catch (err) {
+      toast.error(err.message || "Gagal menolak PO");
+    } finally {
+      setBusyPoId(null);
+    }
+  };
 
   const loading = loadingProjects || loadingRab || loadingMr;
   const errorMsg = rabError || mrError;
@@ -202,7 +271,7 @@ const FinancePage = ({ initialProjectId = null }) => {
           </p>
         </div>
         <div style={{ minWidth: '300px' }}>
-          <ProjectSelector 
+          <ProjectSelector
             projectId={projectId}
             projectList={projectList}
             loading={loadingProjects}
@@ -228,17 +297,181 @@ const FinancePage = ({ initialProjectId = null }) => {
           </div>
         ) : (
           <>
-            <ApprovalPOPanel
-              projectId={projectId}
-              refreshKey={approvalTick}
-              onChanged={bumpApproval}
-            />
-
-            <POStatusBoard
-              projectId={projectId}
-              refreshKey={approvalTick}
-              onChanged={bumpApproval}
-            />
+            {/* DAFTAR PO UNTUK VERIFIKASI FINANCE */}
+            <div className={styles.tableSection}>
+              <div className={styles.tableHeader}>
+                <h3 className={styles.tableTitle}>
+                  <Clock size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />
+                  Daftar PO untuk Verifikasi Finance
+                </h3>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {PO_TYPE_TABS.map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => { setPoTypeFilter(tab.key); setExpandedPo({}); }}
+                      className={poTypeFilter === tab.key ? styles.filterActive : styles.filterBtn}
+                      style={{ marginRight: 6, fontSize: 12 }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                  {FILTER_TABS.map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => { setPoFilter(tab.key); setExpandedPo({}); }}
+                      className={poFilter === tab.key ? styles.filterActive : styles.filterBtn}
+                      style={{ marginRight: 6, fontSize: 12 }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className={styles.tableWrapper}>
+                <table className={styles.financeTable}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: "30px" }}></th>
+                      <th>NO PO</th>
+                      <th>JENIS</th>
+                      <th>SUPPLIER</th>
+                      <th className={styles.cellRight}>TOTAL</th>
+                      <th style={{ textAlign: 'center' }}>STATUS</th>
+                      <th style={{ textAlign: 'center' }}>AKSI</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingPo ? (
+                      <tr><td colSpan="7" className="text-center py-4 text-[#888]">Memuat PO...</td></tr>
+                    ) : filteredPOs.length === 0 ? (
+                      <tr><td colSpan="7" className="text-center py-4 text-[#888]">Tidak ada PO {poFilter.toLowerCase()}.</td></tr>
+                    ) : (
+                      filteredPOs.map((po) => {
+                        const open = !!expandedPo[po.id];
+                        const busy = busyPoId === po.id;
+                        const statusClass =
+                          po.status === "REJECTED" ? styles.statusRejected :
+                          po.status === "BELUM_APPROVE" ? styles.statusPending :
+                          po.status === "MENUNGGU_ATASAN" ? styles.statusPartial :
+                          styles.statusNone;
+                        const typeClass = po.kategoriPO === "HABIS_PAKAI" ? styles.statusHabisPakai : styles.statusMaterial;
+                        return (
+                          <React.Fragment key={po.id}>
+                            <tr className={styles.itemRow} onClick={() => setExpandedPo((prev) => ({ ...prev, [po.id]: !prev[po.id] }))}>
+                              <td>
+                                <ChevronRight
+                                  size={16}
+                                  style={{
+                                    transform: open ? "rotate(90deg)" : "rotate(0deg)",
+                                    transition: "transform 0.2s ease",
+                                  }}
+                                />
+                              </td>
+                              <td className={styles.itemCell}>{po.poNumber}</td>
+                              <td style={{ textAlign: 'center' }}>
+                                <span className={`${styles.statusBadge} ${typeClass}`}>
+                                  {po.kategoriPO === "HABIS_PAKAI" ? "Habis Pakai" : "Material"}
+                                </span>
+                              </td>
+                              <td className={styles.groupCell}>{po.supplier?.name || "-"}</td>
+                              <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(po.grandTotal)}</td>
+                              <td style={{ textAlign: 'center' }}>
+                                <span className={`${styles.statusBadge} ${statusClass}`}>{po.status || "-"}</span>
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                {po.status === "BELUM_APPROVE" && (
+                                  <button
+                                    className={styles.primaryBtn}
+                                    style={{ padding: '4px 10px', fontSize: 11 }}
+                                    disabled={busy}
+                                    onClick={(e) => { e.stopPropagation(); handleVerifyPO(po); }}
+                                  >
+                                    <CheckCircle size={12} /> Approve Finance
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                            {open && (
+                              <tr className={styles.expandedRow}>
+                                <td colSpan="7" style={{ padding: '16px', background: 'rgba(0,0,0,0.2)' }}>
+                                  <div style={{ marginBottom: 8, fontSize: 12, color: '#888' }}>Detail Item</div>
+                                  <table className={styles.componentsTable}>
+                                    <thead>
+                                      <tr>
+                                        <th>DESKRIPSI</th>
+                                        <th className={styles.cellRight}>QTY</th>
+                                        <th>UNIT</th>
+                                        <th className={styles.cellRight}>HARGA SATUAN</th>
+                                        <th className={styles.cellRight}>SUBTOTAL</th>
+                                        <th className={styles.cellRight}>KET. VOLUME</th>
+                                        <th className={styles.cellRight}>KET. HARGA</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(po.items || []).map((it) => (
+                                        <tr key={it.id}>
+                                          <td>{it.description}</td>
+                                          <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtVol(it.qty)}</td>
+                                          <td>{it.unit || '-'}</td>
+                                          <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(it.unitPrice)}</td>
+                                          <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(it.total)}</td>
+                                          <td className={styles.cellRight} style={{ fontSize: 11, color: '#ef4444' }}>
+                                            {po.kategoriPO === 'HABIS_PAKAI'
+                                              ? '-'
+                                              : (() => {
+                                                  const rap = it.materialRequest?.estimatedVolume || it.estimatedVolume || 0;
+                                                  if (!rap) return <span style={{ color: '#444' }}>-</span>;
+                                                  const diff = Number(it.qty || 0) - Number(rap);
+                                                  if (diff > 0) return <span>Over +{fmtVol(diff)}</span>;
+                                                  if (diff < 0) return <span style={{ color: '#f59e0b' }}>Under {fmtVol(diff)}</span>;
+                                                  return <span style={{ color: '#22c55e' }}>Sesuai</span>;
+                                                })()}
+                                          </td>
+                                          <td className={styles.cellRight} style={{ fontSize: 11, color: '#f97316' }}>
+                                            {po.kategoriPO === 'HABIS_PAKAI'
+                                              ? '-'
+                                              : (() => {
+                                                  const rapP = it.materialRequest?.pricePerUnit || it.pricePerUnit || 0;
+                                                  if (!rapP) return <span style={{ color: '#444' }}>-</span>;
+                                                  const diff = Number(it.unitPrice || 0) - Number(rapP);
+                                                  if (diff > 0) return <span>Over +{fmtRp(diff)}</span>;
+                                                  if (diff < 0) return <span style={{ color: '#f59e0b' }}>Under {fmtRp(diff)}</span>;
+                                                  return <span style={{ color: '#22c55e' }}>Sesuai</span>;
+                                                })()}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                  {po.status === "BELUM_APPROVE" && (
+                                    <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                                      <button
+                                        className={styles.primaryBtn}
+                                        disabled={busy}
+                                        onClick={() => handleVerifyPO(po)}
+                                      >
+                                        <CheckCircle size={14} /> Approve Finance & Teruskan ke Atasan
+                                      </button>
+                                      <button
+                                        className={styles.dangerBtn}
+                                        disabled={busy}
+                                        onClick={() => handleRejectPO(po)}
+                                      >
+                                        <XCircle size={14} /> Tolak
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
             <div className={styles.statsGrid}>
               <div className={`${styles.statCard} ${styles.revenue}`}>
@@ -351,7 +584,6 @@ const FinancePage = ({ initialProjectId = null }) => {
                             </td>
                           </tr>
 
-                          {/* EXPANDED ROW UNTUK KOMPONEN */}
                           {isExpanded && (
                             <tr className={styles.expandedRow}>
                               <td colSpan="9">
@@ -376,7 +608,7 @@ const FinancePage = ({ initialProjectId = null }) => {
                                       <tbody>
                                         {item.components.map((c) => {
                                           const isUpah = c.section === "UPAH";
-                                          if (isUpah) return null; // Sembunyikan UPAH di bagian Finance
+                                          if (isUpah) return null;
 
                                           const mr = findMrItem(item, c);
                                           const lineTotal = Number(c.coefficient) * Number(c.unitPrice);
@@ -395,7 +627,7 @@ const FinancePage = ({ initialProjectId = null }) => {
                                               <td>{c.name}</td>
                                               <td>{c.section}</td>
                                               <td className={styles.cellMono}>
-                                                {mr && mr.estimatedVolume 
+                                                {mr && mr.estimatedVolume
                                                   ? Number(mr.estimatedVolume).toFixed(2)
                                                   : (Number(c.coefficient) * Number(item.volume)).toFixed(2)}
                                               </td>

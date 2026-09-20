@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, PackagePlus, Send, XCircle, Link2, Edit, Printer } from 'lucide-react';
+import { RefreshCw, PackagePlus, Send, XCircle, Link2, Edit, Printer, FileText } from 'lucide-react';
 import { lapanganService } from '../services/lapanganService';
 import { poService } from '../services/poService';
 import toast from 'react-hot-toast';
@@ -12,14 +12,19 @@ const fmtNum = (n) => {
 const fmtRp = (n) =>
   'Rp ' + Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
 
+const fmtTanggal = (d) =>
+  d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+
 const STATUS_LABEL = {
-  PENDING: 'Menunggu PO',
-  LINKED: 'Sudah di-PO',
+  PENDING: 'Menunggu Purchasing',
+  PO_DIBUAT: 'Menunggu Approve Finance',
+  FINANCE_APPROVED: 'Menunggu Atasan',
+  ATASAN_APPROVED: 'Completed',
   REJECTED: 'Ditolak',
 };
 
 const PO_STATUS_BADGE = {
-  BELUM_APPROVE: { label: 'BELUM APPROVE', cls: 'bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30' },
+  BELUM_APPROVE: { label: 'BELUM APPROVE FINANCE', cls: 'bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30' },
   MENUNGGU_ATASAN: { label: 'MENUNGGU ATASAN', cls: 'bg-blue-500/10 text-blue-400 border-blue-500/30' },
   APPROVED: { label: 'APPROVED', cls: 'bg-[#2e7d32]/20 text-[#4caf50] border-[#4caf50]/30' },
   REJECTED: { label: 'REJECTED', cls: 'bg-red-500/10 text-red-400 border-red-500/30' },
@@ -82,6 +87,67 @@ const HabisPakaiPanel = ({ projectId, refreshKey, onCreatePO, onEditPo, onChange
     }
   };
 
+  const handlePrintPermintaan = (row) => {
+    const w = window.open('', '_blank');
+    if (!w) {
+      toast.error('Popup blocker aktif. Izinkan popup untuk mencetak.');
+      return;
+    }
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Surat Permintaan Habis Pakai - ${row.nomor || ''}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #222; background: #fff; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .header h2 { margin: 0; font-size: 18px; }
+          .header p { margin: 5px 0; font-size: 12px; color: #666; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+          th, td { border: 1px solid #333; padding: 10px; text-align: left; }
+          th { background: #f4f4f4; }
+          .right { text-align: right; }
+          .footer { margin-top: 40px; display: flex; justify-content: space-between; font-size: 12px; }
+          .no-print { margin-top: 20px; text-align: center; }
+          @media print { .no-print { display: none; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2>SURAT PERMINTAAN PEMBELIAN HABIS PAKAI</h2>
+          <p>Nomor: ${row.nomor || '-'}</p>
+        </div>
+        <table>
+          <tr><td style="width:30%">Tanggal</td><td>${fmtTanggal(row.createdAt)}</td></tr>
+          <tr><td>Diajukan Oleh</td><td>${row.requestedBy?.name || '-'}</td></tr>
+          <tr><td>Item</td><td>${row.itemName || '-'}</td></tr>
+          <tr><td>Jumlah</td><td class="right">${fmtNum(row.qty)} ${row.unit || ''}</td></tr>
+          <tr><td>Alasan</td><td>${row.alasan || '-'}</td></tr>
+          <tr><td>Catatan</td><td>${row.catatan || '-'}</td></tr>
+          <tr><td>PO Induk</td><td>${row.po?.poNumber || '-'}</td></tr>
+        </table>
+        <div class="footer">
+          <div>
+            <p><strong>Pemohon</strong></p>
+            <br/><br/>
+            <p>${row.requestedBy?.name || '...............'}</p>
+          </div>
+          <div>
+            <p><strong>Menyetujui</strong></p>
+            <br/><br/>
+            <p>............... </p>
+          </div>
+        </div>
+        <div class="no-print">
+          <button onclick="window.print()" style="padding: 10px 20px; font-size: 14px; cursor: pointer;">Cetak / Print to PDF</button>
+        </div>
+      </body>
+      </html>
+    `;
+    w.document.write(html);
+    w.document.close();
+  };
+
   if (!projectId) {
     return (
       <div className="py-16 text-center text-[#888] text-sm">
@@ -92,7 +158,9 @@ const HabisPakaiPanel = ({ projectId, refreshKey, onCreatePO, onEditPo, onChange
 
   const tabs = [
     { key: 'PENDING', label: 'Antrean' },
-    { key: 'LINKED', label: 'Sudah di-PO' },
+    { key: 'PO_DIBUAT', label: 'Menunggu Finance' },
+    { key: 'FINANCE_APPROVED', label: 'Menunggu Atasan' },
+    { key: 'ATASAN_APPROVED', label: 'Completed' },
     { key: 'REJECTED', label: 'Ditolak' },
     { key: '', label: 'Semua' },
   ];
@@ -150,6 +218,7 @@ const HabisPakaiPanel = ({ projectId, refreshKey, onCreatePO, onEditPo, onChange
                   <th className="p-4 font-semibold">Item</th>
                   <th className="p-4 font-semibold text-right">Jumlah</th>
                   <th className="p-4 font-semibold">Alasan</th>
+                  <th className="p-4 font-semibold">User</th>
                   <th className="p-4 font-semibold">PO Induk</th>
                   <th className="p-4 font-semibold">PO Habis Pakai</th>
                   <th className="p-4 font-semibold text-center">Status</th>
@@ -165,16 +234,24 @@ const HabisPakaiPanel = ({ projectId, refreshKey, onCreatePO, onEditPo, onChange
                       {fmtNum(r.qty)} {r.unit}
                     </td>
                     <td className="p-4 text-[#999] text-xs max-w-[220px]">{r.alasan || '-'}</td>
+                    <td className="p-4 text-[#ccc] text-xs">
+                      {r.requestedBy?.name || '-'}
+                      <div className="text-[10px] text-[#666]">{fmtTanggal(r.createdAt)}</div>
+                    </td>
                     <td className="p-4 text-[#38bdf8] font-mono text-xs">{r.po?.poNumber || '-'}</td>
                     <td className="p-4 text-[#38bdf8] font-mono text-xs">
                       {r.poHabisPakai?.poNumber || '-'}
                     </td>
                     <td className="p-4 text-center">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border ${r.status === 'LINKED'
-                        ? 'bg-[#2e7d32]/20 text-[#4caf50] border-[#4caf50]/30'
-                        : r.status === 'REJECTED'
-                          ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                          : 'bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30'
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border ${r.status === 'PO_DIBUAT'
+                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                        : r.status === 'FINANCE_APPROVED'
+                          ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                          : r.status === 'ATASAN_APPROVED'
+                            ? 'bg-[#2e7d32]/20 text-[#4caf50] border-[#4caf50]/30'
+                            : r.status === 'REJECTED'
+                              ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                              : 'bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30'
                         }`}>
                         {STATUS_LABEL[r.status] || r.status}
                       </span>
@@ -191,6 +268,14 @@ const HabisPakaiPanel = ({ projectId, refreshKey, onCreatePO, onEditPo, onChange
                           </button>
                           <button
                             type="button"
+                            onClick={() => handlePrintPermintaan(r)}
+                            className="p-1.5 rounded-lg text-[#888] hover:text-white hover:bg-white/10 transition-colors"
+                            title="Cetak Surat Permintaan"
+                          >
+                            <FileText size={16} />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleReject(r)}
                             className="p-1.5 rounded-lg text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                             title="Tolak permintaan"
@@ -198,12 +283,32 @@ const HabisPakaiPanel = ({ projectId, refreshKey, onCreatePO, onEditPo, onChange
                             <XCircle size={16} />
                           </button>
                         </div>
-                      ) : r.status === 'LINKED' ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-[#4caf50]">
-                          <Link2 size={12} /> Tertaut
-                        </span>
                       ) : (
-                        <span className="text-[11px] text-[#555] italic">—</span>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handlePrintPermintaan(r)}
+                            className="p-1.5 rounded-lg text-[#888] hover:text-white hover:bg-white/10 transition-colors"
+                            title="Cetak Surat Permintaan"
+                          >
+                            <FileText size={16} />
+                          </button>
+                          {r.status === 'PO_DIBUAT' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-blue-400">
+                              <Link2 size={12} /> Menunggu Finance
+                            </span>
+                          ) : r.status === 'FINANCE_APPROVED' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-purple-400">
+                              <Link2 size={12} /> Menunggu Atasan
+                            </span>
+                          ) : r.status === 'ATASAN_APPROVED' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-[#4caf50]">
+                              <Link2 size={12} /> Completed
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-[#555] italic">—</span>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>

@@ -145,7 +145,21 @@ const ApprovalPOPanel = ({ projectId = null, refreshKey = 0, onChanged }) => {
                   style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
                 />
                 <div className={styles.cardMain}>
-                  <div className={styles.poNo}>{po.poNumber}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                    <div className={styles.poNo}>{po.poNumber}</div>
+                    {po.caraPembayaran && (
+                      <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">
+                        {po.caraPembayaran}
+                      </span>
+                    )}
+                  </div>
+                    {po.caraPembayaran && (
+                      <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">
+                        {po.caraPembayaran}
+                      </span>
+                    )}
+                  </div>
                   <div className={styles.meta}>
                     <span className={styles.supplier}>{po.supplier?.name || 'Tanpa Supplier'}</span>
                     {po.project?.name && <span className={styles.dot}>·</span>}
@@ -169,27 +183,54 @@ const ApprovalPOPanel = ({ projectId = null, refreshKey = 0, onChanged }) => {
                     <thead>
                       <tr>
                         <th>DESKRIPSI</th>
-                        <th className={styles.right}>QTY</th>
-                        <th className={styles.right}>HARGA</th>
-                        <th className={styles.right}>TOTAL</th>
+                        <th className={styles.right} style={{ width: '20%' }}>QTY</th>
+                        <th className={styles.right} style={{ width: '20%' }}>HARGA</th>
+                        <th className={styles.right} style={{ width: '20%' }}>TOTAL</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((it) => (
-                        <tr key={it.id}>
-                          <td>
-                            {it.description}
-                            {it.description2 ? <span className={styles.desc2}> — {it.description2}</span> : null}
-                          </td>
-                          <td className={styles.right}>
-                            {Number(it.qty || 0)} {it.unit || ''}
-                          </td>
-                          <td className={styles.right}>{fmtRp(it.unitPrice)}</td>
-                          <td className={styles.right}>{fmtRp(it.total)}</td>
-                        </tr>
-                      ))}
+                      {items.map((it) => {
+                        const mr = it.materialRequest;
+                        const rapVol = Number(mr?.estimatedVolume || 0);
+                        const rapSatuan = Number(mr?.pricePerUnit || 0);
+                        const poQty = Number(it.qty || 0);
+                        const poHarga = Number(it.unitPrice || 0);
+                        const ketVol = it.keteranganVolume;
+                        const ketHrg = it.keteranganHarga;
+                        
+                        let volStatus = null;
+                        if (ketVol) {
+                          const isOver = ketVol.toLowerCase().includes("over");
+                          volStatus = <span className={`font-medium ml-1 text-[11px] ${isOver ? 'text-red-400' : 'text-green-400'}`}>({ketVol})</span>;
+                        }
+
+                        let hrgStatus = null;
+                        if (ketHrg) {
+                          const isOver = ketHrg.toLowerCase().includes("over");
+                          hrgStatus = <span className={`font-medium ml-1 text-[11px] ${isOver ? 'text-red-400' : 'text-green-400'}`}>({ketHrg})</span>;
+                        }
+
+                        return (
+                          <tr key={it.id}>
+                            <td>
+                              {it.description}
+                              {it.description2 ? <span className={styles.desc2}> — {it.description2}</span> : null}
+                            </td>
+                            <td className={styles.right}>
+                              <div>{poQty} {it.unit || ''} {volStatus}</div>
+                              {rapVol > 0 && <div className="text-[10px] text-[#888] mt-0.5">RAP Vol: {rapVol} {mr?.unit || it.unit}</div>}
+                            </td>
+                            <td className={styles.right}>
+                              <div>{fmtRp(poHarga)} {hrgStatus}</div>
+                              {rapSatuan > 0 && <div className="text-[10px] text-[#888] mt-0.5">RAP: {fmtRp(rapSatuan)}</div>}
+                            </td>
+                            <td className={styles.right}>{fmtRp(it.total)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
+
 
                   <div className={styles.actions}>
                     <button

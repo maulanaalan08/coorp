@@ -31,6 +31,28 @@ const toInputDate = (val) => {
   } catch { return ''; }
 };
 
+const hpStatusBadge = (s) => {
+  const map = {
+    PENDING: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+    PO_DIBUAT: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    FINANCE_APPROVED: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+    ATASAN_APPROVED: 'bg-green-500/10 text-green-400 border-green-500/30',
+    REJECTED: 'bg-red-500/10 text-red-400 border-red-500/30',
+  };
+  return map[s] || 'bg-gray-500/10 text-gray-400 border-gray-500/30';
+};
+
+const hpStatusLabel = (s) => {
+  const map = {
+    PENDING: 'Menunggu Purchasing',
+    PO_DIBUAT: 'Menunggu Approve Finance',
+    FINANCE_APPROVED: 'Menunggu Atasan',
+    ATASAN_APPROVED: 'Completed',
+    REJECTED: 'Ditolak',
+  };
+  return map[s] || s || '-';
+};
+
 const fmtNum = (n) => {
   const num = Number(n || 0);
   return isNaN(num) ? '0' : num.toLocaleString('id-ID', { maximumFractionDigits: 2 });
@@ -172,12 +194,6 @@ const ItemTrackingPage = ({ onNavigate }) => {
 
           if (item.isForceClosed) {
             localStatus = 'COMPLETED';
-          } else if (Number((item.receivedVolume || 0).toFixed(4)) >= Number((item.orderedVolume || 0).toFixed(4))) {
-            localStatus = 'COMPLETED';
-          } else if ((item.receivedVolume || 0) > 0) {
-            localStatus = 'PARTIAL';
-          } else {
-            localStatus = 'PENDING';
           }
 
           result.push({
@@ -376,6 +392,47 @@ const ItemTrackingPage = ({ onNavigate }) => {
                 )}
               </button>
             </div>
+
+            {/* Ringkasan status permintaan habis pakai */}
+            {permintaanHP.length > 0 && (
+              <div className="bg-[#11100e] border border-white/5 rounded-2xl px-5 py-4 mb-8 shadow-xl">
+                <div className="flex items-center gap-2 mb-3 text-white font-bold text-sm">
+                  <PackagePlus size={16} className="text-[#d4af37]" />
+                  Status Permintaan Habis Pakai
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {permintaanHP.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex flex-col gap-1 px-3 py-2 rounded-lg border bg-[#1a1814] border-[#2a2a2a] text-xs min-w-[240px]"
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-[#d4af37]">{p.nomor || p.id.slice(0, 8)}</span>
+                        <span className="text-white font-semibold">{p.itemName}</span>
+                        <span className="text-[#666]">{fmtNum(p.qty)} {p.unit}</span>
+                        <span className={`px-2 py-0.5 rounded-full border ${hpStatusBadge(p.status)}`}>
+                          {hpStatusLabel(p.status)}
+                        </span>
+                      </div>
+                      {(p.keteranganVolume || p.keteranganHarga) && (
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {p.keteranganVolume && (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-1">
+                              <AlertCircle size={10} /> Ket. Volume: {p.keteranganVolume}
+                            </span>
+                          )}
+                          {p.keteranganHarga && (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 flex items-center gap-1">
+                              <AlertCircle size={10} /> Ket. Harga: {p.keteranganHarga}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="bg-[#11100e] border border-white/5 rounded-2xl overflow-hidden shadow-xl">
               <div className="p-5 border-b border-white/5 bg-[#161513] flex flex-col gap-4">

@@ -19,6 +19,16 @@ let _authExpiredDispatched = false;
 export const fetchAPI = async (endpoint, options = {}) => {
   const headers = { ...options.headers };
 
+  // Tambahkan Authorization token jika tersedia di localStorage
+  try {
+    const token = localStorage.getItem('token');
+    if (token && !headers['Authorization'] && !headers['authorization']) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch (e) {
+    // localStorage mungkin tidak tersedia di environment tertentu
+  }
+
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
   }

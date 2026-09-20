@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header';
 import ProjectSelector from '../components/ProjectSelector';
+import PurchaseOrderModal from '../components/PurchaseOrderModal';
 import { lapanganService } from '../services/lapanganService';
 import { projectService } from '../services/projectService';
 import { fileUrl } from '../services/api';
@@ -22,9 +23,12 @@ const fmtTanggal = (d) =>
 const statusBadge = (s) => {
   const map = {
     PENDING: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
-    LINKED: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    PO_DIBUAT: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    FINANCE_APPROVED: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+    ATASAN_APPROVED: 'bg-green-500/10 text-green-400 border-green-500/30',
     REJECTED: 'bg-red-500/10 text-red-400 border-red-500/30',
-    BELUM_APPROVE: 'bg-gray-500/10 text-gray-400 border-gray-500/30',
+    LINKED: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    BELUM_APPROVE: 'bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30',
     MENUNGGU_ATASAN: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
     APPROVED: 'bg-green-500/10 text-green-400 border-green-500/30',
   };
@@ -34,9 +38,12 @@ const statusBadge = (s) => {
 const statusLabel = (s) => {
   const map = {
     PENDING: 'Menunggu Purchasing',
-    LINKED: 'Sudah Jadi PO',
+    PO_DIBUAT: 'Menunggu Approve Finance',
+    FINANCE_APPROVED: 'Menunggu Atasan',
+    ATASAN_APPROVED: 'Completed',
     REJECTED: 'Ditolak',
-    BELUM_APPROVE: 'Belum Approve',
+    LINKED: 'Sudah Jadi PO',
+    BELUM_APPROVE: 'Belum Approve Finance',
     MENUNGGU_ATASAN: 'Menunggu Atasan',
     APPROVED: 'Disetujui',
   };
@@ -62,6 +69,8 @@ const RiwayatHabisPakaiPage = () => {
 
   const [expandedPO, setExpandedPO] = useState({});
   const [previewSJ, setPreviewSJ] = useState(null);
+  const [poModalOpen, setPoModalOpen] = useState(false);
+  const [selectedPermintaan, setSelectedPermintaan] = useState(null);
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -217,6 +226,16 @@ const RiwayatHabisPakaiPage = () => {
           })}
         </div>
 
+        {/* Progress tracker */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {['PENDING','PO_DIBUAT','FINANCE_APPROVED','ATASAN_APPROVED'].map((s, idx, arr) => (
+            <div key={s} className="flex items-center gap-2 text-xs">
+              <span className={`px-2 py-1 rounded border ${statusBadge(s)}`}>{statusLabel(s)}</span>
+              {idx < arr.length - 1 && <span className="text-[#555]">→</span>}
+            </div>
+          ))}
+        </div>
+
         <div className="mb-4 relative w-full md:w-80">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888]" />
           <input
@@ -245,14 +264,18 @@ const RiwayatHabisPakaiPage = () => {
                         <th className="px-4 py-3 font-semibold">Item</th>
                         <th className="px-4 py-3 font-semibold text-right">Qty</th>
                         <th className="px-4 py-3 font-semibold">Alasan</th>
+                        <th className="px-4 py-3 font-semibold">Ket. Volume</th>
+                        <th className="px-4 py-3 font-semibold">Ket. Harga</th>
+                        <th className="px-4 py-3 font-semibold">Akumulasi</th>
                         <th className="px-4 py-3 font-semibold">PO Habis Pakai</th>
                         <th className="px-4 py-3 font-semibold text-center">Status</th>
+                        <th className="px-4 py-3 font-semibold text-center">Aksi</th>
                       </tr>
                     </thead>
                     <tbody>
                       {permintaanTampil.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="text-center py-10 text-[#888]">
+                          <td colSpan={10} className="text-center py-10 text-[#888]">
                             Belum ada permintaan habis pakai
                           </td>
                         </tr>
@@ -285,6 +308,19 @@ const RiwayatHabisPakaiPage = () => {
                                 </div>
                               )}
                             </td>
+                            <td className="px-4 py-3 text-[#888] text-xs max-w-[160px]">
+                              {p.keteranganVolume || '-'}
+                            </td>
+                            <td className="px-4 py-3 text-[#888] text-xs max-w-[160px]">
+                              {p.keteranganHarga || '-'}
+                            </td>
+                            <td className="px-4 py-3 text-xs whitespace-nowrap">
+                              <div className="text-[#888]">Dipesan: <span className="text-[#ccc]">{fmtNum(p.akumulasiQty || 0)} {p.unit}</span></div>
+                              <div className="text-[#888]">Diterima: <span className={p.akumulasiReceived > p.akumulasiQty ? 'text-red-400 font-bold' : 'text-[#ccc]'}>{fmtNum(p.akumulasiReceived || 0)} {p.unit}</span></div>
+                              {p.akumulasiReceived > p.akumulasiQty && (
+                                <div className="text-[10px] text-red-400 font-bold">Over {fmtNum((p.akumulasiReceived || 0) - (p.akumulasiQty || 0))} {p.unit}</div>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-[#38bdf8] font-mono text-xs whitespace-nowrap">
                               {p.poHabisPakai?.poNumber || p.po?.poNumber || '-'}
                             </td>
@@ -292,6 +328,21 @@ const RiwayatHabisPakaiPage = () => {
                               <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge(p.status)}`}>
                                 {statusLabel(p.status)}
                               </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {p.status === 'PENDING' && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedPermintaan(p);
+                                    setPoModalOpen(true);
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg bg-[#d4af37] text-black text-xs font-bold hover:bg-[#c4a030] transition-colors"
+                                >
+                                  Buat PO
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -363,8 +414,15 @@ const RiwayatHabisPakaiPage = () => {
                                   <tr className="bg-white/[0.03] text-[#888] text-left">
                                     <th className="px-3 py-2 font-semibold">Item</th>
                                     <th className="px-3 py-2 font-semibold text-right">Qty PO</th>
+                                    <th className="px-3 py-2 font-semibold text-right">RAP Est</th>
+                                    <th className="px-3 py-2 font-semibold text-right">Over Qty</th>
                                     <th className="px-3 py-2 font-semibold text-right">Harga</th>
+                                    <th className="px-3 py-2 font-semibold text-right">RAP Harga</th>
+                                    <th className="px-3 py-2 font-semibold text-right">Over Harga</th>
                                     <th className="px-3 py-2 font-semibold text-right">Jumlah</th>
+                                    <th className="px-3 py-2 font-semibold text-right">Akumulasi</th>
+                                    <th className="px-3 py-2 font-semibold">Ket. Volume</th>
+                                    <th className="px-3 py-2 font-semibold">Ket. Harga</th>
                                     <th className="px-3 py-2 font-semibold text-center">Diterima</th>
                                     <th className="px-3 py-2 font-semibold text-center">Surat Jalan</th>
                                   </tr>
@@ -376,17 +434,40 @@ const RiwayatHabisPakaiPage = () => {
                                     const lebih = terima - qty > 0.0001;
                                     const kurang = terima > 0 && terima < qty - 0.0001;
                                     const sj = it.deliveryReceipts || [];
+                                    const overQty = Number(it.overQty || 0);
+                                    const overHarga = Number(it.overHarga || 0);
                                     return (
                                       <tr key={it.id} className="border-t border-white/5">
                                         <td className="px-3 py-2 text-white">{it.description}</td>
                                         <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">
                                           {fmtNum(qty)} {it.unit}
                                         </td>
+                                        <td className="px-3 py-2 text-right font-mono text-[#888] whitespace-nowrap">
+                                          {fmtNum(it.rapEstVolume || 0)} {it.unit}
+                                        </td>
+                                        <td className={`px-3 py-2 text-right font-mono whitespace-nowrap ${overQty > 0 ? 'text-red-400 font-bold' : 'text-[#555]'}`}>
+                                          {overQty > 0 ? `+${fmtNum(overQty)} ${it.unit}` : '-'}
+                                        </td>
                                         <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">
                                           {fmtRp(it.unitPrice)}
                                         </td>
+                                        <td className="px-3 py-2 text-right font-mono text-[#888] whitespace-nowrap">
+                                          {fmtRp(it.rapPricePerUnit || 0)}
+                                        </td>
+                                        <td className={`px-3 py-2 text-right font-mono whitespace-nowrap ${overHarga > 0 ? 'text-red-400 font-bold' : 'text-[#555]'}`}>
+                                          {overHarga > 0 ? `+${fmtRp(overHarga)}` : '-'}
+                                        </td>
                                         <td className="px-3 py-2 text-right font-mono text-[#d4af37] whitespace-nowrap">
                                           {fmtRp(it.total)}
+                                        </td>
+                                        <td className="px-3 py-2 text-right text-[#666] text-xs whitespace-nowrap">
+                                          {it.akumulasiQty || po.akumulasiQty || 0} {it.unit || po.items?.[0]?.unit || ''}
+                                        </td>
+                                        <td className="px-3 py-2 text-[#888] text-xs max-w-[120px]">
+                                          {it.keteranganVolume || '-'}
+                                        </td>
+                                        <td className="px-3 py-2 text-[#888] text-xs max-w-[120px]">
+                                          {it.keteranganHarga || '-'}
                                         </td>
                                         <td className="px-3 py-2 text-center whitespace-nowrap">
                                           {terima <= 0 ? (
@@ -582,6 +663,40 @@ const RiwayatHabisPakaiPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal Buat PO Habis Pakai */}
+      {poModalOpen && selectedPermintaan && (
+        <PurchaseOrderModal
+          projectId={selectedPermintaan.projectId}
+          kategoriPO="HABIS_PAKAI"
+          sumberPo={selectedPermintaan.poId || null}
+          alasanHabisPakai={selectedPermintaan.alasan || null}
+          permintaanHabisPakaiId={selectedPermintaan.id}
+          keteranganVolume={selectedPermintaan.keteranganVolume || null}
+          keteranganHarga={selectedPermintaan.keteranganHarga || null}
+          selectedItems={[
+            {
+              id: `php_${selectedPermintaan.id}`,
+              mrItemId: null,
+              itemName: selectedPermintaan.itemName,
+              description: selectedPermintaan.itemName,
+              unit: selectedPermintaan.unit,
+              estimatedVolume: Number(selectedPermintaan.qty || 0),
+              orderedQty: 0,
+              pricePerUnit: 0,
+            }
+          ]}
+          onClose={() => {
+            setPoModalOpen(false);
+            setSelectedPermintaan(null);
+          }}
+          onSuccess={() => {
+            setPoModalOpen(false);
+            setSelectedPermintaan(null);
+            fetchData();
+          }}
+        />
       )}
     </div>
   );

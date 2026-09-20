@@ -44,7 +44,8 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
     supplierId: '',
     itemName: '',
     unit: '',
-    currentPrice: ''
+    currentPrice: '',
+    kategori: ''
   });
 
   const [loading, setLoading] = useState(false);
@@ -93,9 +94,10 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
         supplierId: itemForm.supplierId,
         itemName: itemForm.itemName,
         unit: itemForm.unit,
-        price: parseFloat(itemForm.currentPrice)
+        price: parseFloat(itemForm.currentPrice),
+        kategori: itemForm.kategori || undefined
       });
-      setItemForm({ ...itemForm, itemName: '', unit: '', currentPrice: '' });
+      setItemForm({ ...itemForm, itemName: '', unit: '', currentPrice: '', kategori: '' });
       fetchSupplierItems(selectedSupplierId);
     } catch (err) {
       // handled in hook
@@ -283,6 +285,15 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
                     </div>
 
                     <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Kategori Item *</label>
+                      <select name="kategori" value={itemForm.kategori} onChange={handleItemChange} className={styles.formSelect} required>
+                        <option value="">- Pilih -</option>
+                        <option value="BAHAN">BAHAN</option>
+                        <option value="ALAT">ALAT</option>
+                      </select>
+                    </div>
+
+                    <div className={styles.formGroup}>
                       <label className={styles.formLabel}>Harga Satuan *</label>
                       <input type="number" name="currentPrice" value={itemForm.currentPrice} onChange={handleItemChange} className={styles.formInput} placeholder="Misal: 65000" required />
                     </div>
@@ -321,6 +332,7 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
                         <tr>
                           <th>Supplier</th>
                           <th>Nama Item</th>
+                          <th>Kategori</th>
                           <th>Satuan</th>
                           <th style={{ textAlign: 'right' }}>Harga Terkini</th>
                         </tr>
@@ -330,13 +342,18 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
                           <tr key={item.id}>
                             <td style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building size={14} style={{ color: '#737373' }} /> {item.supplier?.name}</td>
                             <td style={{ fontWeight: '500', color: '#f60d0dff' }}>{item.itemName}</td>
+                            <td>
+                              <span className={item.kategori === 'BAHAN' ? styles.badgeBahan : styles.badgeJasa}>
+                                {item.kategori || '-'}
+                              </span>
+                            </td>
                             <td>{item.unit}</td>
                             <td className={styles.supplierPrice}>{fmtRp(item.currentPrice)}</td>
                           </tr>
                         ))}
                         {supplierItems.length === 0 && (
                           <tr>
-                            <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#737373' }}>Belum ada item</td>
+                            <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#737373' }}>Belum ada item</td>
                           </tr>
                         )}
                       </tbody>

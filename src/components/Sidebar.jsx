@@ -26,6 +26,7 @@ import {
   Banknote,
   ReceiptText,
   CalendarDays,
+  Landmark,
   LogOut,
   Menu,
   X
@@ -51,8 +52,8 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   useEffect(() => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
     if (["time-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
-    if (["finance", "pembelian-siap-pakai"].includes(activeTab)) setIsFinanceOpen(true);
-    if (["purchase-orders", "retur-pembelian", "pengajuan-bayar", "pembayaran-supplier", "invoice-penagihan", "laporan-harian", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
+    if (["finance", "pembelian-siap-pakai", "pengajuan-bayar", "pembayaran-supplier", "laporan-harian", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
+    if (["purchase-orders", "po-jasa", "retur-pembelian", "invoice-penagihan", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
   }, [activeTab]);
 
   const handleNavigation = (e, tab) => {
@@ -204,6 +205,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                 <ul className="mt-1 flex flex-col gap-1 list-none p-0">
                   <SubNavItem icon={Wallet} label="Kebutuhan Material" tab="finance" />
                   <SubNavItem icon={Package} label="Pembelian Siap Pakai" tab="pembelian-siap-pakai" />
+                  <SubNavItem icon={FileInput} label="Pengajuan Bayar" tab="pengajuan-bayar" />
+                  <SubNavItem icon={Banknote} label="Pembayaran Supplier" tab="pembayaran-supplier" />
+                  <SubNavItem icon={CalendarDays} label="Laporan" tab="laporan-harian" />
+                  <SubNavItem icon={Landmark} label="Buku Besar Kas/Bank" tab="buku-besar" />
                 </ul>
               )}
             </li>
@@ -222,16 +227,14 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                 {isPurchasingOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </button>
               {isPurchasingOpen && (
-                              <ul className="mt-1 flex flex-col gap-1 list-none p-0">
-                                <SubNavItem icon={ClipboardList} label="Purchase Orders" tab="purchase-orders" />
-                                <SubNavItem icon={RotateCcw} label="Retur Pembelian" tab="retur-pembelian" />
-                                <SubNavItem icon={FileInput} label="Pengajuan Bayar" tab="pengajuan-bayar" />
-                                <SubNavItem icon={PackagePlus} label="Pembelian Habis Pakai" tab="habis-pakai" />
-                                <SubNavItem icon={Banknote} label="Pembayaran Supplier" tab="pembayaran-supplier" />
-                                <SubNavItem icon={ReceiptText} label="Invoice Penagihan" tab="invoice-penagihan" />
-                                <SubNavItem icon={CalendarDays} label="Laporan Harian" tab="laporan-harian" />
-                              </ul>
-                            )}
+                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
+                  <SubNavItem icon={ClipboardList} label="Purchase Orders" tab="purchase-orders" />
+                  <SubNavItem icon={ClipboardList} label="PO Jasa" tab="po-jasa" />
+                  <SubNavItem icon={RotateCcw} label="Retur Pembelian" tab="retur-pembelian" />
+                  <SubNavItem icon={PackagePlus} label="Pembelian Habis Pakai" tab="habis-pakai" />
+                  <SubNavItem icon={ReceiptText} label="Invoice Penagihan" tab="invoice-penagihan" />
+                </ul>
+              )}
             </li>
           </ul>
 

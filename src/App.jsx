@@ -24,6 +24,7 @@ const TimeSchedulePage = lazy(() => import("./pages/TimeSchedulePage"));
 const JoinOpnamePage = lazy(() => import("./pages/JoinOpnamePage"));
 const FinancePage = lazy(() => import("./pages/FinancePage"));
 const PurchaseOrderPage = lazy(() => import("./pages/PurchaseOrderPage"));
+const PurchaseOrderJasaPage = lazy(() => import("./pages/PurchaseOrderJasaPage"));
 const ReturPembelianPage = lazy(() => import("./pages/ReturPembelianPage"));
 const PengajuanBayarPage = lazy(() => import("./pages/PengajuanBayarPage"));
 const PembayaranSupplierPage = lazy(() => import("./pages/PembayaranSupplierPage"));
@@ -34,6 +35,7 @@ const PrintPOPage = lazy(() => import("./pages/PrintPOPage"));
 const BastPage = lazy(() => import("./pages/BastPage"));
 const ItemTrackingPage = lazy(() => import("./pages/ItemTrackingPage"));
 const RiwayatHabisPakaiPage = lazy(() => import("./pages/RiwayatHabisPakaiPage"));
+const BukuBesarPage = lazy(() => import("./pages/BukuBesarPage"));
 
 function RouteLoader() {
   return (
@@ -58,7 +60,7 @@ function App() {
       'bv', 'backup-volume', 'rab', 'finance', 'pembelian-siap-pakai', 'purchase-orders',
       'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'invoice-penagihan',
       'laporan-harian', 'time-schedule', 'join-opname', 'bast', 'complain',
-      'item-tracking', 'habis-pakai'
+      'item-tracking', 'habis-pakai', 'buku-besar'
     ];
     if (validTabs.includes(tabFromPath)) {
       setActiveTab(tabFromPath);
@@ -200,6 +202,7 @@ function App() {
           {activeTab === "finance" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
           {activeTab === "pembelian-siap-pakai" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />} 
           {activeTab === "purchase-orders" && <PurchaseOrderPage />}
+          {activeTab === "po-jasa" && <PurchaseOrderJasaPage />}
           {activeTab === "retur-pembelian" && <ReturPembelianPage />}
           {activeTab === "pengajuan-bayar" && <PengajuanBayarPage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
           {activeTab === "pembayaran-supplier" && <PembayaranSupplierPage />}
@@ -211,6 +214,7 @@ function App() {
           {activeTab === "complain" && <ComplaintPage />}
           {activeTab === "item-tracking" && <ItemTrackingPage onNavigate={setActiveTab} />}
           {activeTab === "habis-pakai" && <RiwayatHabisPakaiPage />}
+          {activeTab === "buku-besar" && <BukuBesarPage />}
         </Suspense>
       </main>
 

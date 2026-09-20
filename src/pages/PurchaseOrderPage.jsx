@@ -10,7 +10,6 @@ import { poService } from '../services/poService';
 import PurchaseOrderModal from '../components/PurchaseOrderModal';
 import SupplierModal from '../components/SupplierModal';
 import POFromRabPanel from '../components/POFromRabPanel';
-import HabisPakaiPanel from '../components/HabisPakaiPanel';
 import toast from 'react-hot-toast';
 
 const fmtRp = (n) =>
@@ -132,9 +131,15 @@ const PurchaseOrderPage = () => {
   };
 
   const filteredPOs = useMemo(() => {
-    if (!search.trim()) return pos;
+    // Filter only non-JASA supplier POs (Bahan & Alat)
+    let result = pos.filter(po => {
+      const supplierType = po.supplier?.type;
+      // Kalau supplier type ada dan JASA, exclude. Kalau tidak ada type, include semua (default)
+      return supplierType !== 'JASA';
+    });
+    if (!search.trim()) return result;
     const query = search.toLowerCase();
-    return pos.filter(
+    return result.filter(
       (po) =>
         po.poNumber?.toLowerCase().includes(query) ||
         po.supplier?.name?.toLowerCase().includes(query) ||
@@ -143,7 +148,8 @@ const PurchaseOrderPage = () => {
   }, [pos, search]);
 
   // Gunakan data finance MR jika tersedia (lebih kaya, split per toko), fallback ke mrItems
-  const displayItems = financeMrItems.length > 0 ? financeMrItems : mrItems;
+  const displayItemsRaw = financeMrItems.length > 0 ? financeMrItems : mrItems;
+  const displayItems = displayItemsRaw.filter(item => item.category !== 'UPAH');
   const hasFinanceData = financeMrItems.length > 0;
 
   // Grouping 4-level: Grup Pekerjaan → Uraian Pekerjaan → Nama Material → Split Items (Riwayat PO)
@@ -305,7 +311,7 @@ const PurchaseOrderPage = () => {
           <p className={styles.subtitle}>Kelola pembuatan PO dari material request dan riwayat PO.</p>
         </div>
         <div style={{ minWidth: '300px' }}>
-          {(activeTab === 'buat-po' || activeTab === 'habis-pakai') && (
+          {activeTab === 'buat-po' && (
             <ProjectSelector
               projectId={projectId}
               projectList={projectList}
@@ -329,39 +335,20 @@ const PurchaseOrderPage = () => {
             className={`${styles.tabBtn} ${activeTab === 'dari-rab' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('dari-rab')}
           >
-            <Truck size={16} /> Dari RAB per Supplier
-          </button>
-
-          <button
-            className={`${styles.tabBtn} ${activeTab === 'habis-pakai' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('habis-pakai')}
-          >
-            <PackagePlus size={16} /> Habis Pakai
+            <ShoppingCart size={16} /> Dari RAB
           </button>
 
           <button
             className={`${styles.tabBtn} ${activeTab === 'manage-supplier' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('manage-supplier')}
           >
-            <Building size={16} /> Manage Supplier
+            <Building size={16} /> Supplier
           </button>
         </div>
 
         {activeTab === 'dari-rab' && (
           <div className={styles.tabContent}>
             <POFromRabPanel projectId={projectId} onCreatePO={handleCreateFromPlan} />
-          </div>
-        )}
-
-        {activeTab === 'habis-pakai' && (
-          <div className={styles.tabContent}>
-            <HabisPakaiPanel
-              projectId={projectId}
-              refreshKey={hpRefresh}
-              onCreatePO={handleCreateFromHabisPakai}
-              onEditPo={handleEditPo}
-              onChanged={() => setHpRefresh((v) => v + 1)}
-            />
           </div>
         )}
 
@@ -533,6 +520,7 @@ const PurchaseOrderPage = () => {
                                                   <th>NAMA MATERIAL</th>
                                                   <th>SAT.</th>
                                                   <th className={styles.cellRight}>EST. VOL</th>
+                                                  <th className={styles.cellRight}>VOL. DIPESAN</th>
                                                   <th className={styles.cellRight}>VOL. DITERIMA</th>
                                                   <th style={{ minWidth: '120px' }}>SISA BUTUH</th>
                                                   <th className={styles.cellRight}>HARGA/SAT</th>
@@ -547,6 +535,7 @@ const PurchaseOrderPage = () => {
                                                   // Hitung total dari seluruh split item
                                                   const totalEstVol = matItems.reduce((sum, curr) => sum + (curr.estimatedVolume || 0), 0);
                                                   const totalOrdered = matItems.reduce((sum, curr) => sum + (curr.orderedVolume || 0), 0);
+                                                  const totalReceivedVol = matItems.reduce((sum, curr) => sum + (curr.receivedVolume || 0), 0);
                                                   const pct = totalEstVol > 0 ? Math.min((totalOrdered / totalEstVol) * 100, 100) : 0;
                                                   const fulfilled = isMaterialFulfilled(matItems);
 
@@ -577,8 +566,14 @@ const PurchaseOrderPage = () => {
                                                       statusClass = styles.statusPending;
                                                       showUpdateBtn = false;
                                                     } else {
-                                                      statusLabel = 'COMPLETED';
-                                                      statusClass = styles.statusApproved;
+                                                      const totalReceived = matItems.reduce((sum, curr) => sum + (curr.receivedVolume || 0), 0);
+                                                      if (totalEstVol > 0 && totalReceived >= totalEstVol) {
+                                                        statusLabel = 'COMPLETED';
+                                                        statusClass = styles.statusApproved;
+                                                      } else {
+                                                        statusLabel = 'PARTIAL (PO Approved)';
+                                                        statusClass = styles.statusPending;
+                                                      }
                                                       showUpdateBtn = false;
                                                     }
                                                   } else if (totalOrdered > 0) {
@@ -638,6 +633,12 @@ const PurchaseOrderPage = () => {
                                                         >
                                                           {fmtVol(totalOrdered)}
                                                         </td>
+                                                        <td className={`${styles.cellMono} ${styles.cellRight}`}
+                                                          style={{ color: totalReceivedVol > 0 ? (totalReceivedVol >= totalOrdered && totalOrdered > 0 ? '#22c55e' : '#38bdf8') : '#555' }}
+                                                          title={`Diterima ${fmtVol(totalReceivedVol)} dari ${fmtVol(totalOrdered)} dipesan`}
+                                                        >
+                                                          {fmtVol(totalReceivedVol)}
+                                                        </td>
                                                         <td>
                                                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -687,16 +688,20 @@ const PurchaseOrderPage = () => {
                                                       {/* ══ LEVEL 4: RIWAYAT PO MATERIAL ══ */}
                                                       {isMatOpen && hasPOs && (
                                                         <tr>
-                                                          <td colSpan={8} style={{ padding: 0, background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                                          <td colSpan={9} style={{ padding: 0, background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                                             <div style={{ padding: '12px 16px 16px 72px' }}>
                                                               <h4 style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#a78bfa', fontWeight: '500' }}>Riwayat Pemesanan (PO)</h4>
                                                               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                                                 <thead>
                                                                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                                                                     <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>NO. PO</th>
-                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>TANGGAL PO</th>
-                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>SUPPLIER / TOKO</th>
-                                                                    <th style={{ textAlign: 'right', padding: '6px', fontSize: '11px', color: '#888' }}>VOL. DITERIMA</th>
+                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>TGL PO</th>
+                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>SUPPLIER</th>
+                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#888' }}>CARA BAYAR</th>
+                                                                    <th style={{ textAlign: 'right', padding: '6px', fontSize: '11px', color: '#888' }}>QTY DIPESAN</th>
+                                                                    <th style={{ textAlign: 'right', padding: '6px', fontSize: '11px', color: '#888' }}>QTY DITERIMA</th>
+                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#ef4444' }}>KET. VOLUME</th>
+                                                                    <th style={{ textAlign: 'left', padding: '6px', fontSize: '11px', color: '#f97316' }}>KET. HARGA</th>
                                                                     <th style={{ textAlign: 'center', padding: '6px', fontSize: '11px', color: '#888' }}>AKSI</th>
                                                                   </tr>
                                                                 </thead>
@@ -714,13 +719,43 @@ const PurchaseOrderPage = () => {
                                                                       fullPo?.status === 'MENUNGGU_ATASAN' ? 'Menunggu Atasan' :
                                                                       'Belum Approve';
 
+                                                                    const fullPoItem = fullPo?.items?.find(i => i.id === poI.poItemId);
+
                                                                     return (
                                                                       <React.Fragment key={poI.id}>
                                                                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                                                           <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', color: '#60a5fa' }}>{poI.poNumber}</td>
                                                                           <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{fullPo?.tanggal ? new Date(fullPo.tanggal).toLocaleDateString('id-ID') : '-'}</td>
                                                                           <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.supplierName}</td>
+                                                                          <td style={{ padding: '6px', fontSize: '12px' }}>
+                                                                            {fullPo?.caraPembayaran ? (
+                                                                              <span style={{ background: 'rgba(59,130,246,0.15)', color: '#93c5fd', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, border: '1px solid rgba(59,130,246,0.3)' }}>
+                                                                                {fullPo.caraPembayaran}
+                                                                              </span>
+                                                                            ) : '-'}
+                                                                          </td>
                                                                           <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', textAlign: 'right', color: '#eab308' }}>{fmtVol(poI.orderedVolume)} {poI.unit}</td>
+                                                                          <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', textAlign: 'right', color: (poI.receivedVolume || 0) > 0 ? ((poI.receivedVolume || 0) >= (poI.orderedVolume || 0) ? '#22c55e' : '#38bdf8') : '#555' }}>{fmtVol(poI.receivedVolume || 0)} {poI.unit}</td>
+                                                                          <td style={{ padding: '6px', fontSize: '11px', color: '#ef4444', maxWidth: '120px' }}>
+                                                                            {(() => {
+                                                                              if (totalEstVol <= 0) return <span style={{ color: '#444' }}>-</span>;
+                                                                              const diffVol = totalOrdered - totalEstVol;
+                                                                              if (diffVol > 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={10} style={{ shrink: 0 }} />Over-volume +{fmtVol(diffVol)}</span>;
+                                                                              if (diffVol < 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f59e0b' }}><AlertCircle size={10} style={{ shrink: 0 }} />Under-volume {fmtVol(diffVol)}</span>;
+                                                                              return <span style={{ color: '#22c55e' }}>Sesuai RAP</span>;
+                                                                            })()}
+                                                                          </td>
+                                                                          <td style={{ padding: '6px', fontSize: '11px', color: '#f97316', maxWidth: '120px' }}>
+                                                                            {(() => {
+                                                                              if (!firstItem.pricePerUnit || fullPoItem?.unitPrice == null) return <span style={{ color: '#444' }}>-</span>;
+                                                                              const estP = Number(firstItem.pricePerUnit);
+                                                                              const curP = Number(fullPoItem.unitPrice);
+                                                                              const diffP = curP - estP;
+                                                                              if (diffP > 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={10} style={{ shrink: 0 }} />Over-price +{fmtRp(diffP)}</span>;
+                                                                              if (diffP < 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f59e0b' }}><AlertCircle size={10} style={{ shrink: 0 }} />Under-price {fmtRp(diffP)}</span>;
+                                                                              return <span style={{ color: '#22c55e' }}>Sesuai RAP</span>;
+                                                                            })()}
+                                                                          </td>
                                                                           <td style={{ padding: '6px', textAlign: 'center' }}>
                                                                             {fullPo ? (
                                                                               <div className={styles.actionCell} style={{ justifyContent: 'center' }}>
@@ -749,7 +784,7 @@ const PurchaseOrderPage = () => {
                                                                         </tr>
                                                                         {fullPo?.status === 'REJECTED' && fullPo.rejectReason && (
                                                                           <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                            <td colSpan={5} style={{ padding: '4px 6px', fontSize: '11px', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
+                                                                            <td colSpan={9} style={{ padding: '4px 6px', fontSize: '11px', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
                                                                               <AlertCircle size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
                                                                               <strong>Alasan Penolakan:</strong> {fullPo.rejectReason}
                                                                             </td>

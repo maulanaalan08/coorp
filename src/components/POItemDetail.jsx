@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, Truck, UserCheck, CalendarDays } from 'lucide-react';
+import { Package, Truck, UserCheck, CalendarDays, AlertCircle } from 'lucide-react';
 
 const fmtRp = (n) =>
   'Rp ' + Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
@@ -83,6 +83,30 @@ const POItemDetail = ({ po, compact = false, showHeader = true }) => {
                           {it.materialRequest.groupName}
                         </div>
                       )}
+                      {it.keteranganVolume ? (
+                        <div className="text-[10px] text-red-400 mt-1 font-semibold flex items-center gap-1">
+                          <AlertCircle size={10} /> Ket. Vol: {it.keteranganVolume}
+                        </div>
+                      ) : (() => {
+                        const rap = po.kategoriPO === 'HABIS_PAKAI' ? (it.estimatedVolume || 0) : (it.materialRequest?.estimatedVolume || 0);
+                        if (!rap) return null;
+                        const diff = Number(it.qty || 0) - Number(rap);
+                        if (diff > 0) return <div className="text-[10px] text-red-400 mt-1 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Vol: Over +{fmtNum(diff)} {it.unit}</div>;
+                        if (diff < 0) return <div className="text-[10px] text-amber-400 mt-1 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Vol: Under {fmtNum(diff)} {it.unit}</div>;
+                        return <div className="text-[10px] text-green-400 mt-1 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Vol: Sesuai</div>;
+                      })()}
+                      {it.keteranganHarga ? (
+                        <div className="text-[10px] text-orange-400 mt-0.5 font-semibold flex items-center gap-1">
+                          <AlertCircle size={10} /> Ket. Harga: {it.keteranganHarga}
+                        </div>
+                      ) : (() => {
+                        const rapP = po.kategoriPO === 'HABIS_PAKAI' ? (it.pricePerUnit || 0) : (it.materialRequest?.pricePerUnit || 0);
+                        if (!rapP) return null;
+                        const diff = Number(it.unitPrice || 0) - Number(rapP);
+                        if (diff > 0) return <div className="text-[10px] text-red-400 mt-0.5 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Harga: Over +{fmtRp(diff)}</div>;
+                        if (diff < 0) return <div className="text-[10px] text-amber-400 mt-0.5 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Harga: Under {fmtRp(diff)}</div>;
+                        return <div className="text-[10px] text-green-400 mt-0.5 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Harga: Sesuai</div>;
+                      })()}
                     </td>
                     {!compact && (
                       <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">
