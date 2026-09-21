@@ -389,6 +389,20 @@ const RiwayatHabisPakaiPage = () => {
 
                         {open && (
                           <div className="border-t border-[#2a2a2a] bg-[#100e0a] px-5 py-4">
+                            {(po.keteranganVolume || po.keteranganHarga) && (
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {po.keteranganVolume && (
+                                  <span className="text-[11px] px-2 py-1 rounded bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-1">
+                                    <AlertCircle size={10} /> Ket. Volume: {po.keteranganVolume}
+                                  </span>
+                                )}
+                                {po.keteranganHarga && (
+                                  <span className="text-[11px] px-2 py-1 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 flex items-center gap-1">
+                                    <AlertCircle size={10} /> Ket. Harga: {po.keteranganHarga}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                             {(po.permintaanHabisPakai || []).length > 0 && (
                               <div className="mb-3 text-xs text-[#888]">
                                 <span className="text-[#666]">Dari permintaan: </span>

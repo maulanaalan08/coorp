@@ -330,6 +330,20 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                                   · {po.items?.length || 0} item
                                 </span>
                               </div>
+                              {(po.keteranganVolume || po.keteranganHarga) && (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {po.keteranganVolume && (
+                                    <span className="text-[11px] px-2 py-1 rounded bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-1">
+                                      <AlertCircle size={10} /> Ket. Volume: {po.keteranganVolume}
+                                    </span>
+                                  )}
+                                  {po.keteranganHarga && (
+                                    <span className="text-[11px] px-2 py-1 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 flex items-center gap-1">
+                                      <AlertCircle size={10} /> Ket. Harga: {po.keteranganHarga}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                               {po.items?.length === 0 ? (
                                 <p className="text-xs text-[#666] italic py-2">PO ini belum punya item.</p>
                               ) : (
@@ -342,8 +356,6 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                                         <th className="px-3 py-2 font-semibold">Unit</th>
                                         <th className="px-3 py-2 font-semibold text-right">Price</th>
                                         <th className="px-3 py-2 font-semibold text-right">Subtotal</th>
-                                        <th className="px-3 py-2 font-semibold" style={{ color: '#ef4444' }}>Ket. Volume</th>
-                                        <th className="px-3 py-2 font-semibold" style={{ color: '#f97316' }}>Ket. Harga</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -358,40 +370,10 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                                               <div className="text-[10px] text-[#666] mt-0.5">{it.description2}</div>
                                             )}
                                           </td>
-                                          <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">
-                                            {fmtNum(it.qty || 0)}
-                                          </td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">{fmtNum(it.qty || 0)}</td>
                                           <td className="px-3 py-2 text-right text-[#ccc] whitespace-nowrap">{it.unit || '-'}</td>
                                           <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">{fmtRp(it.unitPrice)}</td>
                                           <td className="px-3 py-2 text-right font-mono text-[#d4af37] whitespace-nowrap">{fmtRp(it.total)}</td>
-                                          <td className="px-3 py-2 text-[11px]" style={{ color: '#ef4444', maxWidth: '140px' }}>
-                                              {it.keteranganVolume ? (
-                                                <span className="flex items-center gap-1">
-                                                  <AlertCircle size={10} /> {it.keteranganVolume}
-                                                </span>
-                                              ) : (() => {
-                                                const rap = po.kategoriPO === 'HABIS_PAKAI' ? (it.estimatedVolume || 0) : (it.materialRequest?.estimatedVolume || it.estimatedVolume || 0);
-                                                if (!rap) return <span style={{ color: '#444' }}>-</span>;
-                                                const diff = Number(it.qty || 0) - Number(rap);
-                                                if (diff > 0) return <span className="flex items-center gap-1"><AlertCircle size={10} /> Over +{fmtNum(diff)}</span>;
-                                                if (diff < 0) return <span style={{ color: '#f59e0b' }} className="flex items-center gap-1"><AlertCircle size={10} /> Under {fmtNum(diff)}</span>;
-                                                return <span style={{ color: '#22c55e' }}>Sesuai</span>;
-                                              })()}
-                                            </td>
-                                            <td className="px-3 py-2 text-[11px]" style={{ color: '#f97316', maxWidth: '140px' }}>
-                                              {it.keteranganHarga ? (
-                                                <span className="flex items-center gap-1">
-                                                  <AlertCircle size={10} /> {it.keteranganHarga}
-                                                </span>
-                                              ) : (() => {
-                                                const rapP = po.kategoriPO === 'HABIS_PAKAI' ? (it.pricePerUnit || 0) : (it.materialRequest?.pricePerUnit || it.pricePerUnit || 0);
-                                                if (!rapP) return <span style={{ color: '#444' }}>-</span>;
-                                                const diff = Number(it.unitPrice || 0) - Number(rapP);
-                                                if (diff > 0) return <span className="flex items-center gap-1"><AlertCircle size={10} /> Over +{fmtRp(diff)}</span>;
-                                                if (diff < 0) return <span style={{ color: '#f59e0b' }} className="flex items-center gap-1"><AlertCircle size={10} /> Under {fmtRp(diff)}</span>;
-                                                return <span style={{ color: '#22c55e' }}>Sesuai</span>;
-                                              })()}
-                                            </td>
                                         </tr>
                                       ))}
                                     </tbody>

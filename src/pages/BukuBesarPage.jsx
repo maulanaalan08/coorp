@@ -329,8 +329,7 @@ export default function BukuBesarPage() {
                 <th className="p-4 text-left font-semibold">Akun</th>
                 <th className="p-4 text-left font-semibold">Ref / Pihak</th>
                 <th className="p-4 text-left font-semibold">Keterangan</th>
-                <th className="p-4 text-left font-semibold">Ket. Volume</th>
-                <th className="p-4 text-left font-semibold">Ket. Harga</th>
+                <th className="p-4 text-left font-semibold">Ket. Volume / Harga</th>
                 <th className="p-4 text-right font-semibold">Masuk</th>
                 <th className="p-4 text-right font-semibold">Keluar</th>
                 <th className="p-4 text-right font-semibold">Saldo</th>
@@ -363,8 +362,10 @@ export default function BukuBesarPage() {
                       <div className="text-[#888] text-xs">{r.pihak || "-"}</div>
                     </td>
                     <td className="p-4 text-[#aaa] max-w-xs truncate">{r.keterangan || "-"}</td>
-                    <td className="p-4 text-[#aaa] max-w-xs truncate text-xs">{r.keteranganVolume || "-"}</td>
-                    <td className="p-4 text-[#aaa] max-w-xs truncate text-xs">{r.keteranganHarga || "-"}</td>
+                    <td className="p-4 text-[#aaa] max-w-[140px] truncate text-xs">
+                      <div className="text-emerald-400">{r.keteranganVolume || "-"}</div>
+                      <div className="text-amber-400">{r.keteranganHarga || "-"}</div>
+                    </td>
                     <td className="p-4 text-right text-emerald-400">
                       {r.jenis === "MASUK" ? fmtRp(r.nominal) : "-"}
                     </td>
