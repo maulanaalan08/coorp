@@ -12,7 +12,7 @@ const fmtVol = (n) => {
 
 const fmtRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 });
 
-const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems, onConfirmReceipt, initialSupplierId, kategoriPO, sumberPo, alasanHabisPakai, permintaanHabisPakaiId, keteranganVolume, keteranganHarga, onClose, onSuccess }) => {
+const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems, onConfirmReceipt, initialSupplierId, kategoriPO, sumberPo, alasanHabisPakai, permintaanHabisPakaiId, onClose, onSuccess }) => {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSupplierModal, setShowSupplierModal] = useState(false);
@@ -496,20 +496,10 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                 <div className="flex gap-4 mt-2 text-xs text-[#888]">
                   <span>Qty: <span className="text-[#ccc]">{fmtVol(selectedItems[0]?.estimatedVolume || selectedItems[0]?.qty || 0)} {selectedItems[0]?.unit || ''}</span></span>
                 </div>
-                {(keteranganVolume || keteranganHarga) && (
-                  <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-                    {keteranganVolume && (
-                      <div className="bg-white/5 rounded px-3 py-2">
-                        <span className="text-[#666]">Ket. Volume:</span>
-                        <div className="text-[#ccc] mt-0.5">{keteranganVolume}</div>
-                      </div>
-                    )}
-                    {keteranganHarga && (
-                      <div className="bg-white/5 rounded px-3 py-2">
-                        <span className="text-[#666]">Ket. Harga:</span>
-                        <div className="text-[#ccc] mt-0.5">{keteranganHarga}</div>
-                      </div>
-                    )}
+                {alasanHabisPakai && (
+                  <div className="mt-3 bg-[#d4af37]/10 border border-[#d4af37]/20 rounded-lg p-3 text-xs">
+                    <div className="text-[#d4af37] font-semibold mb-1">Pembelian Habis Pakai</div>
+                    <div className="text-[#ccc]">{alasanHabisPakai}</div>
                   </div>
                 )}
               </div>

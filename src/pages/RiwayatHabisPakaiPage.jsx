@@ -266,7 +266,6 @@ const RiwayatHabisPakaiPage = () => {
                         <th className="px-4 py-3 font-semibold">Alasan</th>
                         <th className="px-4 py-3 font-semibold">Ket. Volume</th>
                         <th className="px-4 py-3 font-semibold">Ket. Harga</th>
-                        <th className="px-4 py-3 font-semibold">Akumulasi</th>
                         <th className="px-4 py-3 font-semibold">PO Habis Pakai</th>
                         <th className="px-4 py-3 font-semibold text-center">Status</th>
                         <th className="px-4 py-3 font-semibold text-center">Aksi</th>
@@ -313,13 +312,6 @@ const RiwayatHabisPakaiPage = () => {
                             </td>
                             <td className="px-4 py-3 text-[#888] text-xs max-w-[160px]">
                               {p.keteranganHarga || '-'}
-                            </td>
-                            <td className="px-4 py-3 text-xs whitespace-nowrap">
-                              <div className="text-[#888]">Dipesan: <span className="text-[#ccc]">{fmtNum(p.akumulasiQty || 0)} {p.unit}</span></div>
-                              <div className="text-[#888]">Diterima: <span className={p.akumulasiReceived > p.akumulasiQty ? 'text-red-400 font-bold' : 'text-[#ccc]'}>{fmtNum(p.akumulasiReceived || 0)} {p.unit}</span></div>
-                              {p.akumulasiReceived > p.akumulasiQty && (
-                                <div className="text-[10px] text-red-400 font-bold">Over {fmtNum((p.akumulasiReceived || 0) - (p.akumulasiQty || 0))} {p.unit}</div>
-                              )}
                             </td>
                             <td className="px-4 py-3 text-[#38bdf8] font-mono text-xs whitespace-nowrap">
                               {p.poHabisPakai?.poNumber || p.po?.poNumber || '-'}
@@ -414,13 +406,8 @@ const RiwayatHabisPakaiPage = () => {
                                   <tr className="bg-white/[0.03] text-[#888] text-left">
                                     <th className="px-3 py-2 font-semibold">Item</th>
                                     <th className="px-3 py-2 font-semibold text-right">Qty PO</th>
-                                    <th className="px-3 py-2 font-semibold text-right">RAP Est</th>
-                                    <th className="px-3 py-2 font-semibold text-right">Over Qty</th>
                                     <th className="px-3 py-2 font-semibold text-right">Harga</th>
-                                    <th className="px-3 py-2 font-semibold text-right">RAP Harga</th>
-                                    <th className="px-3 py-2 font-semibold text-right">Over Harga</th>
                                     <th className="px-3 py-2 font-semibold text-right">Jumlah</th>
-                                    <th className="px-3 py-2 font-semibold text-right">Akumulasi</th>
                                     <th className="px-3 py-2 font-semibold">Ket. Volume</th>
                                     <th className="px-3 py-2 font-semibold">Ket. Harga</th>
                                     <th className="px-3 py-2 font-semibold text-center">Diterima</th>
@@ -442,31 +429,16 @@ const RiwayatHabisPakaiPage = () => {
                                         <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">
                                           {fmtNum(qty)} {it.unit}
                                         </td>
-                                        <td className="px-3 py-2 text-right font-mono text-[#888] whitespace-nowrap">
-                                          {fmtNum(it.rapEstVolume || 0)} {it.unit}
-                                        </td>
-                                        <td className={`px-3 py-2 text-right font-mono whitespace-nowrap ${overQty > 0 ? 'text-red-400 font-bold' : 'text-[#555]'}`}>
-                                          {overQty > 0 ? `+${fmtNum(overQty)} ${it.unit}` : '-'}
-                                        </td>
                                         <td className="px-3 py-2 text-right font-mono text-[#ccc] whitespace-nowrap">
                                           {fmtRp(it.unitPrice)}
-                                        </td>
-                                        <td className="px-3 py-2 text-right font-mono text-[#888] whitespace-nowrap">
-                                          {fmtRp(it.rapPricePerUnit || 0)}
-                                        </td>
-                                        <td className={`px-3 py-2 text-right font-mono whitespace-nowrap ${overHarga > 0 ? 'text-red-400 font-bold' : 'text-[#555]'}`}>
-                                          {overHarga > 0 ? `+${fmtRp(overHarga)}` : '-'}
                                         </td>
                                         <td className="px-3 py-2 text-right font-mono text-[#d4af37] whitespace-nowrap">
                                           {fmtRp(it.total)}
                                         </td>
-                                        <td className="px-3 py-2 text-right text-[#666] text-xs whitespace-nowrap">
-                                          {it.akumulasiQty || po.akumulasiQty || 0} {it.unit || po.items?.[0]?.unit || ''}
-                                        </td>
-                                        <td className="px-3 py-2 text-[#888] text-xs max-w-[120px]">
+                                        <td className="px-3 py-2 text-[#888] text-xs max-w-[180px]">
                                           {it.keteranganVolume || '-'}
                                         </td>
-                                        <td className="px-3 py-2 text-[#888] text-xs max-w-[120px]">
+                                        <td className="px-3 py-2 text-[#888] text-xs max-w-[180px]">
                                           {it.keteranganHarga || '-'}
                                         </td>
                                         <td className="px-3 py-2 text-center whitespace-nowrap">
@@ -673,12 +645,10 @@ const RiwayatHabisPakaiPage = () => {
           sumberPo={selectedPermintaan.poId || null}
           alasanHabisPakai={selectedPermintaan.alasan || null}
           permintaanHabisPakaiId={selectedPermintaan.id}
-          keteranganVolume={selectedPermintaan.keteranganVolume || null}
-          keteranganHarga={selectedPermintaan.keteranganHarga || null}
           selectedItems={[
             {
               id: `php_${selectedPermintaan.id}`,
-              mrItemId: null,
+              mrItemId: selectedPermintaan.mrItemId || null,
               itemName: selectedPermintaan.itemName,
               description: selectedPermintaan.itemName,
               unit: selectedPermintaan.unit,

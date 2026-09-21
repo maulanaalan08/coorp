@@ -136,6 +136,8 @@ export default function BukuBesarPage() {
       noReferensi: row.noReferensi || "",
       pihak: row.pihak || "",
       keterangan: row.keterangan || "",
+      keteranganVolume: row.keteranganVolume || "",
+      keteranganHarga: row.keteranganHarga || "",
     });
     setShowForm(true);
   };
@@ -327,6 +329,8 @@ export default function BukuBesarPage() {
                 <th className="p-4 text-left font-semibold">Akun</th>
                 <th className="p-4 text-left font-semibold">Ref / Pihak</th>
                 <th className="p-4 text-left font-semibold">Keterangan</th>
+                <th className="p-4 text-left font-semibold">Ket. Volume</th>
+                <th className="p-4 text-left font-semibold">Ket. Harga</th>
                 <th className="p-4 text-right font-semibold">Masuk</th>
                 <th className="p-4 text-right font-semibold">Keluar</th>
                 <th className="p-4 text-right font-semibold">Saldo</th>
@@ -336,13 +340,13 @@ export default function BukuBesarPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-[#888]">
+                  <td colSpan={10} className="p-8 text-center text-[#888]">
                     Memuat...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-[#888]">
+                  <td colSpan={10} className="p-8 text-center text-[#888]">
                     Belum ada transaksi.
                   </td>
                 </tr>
@@ -359,6 +363,8 @@ export default function BukuBesarPage() {
                       <div className="text-[#888] text-xs">{r.pihak || "-"}</div>
                     </td>
                     <td className="p-4 text-[#aaa] max-w-xs truncate">{r.keterangan || "-"}</td>
+                    <td className="p-4 text-[#aaa] max-w-xs truncate text-xs">{r.keteranganVolume || "-"}</td>
+                    <td className="p-4 text-[#aaa] max-w-xs truncate text-xs">{r.keteranganHarga || "-"}</td>
                     <td className="p-4 text-right text-emerald-400">
                       {r.jenis === "MASUK" ? fmtRp(r.nominal) : "-"}
                     </td>
