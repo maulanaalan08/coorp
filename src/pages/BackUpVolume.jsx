@@ -98,18 +98,22 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
   // Label disiplin hanya dipilih saat menambah/edit BARIS HEADER (level 1).
   // Sub baris / anak otomatis mengikuti label induknya tanpa input pilihan.
   const isHeaderLevel = !parentBvItemId;
-  const inheritedLabel = parentItem?.disciplineLabel || (activeFilter !== 'GENERAL' ? activeFilter : 'SIPIL');
-  const [disciplineLabel, setDisciplineLabel] = useState(inheritedLabel);
+  const inheritedLabel = parentItem?.disciplineLabel || (activeFilter !== 'GENERAL' ? activeFilter : 'GENERAL');
+  const [disciplineLabel, setDisciplineLabel] = useState(() => {
+    if (editItem) return editItem.disciplineLabel || inheritedLabel || 'GENERAL';
+    return inheritedLabel || 'GENERAL';
+  });
 
   const [jobTypes, setJobTypes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // only reset discipline when the modal opens/closes, not on every discipline/grade change
   useEffect(() => {
     if (isOpen) {
-      const nextLabel = editItem?.disciplineLabel || parentItem?.disciplineLabel || (activeFilter !== 'GENERAL' ? activeFilter : 'SIPIL');
+      const nextLabel = editItem?.disciplineLabel || parentItem?.disciplineLabel || (activeFilter !== 'GENERAL' ? activeFilter : 'GENERAL');
       setDisciplineLabel(nextLabel);
     }
-  }, [isOpen, activeFilter, editItem, parentItem?.disciplineLabel]);
+  }, [isOpen, activeFilter, editItem?.disciplineLabel, parentItem?.disciplineLabel]);
 
   const [breakdowns, setBreakdowns] = useState([
     {
@@ -119,6 +123,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
       tinggi: '', isTChecked: false,
       luas: '', isLuasChecked: false,
       keliling: '', isKelChecked: false,
+      diameter: '',
       berat: '', isBeratChecked: false,
       jumlahSisi: 1, jumlahBh: 1, waste: 0,
     }
@@ -165,15 +170,16 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
         if (editItem.breakdowns?.length > 0) {
           setBreakdowns(editItem.breakdowns.map(b => ({
             keterangan: b.keterangan || '',
-            panjang: b.panjang ?? '', isPChecked: !!b.isPChecked,
-            lebar: b.lebar ?? '', isLChecked: !!b.isLChecked,
-            tinggi: b.tinggi ?? '', isTChecked: !!b.isTChecked,
-            luas: b.luas ?? '', isLuasChecked: !!b.isLuasChecked,
-            keliling: b.keliling ?? '', isKelChecked: !!b.isKelChecked,
-            berat: b.berat ?? '', isBeratChecked: !!b.isBeratChecked,
-            jumlahSisi: b.jumlahSisi ?? 1,
-            jumlahBh: b.jumlahBh ?? 1,
-            waste: b.waste ?? 0,
+            panjang: renderBvNumber(b.panjang), isPChecked: !!b.isPChecked,
+            lebar: renderBvNumber(b.lebar), isLChecked: !!b.isLChecked,
+            tinggi: renderBvNumber(b.tinggi), isTChecked: !!b.isTChecked,
+            luas: renderBvNumber(b.luas), isLuasChecked: !!b.isLuasChecked,
+            keliling: renderBvNumber(b.keliling), isKelChecked: !!b.isKelChecked,
+            berat: renderBvNumber(b.berat), isBeratChecked: !!b.isBeratChecked,
+            diameter: renderBvNumber(b.diameter),
+            jumlahSisi: renderBvNumber(b.jumlahSisi) || 1,
+            jumlahBh: renderBvNumber(b.jumlahBh) || 1,
+            waste: renderBvNumber(b.waste) || 0,
           })));
         }
       } else {
@@ -190,13 +196,22 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
           tinggi: '', isTChecked: false,
           luas: '', isLuasChecked: false,
           keliling: '', isKelChecked: false,
+          diameter: '',
           berat: '', isBeratChecked: false,
           jumlahSisi: 1, jumlahBh: 1, waste: 0,
         }]);
       }
       setError(null);
     }
-  }, [isOpen, editItem, parentBvItemId, hspkPeriod]);
+  }, [
+    isOpen,
+    editItem,
+    parentBvItemId,
+    hspkPeriod,
+    disciplineLabel,
+    project?.interiorGrade,
+    project?.sipilGrade,
+  ]);
 
   const filteredJobTypes = jobTypes.filter(j =>
     !searchQuery || j.name?.toLowerCase().includes(searchQuery.toLowerCase()) || (j.code && j.code.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -210,6 +225,11 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
       if (jt) {
         setName(jt.name);
         setPaymentUnit(jt.paymentUnit);
+        // Jika BV label GENERAL, ambil disiplin dari master AHSP yang dipilih
+        if (disciplineLabel === 'GENERAL' && jt.discipline) {
+          // disimpan di state lokal untuk dikirim ke backend sebagai ahspDiscipline
+          setDisciplineLabel(jt.discipline);
+        }
       }
     }
   };
@@ -222,10 +242,40 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
       tinggi: '', isTChecked: false,
       luas: '', isLuasChecked: false,
       keliling: '', isKelChecked: false,
+      diameter: '',
       berat: '', isBeratChecked: false,
       jumlahSisi: 1, jumlahBh: 1, waste: 0,
     }]);
   };
+
+  const normalizeBvInput = (value, field, fallback = null) => {
+    const raw = String(value ?? '').trim();
+    if (raw === '' || raw === '-') return fallback;
+    const number = Number(raw.replace(',', '.'));
+    if (!Number.isFinite(number)) throw new Error(`${field} harus berupa angka.`);
+    if (number < 0) throw new Error(`${field} tidak boleh negatif.`);
+    return number;
+  };
+
+  const getBreakdownPayload = (b) => ({
+    keterangan: b.keterangan || null,
+    diameter: normalizeBvInput(b.diameter, 'Diameter'),
+    panjang: normalizeBvInput(b.panjang, 'Panjang'),
+    isPChecked: b.isPChecked,
+    lebar: normalizeBvInput(b.lebar, 'Lebar'),
+    isLChecked: b.isLChecked,
+    tinggi: normalizeBvInput(b.tinggi, 'Tinggi'),
+    isTChecked: b.isTChecked,
+    luas: normalizeBvInput(b.luas, 'Luas'),
+    isLuasChecked: b.isLuasChecked,
+    keliling: normalizeBvInput(b.keliling, 'Keliling'),
+    isKelChecked: b.isKelChecked,
+    berat: normalizeBvInput(b.berat, 'Berat'),
+    isBeratChecked: b.isBeratChecked,
+    jumlahSisi: normalizeBvInput(b.jumlahSisi, 'Jumlah sisi', 1),
+    jumlahBh: normalizeBvInput(b.jumlahBh, 'Jumlah buah', 1),
+    waste: normalizeBvInput(b.waste, 'Waste', 0),
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -243,25 +293,9 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
         keterangan: keterangan.trim() || null,
         paymentUnit: isHeaderOnly ? null : paymentUnit.trim(),
         ecommerceLink: isHeaderOnly ? null : (ecommerceLink.trim() || null),
-        disciplineLabel: disciplineLabel || 'SIPIL',
-        breakdowns: isHeaderOnly ? [] : breakdowns.map(b => ({
-          keterangan: b.keterangan || null,
-          panjang: b.panjang !== '' ? parseFloat(b.panjang) : null,
-          isPChecked: b.isPChecked,
-          lebar: b.lebar !== '' ? parseFloat(b.lebar) : null,
-          isLChecked: b.isLChecked,
-          tinggi: b.tinggi !== '' ? parseFloat(b.tinggi) : null,
-          isTChecked: b.isTChecked,
-          luas: b.luas !== '' ? parseFloat(b.luas) : null,
-          isLuasChecked: b.isLuasChecked,
-          keliling: b.keliling !== '' ? parseFloat(b.keliling) : null,
-          isKelChecked: b.isKelChecked,
-          berat: b.berat !== '' ? parseFloat(b.berat) : null,
-          isBeratChecked: b.isBeratChecked,
-          jumlahSisi: b.jumlahSisi !== '' ? parseFloat(b.jumlahSisi) : 1,
-          jumlahBh: b.jumlahBh !== '' ? parseFloat(b.jumlahBh) : 1,
-          waste: b.waste !== '' ? parseFloat(b.waste) : 0,
-        })),
+        disciplineLabel: isHeaderLevel ? disciplineLabel || 'GENERAL' : undefined,
+        ahspDiscipline: (disciplineLabel === 'GENERAL' && mode === 'hspk') ? (sourceJobTypeId ? undefined : null) : undefined,
+        breakdowns: isHeaderOnly ? [] : breakdowns.map(getBreakdownPayload),
       };
 
       const { bvService } = await import('../services/bvService');
@@ -305,6 +339,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
           <div className={styles.formGroup}>
             <label>Label Disiplin {isHeaderLevel ? '' : <span style={{ color: '#888', fontSize: 11 }}>(otomatis mengikuti induk)</span>}</label>
               <select value={disciplineLabel} onChange={(e) => setDisciplineLabel(e.target.value)} disabled={!isHeaderLevel}>
+                <option value="GENERAL">General</option>
                 <option value="INTERIOR">Interior</option>
                 <option value="SIPIL">Sipil</option>
               </select>
@@ -397,7 +432,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                       )}
                     </div>
 
-                    <div className={styles.dimHeaderLabel}>Panjang | Lebar | Tinggi | Luas | Keliling</div>
+                    <div className={styles.dimHeaderLabel}>Panjang | Lebar | Tinggi | Luas | Keliling | Diameter | Berat</div>
                     <div className={styles.dimGridRow}>
                       {[
                         { key: 'panjang', checkKey: 'isPChecked', label: 'P' },
@@ -405,19 +440,23 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                         { key: 'tinggi', checkKey: 'isTChecked', label: 'T' },
                         { key: 'luas', checkKey: 'isLuasChecked', label: 'Luas' },
                         { key: 'keliling', checkKey: 'isKelChecked', label: 'Kel' },
+                        { key: 'diameter', label: 'Dia' },
+                        { key: 'berat', checkKey: 'isBeratChecked', label: 'Berat' },
                       ].map(f => (
                         <div key={f.key} className={styles.dimCheckGroup}>
+                          {f.checkKey ? (
+                            <input
+                              type="checkbox"
+                              checked={b[f.checkKey]}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setBreakdowns(prev => prev.map((item, idx) => idx === i ? { ...item, [f.checkKey]: checked } : item));
+                              }}
+                            />
+                          ) : <span aria-hidden="true" style={{ width: 13 }} />}
                           <input
-                            type="checkbox"
-                            checked={b[f.checkKey]}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setBreakdowns(prev => prev.map((item, idx) => idx === i ? { ...item, [f.checkKey]: checked } : item));
-                            }}
-                          />
-                          <input
-                            type="number"
-                            step="0.01"
+                            type="text"
+                            inputMode="decimal"
                             placeholder={f.label}
                             value={b[f.key]}
                             onChange={(e) => {
@@ -433,7 +472,8 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11 }}>
                         <span>Sisi:</span>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           value={b.jumlahSisi}
                           onChange={(e) => {
                             const val = e.target.value;
@@ -445,7 +485,8 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11 }}>
                         <span>Bh:</span>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           value={b.jumlahBh}
                           onChange={(e) => {
                             const val = e.target.value;
@@ -457,7 +498,8 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11 }}>
                         <span>Waste%:</span>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           value={b.waste}
                           onChange={(e) => {
                             const val = e.target.value;
@@ -750,6 +792,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             type="checkbox"
             onChange={() => handleToggleCheckAll(itemsInTable)}
             checked={isAllChecked}
+            title="Pilih/batal semua"
           />
         </th>
         <th rowSpan={2}>NO</th>
@@ -827,27 +870,27 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
               )}
             </td>
             <td>{it.paymentUnit || ''}</td>
-            <td className="num">{it.isHeaderOnly ? '' : Number(it.totalVolume || 0).toFixed(2)}</td>
+            <td className="num">{it.isHeaderOnly ? '' : renderBvVolume(it.totalVolume)}</td>
             <td className="left">{ketText}</td>
 
             {hasSingleBreakdown ? (
               <>
-                <td className="num">{b0.isPChecked ? '☑ ' : ''}{b0.panjang ?? ''}</td>
-                <td className="num">{b0.isLChecked ? '☑ ' : ''}{b0.lebar ?? ''}</td>
-                <td className="num">{b0.isTChecked ? '☑ ' : ''}{b0.tinggi ?? ''}</td>
-                <td className="num">{b0.isLuasChecked ? '☑ ' : ''}{b0.luas ?? ''}</td>
-                <td className="num">{b0.isKelChecked ? '☑ ' : ''}{b0.keliling ?? ''}</td>
-                <td className="num">{b0.diameter ?? ''}</td>
-                <td className="num">{b0.isBeratChecked ? '☑ ' : ''}{b0.berat ?? ''}</td>
-                <td className="num">{b0.jumlahSisi ?? ''}</td>
-                <td className="num">{b0.jumlahBh ?? ''}</td>
-                <td className="num">{b0.waste ?? 0}</td>
+                <td className="num">{b0.isPChecked ? '☑ ' : ''}{renderBvNumber(b0.panjang)}</td>
+                <td className="num">{b0.isLChecked ? '☑ ' : ''}{renderBvNumber(b0.lebar)}</td>
+                <td className="num">{b0.isTChecked ? '☑ ' : ''}{renderBvNumber(b0.tinggi)}</td>
+                <td className="num">{b0.isLuasChecked ? '☑ ' : ''}{renderBvNumber(b0.luas)}</td>
+                <td className="num">{b0.isKelChecked ? '☑ ' : ''}{renderBvNumber(b0.keliling)}</td>
+                <td className="num">{renderBvNumber(b0.diameter)}</td>
+                <td className="num">{b0.isBeratChecked ? '☑ ' : ''}{renderBvNumber(b0.berat)}</td>
+                <td className="num">{renderBvNumber(b0.jumlahSisi)}</td>
+                <td className="num">{renderBvNumber(b0.jumlahBh)}</td>
+                <td className="num">{renderBvNumber(b0.waste ?? 0)}</td>
               </>
             ) : (
               <td colSpan={10}></td>
             )}
 
-            <td className="num">{it.isHeaderOnly ? '' : Number(it.totalVolume || 0).toFixed(2)}</td>
+            <td className="num">{it.isHeaderOnly ? '' : renderBvVolume(it.totalVolume)}</td>
             <td>{it.paymentUnit || ''}</td>
             <td>{renderCleanLink(it.ecommerceLink)}</td>
             {/* KOLOM STATUS */}
@@ -920,17 +963,17 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                 <td className="left"></td>
                 <td colSpan={2}></td>
                 <td className="left">{b.keterangan || ''}</td>
-                <td className="num">{b.isPChecked ? '☑ ' : ''}{b.panjang ?? ''}</td>
-                <td className="num">{b.isLChecked ? '☑ ' : ''}{b.lebar ?? ''}</td>
-                <td className="num">{b.isTChecked ? '☑ ' : ''}{b.tinggi ?? ''}</td>
-                <td className="num">{b.isLuasChecked ? '☑ ' : ''}{b.luas ?? ''}</td>
-                <td className="num">{b.isKelChecked ? '☑ ' : ''}{b.keliling ?? ''}</td>
-                <td className="num">{b.diameter ?? ''}</td>
-                <td className="num">{b.isBeratChecked ? '☑ ' : ''}{b.berat ?? ''}</td>
-                <td className="num">{b.jumlahSisi ?? ''}</td>
-                <td className="num">{b.jumlahBh ?? ''}</td>
-                <td className="num">{b.waste ?? 0}</td>
-                <td className="num">{Number(b.subTotal || 0).toFixed(2)}</td>
+                <td className="num">{b.isPChecked ? '☑ ' : ''}{renderBvNumber(b.panjang)}</td>
+                <td className="num">{b.isLChecked ? '☑ ' : ''}{renderBvNumber(b.lebar)}</td>
+                <td className="num">{b.isTChecked ? '☑ ' : ''}{renderBvNumber(b.tinggi)}</td>
+                <td className="num">{b.isLuasChecked ? '☑ ' : ''}{renderBvNumber(b.luas)}</td>
+                <td className="num">{b.isKelChecked ? '☑ ' : ''}{renderBvNumber(b.keliling)}</td>
+                <td className="num">{renderBvNumber(b.diameter)}</td>
+                <td className="num">{b.isBeratChecked ? '☑ ' : ''}{renderBvNumber(b.berat)}</td>
+                <td className="num">{renderBvNumber(b.jumlahSisi)}</td>
+                <td className="num">{renderBvNumber(b.jumlahBh)}</td>
+                <td className="num">{renderBvNumber(b.waste ?? 0)}</td>
+                <td className="num">{renderBvVolume(b.subTotal)}</td>
                 <td colSpan={4}></td>
               </tr>
             ))
@@ -1055,6 +1098,21 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
               {opt === 'GENERAL' ? 'General' : opt === 'INTERIOR' ? 'Interior' : 'Sipil'}
             </a>
           ))}
+        </div>
+      )}
+
+      {selectedProjectId && (
+        <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className={styles.btnOutline}
+            onClick={() => handleToggleCheckAll(filteredBvItems)}
+          >
+            ☑ Pilih/Batal Semua
+          </button>
+          <span style={{ color: '#aaa', fontSize: 12 }}>
+            {checkedIds.length} item terpilih
+          </span>
         </div>
       )}
 
@@ -1215,6 +1273,36 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
     </div>
   );
 }
+
+const decimalObjectToString = (value) => {
+  if (!value || typeof value !== 'object') return value;
+  if (typeof value.toString === 'function' && value.toString !== Object.prototype.toString) {
+    const text = value.toString();
+    if (text !== '[object Object]') return text;
+  }
+  if (value.s && Number.isInteger(value.e) && Array.isArray(value.d)) {
+    const digits = value.d.map((part, index) => index === 0 ? String(part) : String(part).padStart(7, '0')).join('');
+    const decimalIndex = value.e + 1;
+    const absolute = decimalIndex <= 0
+      ? `0.${'0'.repeat(-decimalIndex)}${digits}`
+      : decimalIndex >= digits.length
+        ? `${digits}${'0'.repeat(decimalIndex - digits.length)}`
+        : `${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
+    return value.s < 0 ? `-${absolute}` : absolute;
+  }
+  return '';
+};
+
+const renderBvNumber = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+  const number = Number(decimalObjectToString(value));
+  return Number.isFinite(number) ? number : '';
+};
+
+const renderBvVolume = (value) => {
+  const number = Number(decimalObjectToString(value));
+  return Number.isFinite(number) ? number.toFixed(2) : '0.00';
+};
 
 // Helper untuk mengubah URL penuh menjadi domain bersih + validasi link redirect
 const renderCleanLink = (url) => {

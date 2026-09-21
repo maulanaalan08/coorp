@@ -1,15 +1,21 @@
 // src/services/bvService.js
 import { fetchAPI } from './api';
 
+const authHeaders = () => {
+  const token = localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 export const bvService = {
   // Ambil semua item BV untuk project tertentu
   getByProjectId: (projectId) =>
-    fetchAPI(`/projects/${projectId}/bv-items`),
+    fetchAPI(`/projects/${projectId}/bv-items`, { headers: authHeaders() }),
 
   // Tambah item BV baru (Header / Regular item / Child item)
   create: (projectId, data) =>
     fetchAPI(`/projects/${projectId}/bv-items`, {
       method: 'POST',
+      headers: authHeaders(),
       body: JSON.stringify(data),
     }),
 
@@ -17,17 +23,19 @@ export const bvService = {
   update: (id, data) =>
     fetchAPI(`/bv-items/${id}`, {
       method: 'PUT',
+      headers: authHeaders(),
       body: JSON.stringify(data),
     }),
 
   // Hapus single item BV
   delete: (id) =>
-    fetchAPI(`/bv-items/${id}`, { method: 'DELETE' }),
+    fetchAPI(`/bv-items/${id}`, { method: 'DELETE', headers: authHeaders() }),
 
   // Hapus massal item BV
   deleteBulk: (itemIds) =>
     fetchAPI(`/bv-items-bulk`, {
       method: 'DELETE',
+      headers: authHeaders(),
       body: JSON.stringify({ itemIds }),
     }),
 
@@ -35,6 +43,7 @@ export const bvService = {
   linkToRab: (id, data = {}) =>
     fetchAPI(`/bv-items/${id}/link-to-rab`, {
       method: 'POST',
+      headers: authHeaders(),
       body: JSON.stringify(data),
     }),
 
@@ -42,6 +51,7 @@ export const bvService = {
   linkToRabBulk: (itemIds) =>
     fetchAPI(`/bv-items-bulk/link-to-rab`, {
       method: 'POST',
+      headers: authHeaders(),
       body: JSON.stringify({ itemIds }),
     }),
     
@@ -49,19 +59,20 @@ export const bvService = {
   syncToRab: (id) =>
     fetchAPI(`/bv-items/${id}/sync`, {
       method: 'POST',
+      headers: authHeaders(),
     }),
 
   syncBulk: (itemIds) =>
     fetchAPI(`/bv-items-bulk/sync`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ itemIds }),
     }),
 
   // Export Backup Volume ke Excel
   exportExcel: (projectId) => {
     const token = localStorage.getItem('token');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
     return fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/projects/${projectId}/bv-items/export-excel`, {
       method: 'GET',
       headers,
