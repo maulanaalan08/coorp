@@ -155,12 +155,22 @@ export function useJoinOpname(initialProjectId) {
   const groupedItems = useMemo(() => {
     const groups = new Map();
     items.forEach((item) => {
-      const groupName = item.groupName || "Tanpa Group";
-      if (!groups.has(groupName)) groups.set(groupName, []);
-      groups.get(groupName).push(item);
+      // Find breakdown for the selectedDate
+      const breakdown = (item.dailyBreakdown || []).find((day) => toInputDate(day.date) === selectedDate);
+      
+      // Filter logic: Only include if it has children, or if it's in schedule, or already has progress today
+      const shouldInclude = item.hasChildren || (breakdown && (breakdown.inSchedule || breakdown.hasProgress));
+
+      if (shouldInclude) {
+        const groupName = item.groupName || "Tanpa Group";
+        if (!groups.has(groupName)) groups.set(groupName, []);
+        groups.get(groupName).push(item);
+      }
     });
-    return Array.from(groups.entries());
-  }, [items]);
+
+    // Remove empty groups (in case a parent group has no valid children)
+    return Array.from(groups.entries()).filter(([_, groupItems]) => groupItems.some(it => !it.hasChildren));
+  }, [items, selectedDate]);
 
   const selectedDay = useMemo(() => days.find((day) => toInputDate(day.date) === selectedDate), [days, selectedDate]);
 

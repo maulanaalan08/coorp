@@ -37,6 +37,15 @@ export const timeScheduleService = {
     return handleResponse(res);
   },
 
+  updateBatchSchedule: async (projectId, schedules) => {
+    const res = await fetch(`${API_BASE_URL}/projects/${projectId}/rap-time-schedule/batch`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schedules }),
+    });
+    return handleResponse(res);
+  },
+
   deleteItemSchedule: async (rabItemId) => {
     const res = await fetch(`${API_BASE_URL}/rap-items/${rabItemId}/schedule`, {
       method: "DELETE",

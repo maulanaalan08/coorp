@@ -163,7 +163,7 @@ export default function TimeScheduleCalendar({ items, discipline, projectStartDa
       <div style={{ overflowX: 'auto', paddingBottom: '8px' }}>
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(7, 1fr)', 
+          gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', 
           minWidth: '800px', // Forces horizontal scroll on small screens
           border: '1px solid #363024',
           borderRadius: '8px',

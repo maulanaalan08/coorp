@@ -18,6 +18,7 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
   } = useTimeSchedule(initialProjectId);
 
   const [activeTab, setActiveTab] = useState("input"); // "input" | "chart"
+  const [savingBatch, setSavingBatch] = useState(false);
 
   const handleProjectChange = (e) => {
     setProjectId(e.target.value || null);
@@ -56,6 +57,37 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
       console.error(err);
     }).finally(() => {
       setBusyItems((prev) => ({ ...prev, [item.rabItemId]: false }));
+    });
+  };
+
+  const handleSaveAllSchedules = async () => {
+    const schedulesToSave = [];
+    for (const [rabItemId, draft] of Object.entries(editDrafts)) {
+      if (draft.startDate && draft.endDate) {
+        schedulesToSave.push({
+          rabItemId,
+          startDate: draft.startDate,
+          endDate: draft.endDate,
+        });
+      }
+    }
+    
+    if (schedulesToSave.length === 0) {
+      return toast.error("Tidak ada jadwal valid untuk disimpan.");
+    }
+    
+    setSavingBatch(true);
+    toast.promise(timeScheduleService.updateBatchSchedule(projectId, schedulesToSave), {
+      loading: 'Menyimpan semua jadwal...',
+      success: `${schedulesToSave.length} jadwal berhasil disimpan.`,
+      error: 'Gagal menyimpan semua jadwal.'
+    }).then(() => {
+      setEditDrafts({});
+      fetchSchedule(projectId);
+    }).catch(err => {
+      console.error(err);
+    }).finally(() => {
+      setSavingBatch(false);
     });
   };
 
@@ -174,19 +206,31 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-             <button 
-                className={`tsp-btn ${activeTab === 'input' ? 'tsp-btn-primary' : ''}`}
-                onClick={() => setActiveTab('input')}
-             >
-                Input Jadwal
-             </button>
-             <button 
-                className={`tsp-btn ${activeTab === 'chart' ? 'tsp-btn-primary' : ''}`}
-                onClick={() => setActiveTab('chart')}
-             >
-                Lihat Kalender Jadwal
-             </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+             <div style={{ display: 'flex', gap: '10px' }}>
+               <button 
+                  className={`tsp-btn ${activeTab === 'input' ? 'tsp-btn-primary' : ''}`}
+                  onClick={() => setActiveTab('input')}
+               >
+                  Input Jadwal
+               </button>
+               <button 
+                  className={`tsp-btn ${activeTab === 'chart' ? 'tsp-btn-primary' : ''}`}
+                  onClick={() => setActiveTab('chart')}
+               >
+                  Lihat Kalender Jadwal
+               </button>
+             </div>
+             {activeTab === 'input' && Object.keys(editDrafts).length > 0 && (
+               <button 
+                 className="tsp-btn tsp-btn-primary" 
+                 style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
+                 onClick={handleSaveAllSchedules}
+                 disabled={savingBatch}
+               >
+                 {savingBatch ? "Menyimpan..." : "Simpan Semua Perubahan"}
+               </button>
+             )}
           </div>
 
           <div className="tsp-card tsp-gantt-card">
