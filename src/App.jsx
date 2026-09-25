@@ -36,6 +36,7 @@ const BastPage = lazy(() => import("./pages/BastPage"));
 const ItemTrackingPage = lazy(() => import("./pages/ItemTrackingPage"));
 const RiwayatHabisPakaiPage = lazy(() => import("./pages/RiwayatHabisPakaiPage"));
 const BukuBesarPage = lazy(() => import("./pages/BukuBesarPage"));
+const WorkCategoriesPage = lazy(() => import("./pages/WorkCategoriesPage"));
 
 function RouteLoader() {
   return (
@@ -60,7 +61,7 @@ function App() {
       'bv', 'backup-volume', 'rab', 'finance', 'pembelian-siap-pakai', 'purchase-orders',
       'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'invoice-penagihan',
       'laporan-harian', 'time-schedule', 'join-opname', 'bast', 'complain',
-      'item-tracking', 'habis-pakai', 'buku-besar'
+      'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories'
     ];
     if (validTabs.includes(tabFromPath)) {
       setActiveTab(tabFromPath);
@@ -175,6 +176,7 @@ function App() {
             />
           )}
           {activeTab === "upload-hspk" && <UploadHspk />}
+          {activeTab === "work-categories" && <WorkCategoriesPage />}
           {activeTab === "data-survey" && <DataSurvey initialProjectId={globalProjectId} />}
           {(activeTab === "bv" || activeTab === "backup-volume") && (
             <BackUpVolume

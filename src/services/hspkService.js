@@ -9,6 +9,10 @@ export const hspkService = {
   getGradesByPeriodDiscipline: (period, discipline) =>
     fetchAPI(`/hspk/grades?period=${encodeURIComponent(period)}&discipline=${encodeURIComponent(discipline)}`),
 
+  // Get grades for a specific period + dynamic work category
+  getGradesByPeriodCategory: (period, workCategoryId) =>
+    fetchAPI(`/hspk/grades?period=${encodeURIComponent(period)}&workCategoryId=${encodeURIComponent(workCategoryId)}`),
+
   // Get job types / AHSP master data for modals
   getJobTypes: (params = {}) => {
     const query = new URLSearchParams(params).toString();

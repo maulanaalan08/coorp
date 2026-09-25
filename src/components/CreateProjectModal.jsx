@@ -3,6 +3,7 @@ import "../styles/CreateProjectModal.css";
 import { X } from "lucide-react";
 import { hspkService } from "../services/hspkService";
 import { projectService } from "../services/projectService";
+import { workCategoryService } from "../services/workCategoryService";
 import toast from "react-hot-toast";
 
 const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
@@ -10,24 +11,29 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
   const [client, setClient] = useState("");
   const [location, setLocation] = useState("");
 
-  // State untuk periode dan grade ganda
+  // Periode HSPK (dari upload yang sudah ada di DB)
   const [periods, setPeriods] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState("");
-  const [interiorGrades, setInteriorGrades] = useState([]);
-  const [sipilGrades, setSipilGrades] = useState([]);
-  const [selectedInteriorGrade, setSelectedInteriorGrade] = useState("");
-  const [selectedSipilGrade, setSelectedSipilGrade] = useState("");
-
   const [hspkLoading, setHspkLoading] = useState(true);
 
+  // Kategori pekerjaan dinamis
+  const [workCategories, setWorkCategories] = useState([]);
+  // selectedCategories: { [categoryId]: { pricingMode, grade, isActive } }
+  const [selectedCategories, setSelectedCategories] = useState({});
+  // Grades per kategori: { [categoryId]: ["A", "B"] }
+  const [categoryGrades, setCategoryGrades] = useState({});
+
+  // Load periode + kategori saat modal buka
   useEffect(() => {
+    if (!isOpen) return;
+
     const fetchPeriods = async () => {
       try {
         const result = await hspkService.getAvailableCombos();
-        // ambil periode unik dari combo
-        const uniqPeriods = Array.from(
-          new Set((Array.isArray(result) ? result : []).map((r) => r.period))
-        ).sort((a, b) => Number(b) - Number(a));
+        const combos = Array.isArray(result) ? result : [];
+        const uniqPeriods = Array.from(new Set(combos.map((r) => r.period)))
+          .filter(Boolean)
+          .sort((a, b) => Number(b) - Number(a));
         setPeriods(uniqPeriods);
       } catch (err) {
         console.error(err);
@@ -36,66 +42,115 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
         setHspkLoading(false);
       }
     };
-    if (isOpen) {
-      fetchPeriods();
-    }
+
+    const fetchCategories = async () => {
+      try {
+        const cats = await workCategoryService.getAll();
+        const activeCats = (Array.isArray(cats) ? cats : []).filter((c) => c.isActive);
+        setWorkCategories(activeCats);
+      } catch (err) {
+        console.error("Gagal load kategori:", err);
+        setWorkCategories([]);
+      }
+    };
+
+    fetchPeriods();
+    fetchCategories();
   }, [isOpen]);
 
-  // Load grade Interior saat periode dipilih
+  // Load grade per kategori saat periode berubah
   useEffect(() => {
     if (!selectedPeriod) {
-      setInteriorGrades([]);
-      setSelectedInteriorGrade("");
+      setCategoryGrades({});
       return;
     }
-    hspkService
-      .getGradesByPeriodDiscipline(selectedPeriod, "INTERIOR")
-      .then((res) => {
-        const grades = Array.isArray(res) ? res : [];
-        setInteriorGrades(grades);
-        if (grades.length === 1) setSelectedInteriorGrade(grades[0]);
-        else if (!grades.includes(selectedInteriorGrade))
-          setSelectedInteriorGrade("");
-      })
-      .catch((err) => {
-        console.error("Gagal load grade interior:", err);
-        setInteriorGrades([]);
-      });
-  }, [selectedPeriod]);
 
-  // Load grade Sipil saat periode dipilih
-  useEffect(() => {
-    if (!selectedPeriod) {
-      setSipilGrades([]);
-      setSelectedSipilGrade("");
-      return;
-    }
-    hspkService
-      .getGradesByPeriodDiscipline(selectedPeriod, "SIPIL")
-      .then((res) => {
-        const grades = Array.isArray(res) ? res : [];
-        setSipilGrades(grades);
-        if (grades.length === 1) setSelectedSipilGrade(grades[0]);
-        else if (!grades.includes(selectedSipilGrade)) setSelectedSipilGrade("");
-      })
-      .catch((err) => {
-        console.error("Gagal load grade sipil:", err);
-        setSipilGrades([]);
-      });
-  }, [selectedPeriod]);
+    let cancelled = false;
+    const loadGrades = async () => {
+      const gradesMap = {};
+      await Promise.all(
+        workCategories.map(async (cat) => {
+          try {
+            // Kategori legacy (SIPIL/INTERIOR) pakai discipline;
+            // kategori dinamis (MEP, dll) pakai workCategoryId
+            const isLegacy = cat.code === "SIPIL" || cat.code === "INTERIOR";
+            const grades = isLegacy
+              ? await hspkService.getGradesByPeriodDiscipline(selectedPeriod, cat.code)
+              : await hspkService.getGradesByPeriodCategory(selectedPeriod, cat.id);
+            gradesMap[cat.id] = Array.isArray(grades) ? grades : [];
+          } catch {
+            gradesMap[cat.id] = [];
+          }
+        })
+      );
+      if (!cancelled) setCategoryGrades(gradesMap);
+    };
+
+    if (workCategories.length > 0) loadGrades();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPeriod, workCategories]);
 
   if (!isOpen) return null;
+
+  const toggleCategory = (catId) => {
+    setSelectedCategories((prev) => ({
+      ...prev,
+      [catId]: {
+        ...prev[catId],
+        isActive: !prev[catId]?.isActive,
+      },
+    }));
+  };
+
+  const setCategoryMode = (catId, mode) => {
+    setSelectedCategories((prev) => ({
+      ...prev,
+      [catId]: {
+        ...prev[catId],
+        pricingMode: mode,
+        grade: mode === "CUSTOM" ? "" : prev[catId]?.grade || "",
+      },
+    }));
+  };
+
+  const setCategoryGrade = (catId, grade) => {
+    setSelectedCategories((prev) => ({
+      ...prev,
+      [catId]: { ...prev[catId], grade },
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!selectedPeriod || !selectedInteriorGrade || !selectedSipilGrade) {
-      toast.error("Pilih periode, grade Interior, dan grade Sipil.");
-      return;
-    }
     if (!projectName.trim() || !location.trim() || !client.trim()) {
       toast.error("Semua field wajib diisi.");
       return;
+    }
+    if (!selectedPeriod) {
+      toast.error("Pilih periode data HSPK.");
+      return;
+    }
+
+    const activeCats = Object.entries(selectedCategories).filter(
+      ([, cfg]) => cfg.isActive
+    );
+    if (activeCats.length === 0) {
+      toast.error("Pilih minimal satu kategori pekerjaan.");
+      return;
+    }
+
+    // Validasi: kategori HSPK wajib punya grade
+    for (const [catId, cfg] of activeCats) {
+      if (cfg.pricingMode === "HSPK" && !cfg.grade) {
+        const cat = workCategories.find((c) => c.id === catId);
+        toast.error(
+          `Grade wajib dipilih untuk kategori HSPK ${cat?.name || cat?.code}.`
+        );
+        return;
+      }
     }
 
     const createPromise = projectService.create({
@@ -103,8 +158,20 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
       clientName: client.trim(),
       location: location.trim(),
       hspkPeriod: Number(selectedPeriod),
-      interiorGrade: selectedInteriorGrade,
-      sipilGrade: selectedSipilGrade,
+      // Legacy fields: ambil dari kategori SIPIL/INTERIOR jika aktif
+      interiorGrade:
+        selectedCategories[
+          workCategories.find((c) => c.code === "INTERIOR")?.id
+        ]?.pricingMode === "HSPK"
+          ? selectedCategories[workCategories.find((c) => c.code === "INTERIOR")?.id]
+              ?.grade || null
+          : null,
+      sipilGrade:
+        selectedCategories[workCategories.find((c) => c.code === "SIPIL")?.id]
+          ?.pricingMode === "HSPK"
+          ? selectedCategories[workCategories.find((c) => c.code === "SIPIL")?.id]
+              ?.grade || null
+          : null,
     });
 
     toast
@@ -113,13 +180,29 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
         success: "Project berhasil dibuat!",
         error: "Gagal membuat project.",
       })
-      .then(() => {
+      .then(async (project) => {
+        const categories = activeCats.map(([catId, cfg]) => ({
+          workCategoryId: catId,
+          pricingMode: cfg.pricingMode,
+          grade: cfg.grade || null,
+          isActive: true,
+        }));
+
+        try {
+          await projectService.updateCategories(project.id, categories);
+        } catch (err) {
+          console.error("Gagal simpan kategori proyek:", err);
+          toast.error(
+            "Kategori proyek gagal disimpan, tapi project sudah dibuat."
+          );
+        }
+
         setProjectName("");
         setClient("");
         setLocation("");
         setSelectedPeriod("");
-        setSelectedInteriorGrade("");
-        setSelectedSipilGrade("");
+        setSelectedCategories({});
+        setCategoryGrades({});
 
         if (onProjectCreated) onProjectCreated();
         onClose();
@@ -187,49 +270,96 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
                     </option>
                   ))}
                 </select>
+                {periods.length === 0 && !hspkLoading && (
+                  <small className="cat-period-note">
+                    Belum ada data HSPK. Upload HSPK dulu.
+                  </small>
+                )}
               </div>
+            </div>
+          </div>
 
-              <div className="form-group">
-                <label>Grade Interior</label>
-                <select
-                  value={selectedInteriorGrade}
-                  onChange={(e) => setSelectedInteriorGrade(e.target.value)}
-                  required
-                  disabled={!selectedPeriod}
-                >
-                  <option value="" disabled>
-                    {!selectedPeriod
-                      ? "Pilih periode dulu"
-                      : "-- pilih grade interior --"}
-                  </option>
-                  {interiorGrades.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Grade Sipil</label>
-                <select
-                  value={selectedSipilGrade}
-                  onChange={(e) => setSelectedSipilGrade(e.target.value)}
-                  required
-                  disabled={!selectedPeriod}
-                >
-                  <option value="" disabled>
-                    {!selectedPeriod
-                      ? "Pilih periode dulu"
-                      : "-- pilih grade sipil --"}
-                  </option>
-                  {sipilGrades.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <div className="card">
+            <h2>Kategori Pekerjaan</h2>
+            <p className="cat-intro">
+              Centang kategori yang dipakai proyek ini. Mode HSPK mengambil harga
+              dari upload sesuai periode; mode Custom memakai input manual.
+            </p>
+            <div className="cat-grid">
+              {workCategories.length === 0 && (
+                <p className="cat-empty">Tidak ada kategori aktif.</p>
+              )}
+              {workCategories.map((cat) => {
+                const cfg = selectedCategories[cat.id] || {
+                  pricingMode: "CUSTOM",
+                  grade: "",
+                  isActive: false,
+                };
+                const grades = categoryGrades[cat.id] || [];
+                const isLegacy = cat.code === "SIPIL" || cat.code === "INTERIOR";
+                return (
+                  <div
+                    key={cat.id}
+                    className={`cat-card ${cfg.isActive ? "is-active" : "is-inactive"}`}
+                  >
+                    <label
+                      className="cat-card-header"
+                      onClick={() => toggleCategory(cat.id)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={cfg.isActive}
+                        onChange={() => toggleCategory(cat.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span className="cat-card-name">{cat.name}</span>
+                      <span className="cat-card-code">{cat.code}</span>
+                    </label>
+                    {cfg.isActive && (
+                      <div className="cat-card-body">
+                        <div className="cat-field">
+                          <span className="cat-field-label">Sumber Harga</span>
+                          <select
+                            className="cat-select"
+                            value={cfg.pricingMode}
+                            onChange={(e) => setCategoryMode(cat.id, e.target.value)}
+                          >
+                            <option value="CUSTOM">Custom (manual)</option>
+                            <option value="HSPK" disabled={grades.length === 0}>
+                              HSPK{grades.length === 0 ? " — belum ada data" : ""}
+                            </option>
+                          </select>
+                        </div>
+                        {cfg.pricingMode === "HSPK" && (
+                          <div className="cat-field">
+                            <span className="cat-field-label">Grade {cat.name}</span>
+                            <select
+                              className="cat-select"
+                              value={cfg.grade}
+                              onChange={(e) => setCategoryGrade(cat.id, e.target.value)}
+                            >
+                              <option value="" disabled>
+                                -- pilih grade --
+                              </option>
+                              {grades.map((g) => (
+                                <option key={g} value={g}>
+                                  Grade {g}
+                                </option>
+                              ))}
+                            </select>
+                            {grades.length === 0 && selectedPeriod && (
+                              <small className="cat-hint">
+                                Belum ada upload HSPK {isLegacy ? cat.code : cat.name}{" "}
+                                untuk periode {selectedPeriod}.
+                              </small>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

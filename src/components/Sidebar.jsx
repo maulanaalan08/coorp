@@ -48,12 +48,14 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   const [isPelaksanaanOpen, setIsPelaksanaanOpen] = useState(false);
   const [isFinanceOpen, setIsFinanceOpen] = useState(false);
   const [isPurchasingOpen, setIsPurchasingOpen] = useState(false);
+  const [isHspkOpen, setIsHspkOpen] = useState(false);
 
   useEffect(() => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
     if (["time-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
     if (["finance", "pembelian-siap-pakai", "pengajuan-bayar", "pembayaran-supplier", "laporan-harian", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
     if (["purchase-orders", "po-jasa", "retur-pembelian", "invoice-penagihan", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
+    if (["upload-hspk", "work-categories"].includes(activeTab)) setIsHspkOpen(true);
   }, [activeTab]);
 
   const handleNavigation = (e, tab) => {
@@ -140,7 +142,27 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
           <ul className="flex flex-col gap-1 m-0 p-0 list-none">
             <NavItem icon={LayoutDashboard} label="Dashboard" tab="dashboard" />
             <NavItem icon={KanbanSquare} label="Project Board" tab="project-board" />
-            <NavItem icon={Upload} label="Upload HSPK" tab="upload-hspk" />
+
+            {/* DROPDOWN: HSPK */}
+            <li>
+              <button
+                type="button"
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all text-[#888] hover:bg-white/5 hover:text-white ${isHspkOpen ? "bg-white/5 text-white" : ""}`}
+                onClick={() => setIsHspkOpen(!isHspkOpen)}
+              >
+                <div className="flex items-center gap-3">
+                  <Upload size={18} className={isHspkOpen ? "text-white" : "text-[#888]"} />
+                  <span>Upload HSPK</span>
+                </div>
+                {isHspkOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+              {isHspkOpen && (
+                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
+                  <SubNavItem icon={Upload} label="Upload Data" tab="upload-hspk" />
+                  <SubNavItem icon={Layers} label="Kategori Pekerjaan" tab="work-categories" />
+                </ul>
+              )}
+            </li>
 
             {/* DROPDOWN: PERENCANAAN */}
             <li>
