@@ -125,10 +125,12 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         workCategoryId: entry.workCategoryId,
         code: String(entry.workCategory?.code || '').toUpperCase(),
         name: String(entry.workCategory?.code || '').toUpperCase(),
+        grade: entry.grade || null,
+        pricingMode: entry.pricingMode || null,
       }))
     : [
-        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'SIPIL' },
-        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'INTERIOR' },
+        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'SIPIL', grade: project?.sipilGrade || null },
+        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'INTERIOR', grade: project?.interiorGrade || null },
       ];
   const categoryFilterOptions = [
     { id: ALL_CATEGORY_FILTER, workCategoryId: null, code: ALL_CATEGORY_FILTER, name: 'Semua' },
@@ -411,8 +413,15 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       const item = editModal?.item || {};
       const itemWorkCategoryId = item.workCategoryId || activeWorkCategoryId;
       const discipline = itemWorkCategoryId ? '' : (item.discipline || activeDiscipline || "");
+      // Grade mengikuti kategori item (bukan tab aktif): kalau item punya kategori,
+      // ambil grade dari konfigurasi proyek untuk kategori tersebut — supaya saat
+      // browsing di tab SEMUA pun hasil pencarian tetap scoped ke grade yang dipilih
+      // saat pembuatan project, bukan semua grade di periode itu.
+      const categoryConfig = itemWorkCategoryId
+        ? (project?.workCategories || []).find((wc) => wc.workCategoryId === itemWorkCategoryId)
+        : null;
       const grade = itemWorkCategoryId
-        ? (selectedFilterCategory?.grade || item.grade || null)
+        ? (categoryConfig?.grade || item.grade || selectedFilterCategory?.grade || null)
         : (item.grade || project?.grade || null);
       const params = new URLSearchParams({ q: query.trim() });
       if (itemWorkCategoryId) {

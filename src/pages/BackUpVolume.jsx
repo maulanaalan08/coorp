@@ -777,10 +777,12 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
         workCategoryId: entry.workCategoryId,
         code: String(entry.workCategory?.code || '').toUpperCase(),
         name: String(entry.workCategory?.code || '').toUpperCase(),
+        grade: entry.grade || null,
+        pricingMode: entry.pricingMode || null,
       }))
     : [
-        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'SIPIL' },
-        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'INTERIOR' },
+        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'SIPIL', grade: selectedProject?.sipilGrade || null },
+        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'INTERIOR', grade: selectedProject?.interiorGrade || null },
       ];
   const categoryFilterOptions = [
     { id: ALL_CATEGORY_FILTER, workCategoryId: null, code: ALL_CATEGORY_FILTER, name: 'Semua' },
