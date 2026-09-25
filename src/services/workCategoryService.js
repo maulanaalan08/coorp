@@ -19,7 +19,10 @@ export const workCategoryService = {
       body: JSON.stringify(data),
     }),
 
-  // DELETE /api/work-categories/:id — hapus/nonaktifkan kategori
+  // GET /api/work-categories/:id/references — ringkasan dampak hapus
+  getReferences: (id) => fetchAPI(`/work-categories/${id}/references`),
+
+  // DELETE /api/work-categories/:id — hapus permanen kategori
   remove: (id) =>
     fetchAPI(`/work-categories/${id}`, {
       method: 'DELETE',

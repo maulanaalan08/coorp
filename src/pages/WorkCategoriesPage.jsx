@@ -8,6 +8,7 @@ import {
   Check,
   Layers,
   Loader2,
+  Power,
 } from "lucide-react";
 import { workCategoryService } from "../services/workCategoryService";
 import { toast } from "react-hot-toast";
@@ -21,6 +22,7 @@ const WorkCategoriesPage = () => {
   const [form, setForm] = useState({ code: "", name: "", sortOrder: 0 });
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [togglingId, setTogglingId] = useState(null);
 
   const loadCategories = async () => {
     setLoading(true);
@@ -97,12 +99,50 @@ const WorkCategoriesPage = () => {
     }
   };
 
+  const handleToggleStatus = async (cat) => {
+    const nextActive = cat.isActive === false;
+    setTogglingId(cat.id);
+    try {
+      await workCategoryService.update(cat.id, { isActive: nextActive });
+      toast.success(
+        `Kategori berhasil ${nextActive ? "diaktifkan" : "dinonaktifkan"}.`,
+      );
+      await loadCategories();
+    } catch (err) {
+      toast.error(err?.message || "Gagal mengubah status kategori.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const handleDelete = async (cat) => {
-    if (!window.confirm(`Yakin hapus kategori "${cat.name}"?`)) return;
     setDeletingId(cat.id);
     try {
+      const impact = await workCategoryService.getReferences(cat.id);
+      const references = impact?.references || {};
+      const affected = [
+        ["konfigurasi Project", references.projectConfigs],
+        ["harga HSPK", references.priceItems],
+        ["pekerjaan AHSP", references.jobTypes],
+        ["riwayat upload", references.uploadBatches],
+        ["item BV", references.bvItems],
+        ["item RAB", references.rabItems],
+      ].filter(([, count]) => Number(count) > 0);
+      const impactText = affected.length
+        ? `\n\nDampak penghapusan:\n${affected
+            .map(([label, count]) => `• ${count} ${label}`)
+            .join("\n")}\n\nData HSPK/BV/RAB tetap disimpan tanpa kategori, sedangkan konfigurasi kategori pada Project dilepas.`
+        : "\n\nKategori ini belum dipakai oleh data lain.";
+
+      if (
+        !window.confirm(
+          `Hapus permanen kategori "${cat.name}"? Kategori akan benar-benar dihapus dan tidak dapat dipulihkan.${impactText}`,
+        )
+      )
+        return;
+
       const res = await workCategoryService.remove(cat.id);
-      toast.success(res?.message || "Kategori dihapus.");
+      toast.success(res?.message || "Kategori berhasil dihapus permanen.");
       await loadCategories();
     } catch (err) {
       toast.error(err?.message || "Gagal menghapus kategori.");
@@ -179,8 +219,24 @@ const WorkCategoriesPage = () => {
                       </td>
                       <td className="wcp-col-action">
                         <button
+                          className={`wcp-icon-btn wcp-toggle ${
+                            cat.isActive === false ? "wcp-activate" : "wcp-deactivate"
+                          }`}
+                          onClick={() => handleToggleStatus(cat)}
+                          disabled={togglingId === cat.id || deletingId === cat.id}
+                          title={cat.isActive === false ? "Aktifkan" : "Nonaktifkan"}
+                          aria-label={`${cat.isActive === false ? "Aktifkan" : "Nonaktifkan"} ${cat.name}`}
+                        >
+                          {togglingId === cat.id ? (
+                            <Loader2 className="wcp-spin" size={16} />
+                          ) : (
+                            <Power size={16} />
+                          )}
+                        </button>
+                        <button
                           className="wcp-icon-btn wcp-edit"
                           onClick={() => openEdit(cat)}
+                          disabled={togglingId === cat.id || deletingId === cat.id}
                           title="Edit"
                         >
                           <Pencil size={16} />
@@ -188,8 +244,9 @@ const WorkCategoriesPage = () => {
                         <button
                           className="wcp-icon-btn wcp-delete"
                           onClick={() => handleDelete(cat)}
-                          disabled={deletingId === cat.id}
-                          title="Hapus"
+                          disabled={deletingId === cat.id || togglingId === cat.id}
+                          title="Hapus permanen"
+                          aria-label={`Hapus permanen ${cat.name}`}
                         >
                           {deletingId === cat.id ? (
                             <Loader2 className="wcp-spin" size={16} />
