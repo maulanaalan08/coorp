@@ -19,8 +19,16 @@ export const joinOpnameService = {
     return handleResponse(response);
   },
 
-  getJoinOpname: async (projectId, discipline) => {
-    const response = await fetch(buildApiUrl(API_BASE_URL, `/projects/${projectId}/join-opname`, { discipline }), {
+  getJoinOpname: async (projectId, filterValue) => {
+    const params = {};
+    if (filterValue && filterValue !== "General") {
+      if (filterValue.length > 20) {
+        params.workCategoryId = filterValue;
+      } else {
+        params.discipline = filterValue;
+      }
+    }
+    const response = await fetch(buildApiUrl(API_BASE_URL, `/projects/${projectId}/join-opname`, params), {
       headers: joinOpnameService.getAuthHeaders()
     });
     return handleResponse(response);
@@ -47,17 +55,29 @@ export const joinOpnameService = {
     return handleResponse(response);
   },
 
-  exportPdf: (projectId, discipline, date, type) => {
+  exportPdf: (projectId, filterValue, date, type) => {
     const url = new URL(`${API_BASE_URL}/projects/${projectId}/join-opname/export/pdf`);
-    if (discipline && discipline !== "General") url.searchParams.append("discipline", discipline);
+    if (filterValue && filterValue !== "General") {
+      if (filterValue.length > 20) {
+        url.searchParams.append("workCategoryId", filterValue);
+      } else {
+        url.searchParams.append("discipline", filterValue);
+      }
+    }
     if (date) url.searchParams.append("date", date);
     if (type) url.searchParams.append("type", type);
     window.open(url.toString(), "_blank");
   },
 
-  exportExcel: (projectId, discipline, date) => {
+  exportExcel: (projectId, filterValue, date) => {
     const url = new URL(`${API_BASE_URL}/projects/${projectId}/join-opname/export/excel`);
-    if (discipline && discipline !== "General") url.searchParams.append("discipline", discipline);
+    if (filterValue && filterValue !== "General") {
+      if (filterValue.length > 20) {
+        url.searchParams.append("workCategoryId", filterValue);
+      } else {
+        url.searchParams.append("discipline", filterValue);
+      }
+    }
     if (date) url.searchParams.append("date", date);
     window.location.href = url.toString();
   }

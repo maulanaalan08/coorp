@@ -33,15 +33,15 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
                 return (
                   <tr key={item.rabItemId}>
                     <td style={{ whiteSpace: 'nowrap', fontWeight: 'bold', fontSize: '10px' }}>
-                      {item.discipline && item.discipline !== 'GENERAL' ? (
+                      {(item.workCategoryCode || item.discipline) && (item.workCategoryCode || item.discipline) !== 'GENERAL' ? (
                         <span style={{
                           padding: '2px 6px',
                           borderRadius: '4px',
                           textTransform: 'uppercase',
-                          background: { INTERIOR: '#a0522d', SIPIL: '#4682b4' }[item.discipline] || '#666',
+                          background: { INTERIOR: '#a0522d', SIPIL: '#4682b4' }[item.workCategoryCode || item.discipline] || '#666',
                           color: '#fff'
                         }}>
-                          {item.discipline}
+                          {item.workCategoryCode || item.discipline}
                         </span>
                       ) : "-"}
                     </td>

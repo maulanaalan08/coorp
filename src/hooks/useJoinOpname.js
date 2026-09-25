@@ -18,8 +18,8 @@ export function useJoinOpname(initialProjectId) {
   const [progressInputs, setProgressInputs] = useState({});
   const [busyItems, setBusyItems] = useState({});
   const [notice, setNotice] = useState(null);
-  
   const [discipline, setDiscipline] = useState("General");
+  const [filterLabel, setFilterLabel] = useState("General");
 
   const showNotice = useCallback((type, message) => {
     if (type === 'success') {
@@ -222,6 +222,6 @@ export function useJoinOpname(initialProjectId) {
     selectedDate, progressInputs, busyItems,
     handleProjectChange, handleDateChange, handleProgressChange, handleFileChange, handleSaveProgress,
     items, days, totalDays, startDate, groupedItems, selectedDay, summary,
-    discipline, setDiscipline
+    discipline, setDiscipline, filterLabel, setFilterLabel
   };
 }

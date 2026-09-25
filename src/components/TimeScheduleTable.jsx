@@ -90,18 +90,18 @@ export default function TimeScheduleTable({
                     </td>
                     <td className="tsp-sticky-col tsp-col-label">
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        {item.discipline && item.discipline !== 'GENERAL' && (
+                        {(item.workCategoryCode || item.discipline) && (item.workCategoryCode || item.discipline) !== 'GENERAL' && (
                           <span
                             style={{
                               fontSize: '9px',
                               textTransform: 'uppercase',
                               padding: '2px 6px',
                               borderRadius: '4px',
-                              background: DISCIPLINE_BADGE[item.discipline] || '#666',
+                              background: DISCIPLINE_BADGE[item.workCategoryCode || item.discipline] || '#666',
                               color: '#fff',
                             }}
                           >
-                            {item.discipline}
+                            {item.workCategoryCode || item.discipline}
                           </span>
                         )}
                         {item.isByOwner && <span className="tsp-owner-tag">By Owner</span>}

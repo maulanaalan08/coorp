@@ -14,6 +14,7 @@ export function useTimeSchedule(initialProjectId) {
   const [notice, setNotice] = useState(null);
 
   const [discipline, setDiscipline] = useState("General");
+  const [filterLabel, setFilterLabel] = useState("General");
   const [startDateInput, setStartDateInput] = useState("");
   const [savingStartDate, setSavingStartDate] = useState(false);
   
@@ -109,7 +110,7 @@ export function useTimeSchedule(initialProjectId) {
   return {
     projectId, setProjectId, projectList, loadingProjects, projectError, fetchProjects, fetchSchedule,
     data, loading, error, notice, showNotice,
-    discipline, setDiscipline,
+    discipline, setDiscipline, filterLabel, setFilterLabel,
     startDateInput, setStartDateInput, savingStartDate, setSavingStartDate,
     editDrafts, setEditDrafts, busyItems, setBusyItems, hoverPoint, setHoverPoint,
     periods, items, scheduledCount, lastProgress, groupedItems, chart

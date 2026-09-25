@@ -11,7 +11,7 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
   const {
     projectId, setProjectId, projectList, loadingProjects, projectError, fetchProjects, fetchSchedule,
     data, loading, error, notice, showNotice, 
-    discipline, setDiscipline,
+    discipline, setDiscipline, filterLabel, setFilterLabel,
     startDateInput, setStartDateInput, savingStartDate, setSavingStartDate,
     editDrafts, setEditDrafts, busyItems, setBusyItems, hoverPoint, setHoverPoint, 
     periods, items, scheduledCount, lastProgress, groupedItems, chart
@@ -178,15 +178,22 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
           <div className="tsp-controls-row">
             <div className="tsp-card tsp-control-card">
               <h2 className="tsp-card-title">Filter Disiplin Pekerjaan</h2>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {["General", "INTERIOR", "SIPIL"].map((d) => (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  className={`tsp-btn ${discipline === 'General' ? 'tsp-btn-primary' : ''}`}
+                  style={{ minWidth: '100px' }}
+                  onClick={() => { setDiscipline('General'); setFilterLabel('General'); }}
+                >
+                  General
+                </button>
+                {projectList.find(p => p.id === projectId)?.workCategories?.filter(c => c.isActive && c.workCategory?.isActive).map((c) => (
                   <button
-                    key={d}
-                    className={`tsp-btn ${discipline === d ? 'tsp-btn-primary' : ''}`}
+                    key={c.workCategoryId}
+                    className={`tsp-btn ${discipline === c.workCategoryId ? 'tsp-btn-primary' : ''}`}
                     style={{ minWidth: '100px' }}
-                    onClick={() => setDiscipline(d)}
+                    onClick={() => { setDiscipline(c.workCategoryId); setFilterLabel(c.workCategory.code.toUpperCase()); }}
                   >
-                    {d}
+                    {c.workCategory.code.toUpperCase()}
                   </button>
                 ))}
               </div>

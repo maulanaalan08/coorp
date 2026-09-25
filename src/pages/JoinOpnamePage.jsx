@@ -18,7 +18,7 @@ function JoinOpnamePage({ initialProjectId = null }) {
     selectedDate, progressInputs, busyItems,
     handleProjectChange, handleDateChange, handleProgressChange, handleFileChange, handleSaveProgress,
     items, days, totalDays, startDate, groupedItems, selectedDay, summary,
-    discipline, setDiscipline
+    discipline, setDiscipline, filterLabel, setFilterLabel
   } = useJoinOpname(initialProjectId);
 
   React.useEffect(() => {
@@ -124,15 +124,22 @@ function JoinOpnamePage({ initialProjectId = null }) {
             <>
               <div className="jo-card jo-control-card" style={{ marginBottom: '16px' }}>
                   <h2 style={{ fontSize: '14px', marginBottom: '8px', color: '#9ca3af' }}>Filter Disiplin Pekerjaan</h2>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    {["General", "INTERIOR", "SIPIL"].map((d) => (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      className={`tsp-btn ${discipline === 'General' ? 'tsp-btn-primary' : ''}`}
+                      style={{ minWidth: '100px', cursor: 'pointer' }}
+                      onClick={() => { setDiscipline('General'); setFilterLabel('General'); }}
+                    >
+                      General
+                    </button>
+                    {projectList.find(p => p.id === projectId)?.workCategories?.filter(c => c.isActive && c.workCategory?.isActive).map((c) => (
                       <button
-                        key={d}
-                        className={`tsp-btn ${discipline === d ? 'tsp-btn-primary' : ''}`}
+                        key={c.workCategoryId}
+                        className={`tsp-btn ${discipline === c.workCategoryId ? 'tsp-btn-primary' : ''}`}
                         style={{ minWidth: '100px', cursor: 'pointer' }}
-                        onClick={() => setDiscipline(d)}
+                        onClick={() => { setDiscipline(c.workCategoryId); setFilterLabel(c.workCategory.code.toUpperCase()); }}
                       >
-                        {d}
+                        {c.workCategory.code.toUpperCase()}
                       </button>
                     ))}
                   </div>

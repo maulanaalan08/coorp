@@ -160,6 +160,32 @@ export default function ComplaintPage() {
     }
   };
 
+  const handleDeleteCategory = async (categoryId) => {
+    if (!window.confirm("Yakin ingin menghapus seluruh area defect list ini?")) return;
+    try {
+      const newCategories = complaintReport.categories.filter(cat => (cat.id || cat.order) !== categoryId);
+      await saveComplaint(newCategories, {});
+      toast.success("Berhasil menghapus area.");
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleDeleteItem = async (categoryId, itemId) => {
+    if (!window.confirm("Yakin ingin menghapus defect ini?")) return;
+    try {
+      const newCategories = JSON.parse(JSON.stringify(complaintReport.categories));
+      const catIndex = newCategories.findIndex(cat => (cat.id || cat.order) === categoryId);
+      if (catIndex > -1) {
+        newCategories[catIndex].items = newCategories[catIndex].items.filter(it => (it.id || it.order) !== itemId);
+        await saveComplaint(newCategories, {});
+        toast.success("Berhasil menghapus defect.");
+      }
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   const openDefectPdf = () => {
     if (complaintReport && complaintReport.id) {
       complaintService.downloadPdf(complaintReport.id);
@@ -284,9 +310,18 @@ export default function ComplaintPage() {
                               + Tambah Defect
                             </button>
                           </div>
-                          <span className={`status-badge ${isHeaderDone ? 'done' : 'ongoing'}`}>
-                            {isHeaderDone ? <><CheckCircle size={14}/> Selesai</> : <><Clock size={14}/> On going</>}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span className={`status-badge ${isHeaderDone ? 'done' : 'ongoing'}`}>
+                              {isHeaderDone ? <><CheckCircle size={14}/> Selesai</> : <><Clock size={14}/> On going</>}
+                            </span>
+                            <button
+                               onClick={() => handleDeleteCategory(category.id || category.order)}
+                               style={{ padding: '4px 8px', fontSize: '11px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer' }}
+                               title="Hapus Tabel Defect List ini"
+                            >
+                               Hapus Tabel
+                            </button>
+                          </div>
                         </div>
 
                         <table className="complaint-table">
@@ -336,13 +371,22 @@ export default function ComplaintPage() {
                                     </span>
                                   </td>
                                   <td>
-                                    <button 
-                                      className="btn-action" 
-                                      onClick={() => setEditData({ category, item })}
-                                      style={{ padding: '4px 8px', fontSize: '11px', background: 'transparent', border: '1px solid #d4af37', color: '#d4af37', borderRadius: '4px', cursor: 'pointer' }}
-                                    >
-                                      Edit
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                      <button 
+                                        className="btn-action" 
+                                        onClick={() => setEditData({ category, item })}
+                                        style={{ padding: '4px 8px', fontSize: '11px', background: 'transparent', border: '1px solid #d4af37', color: '#d4af37', borderRadius: '4px', cursor: 'pointer' }}
+                                      >
+                                        Edit
+                                      </button>
+                                      <button 
+                                        className="btn-action" 
+                                        onClick={() => handleDeleteItem(category.id || category.order, item.id || item.order)}
+                                        style={{ padding: '4px 8px', fontSize: '11px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer' }}
+                                      >
+                                        Hapus
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               );

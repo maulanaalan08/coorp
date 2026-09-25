@@ -12,9 +12,15 @@ export const timeScheduleService = {
     return handleResponse(res);
   },
 
-  getSchedule: async (projectId, discipline) => {
+  getSchedule: async (projectId, filterValue) => {
     const url = new URL(`${API_BASE_URL}/projects/${projectId}/rap-time-schedule`);
-    if (discipline && discipline !== 'General') url.searchParams.append('discipline', discipline);
+    if (filterValue && filterValue !== 'General') {
+      if (filterValue.length > 20) {
+        url.searchParams.append('workCategoryId', filterValue);
+      } else {
+        url.searchParams.append('discipline', filterValue);
+      }
+    }
     const res = await fetch(url.toString());
     return handleResponse(res);
   },
@@ -53,9 +59,15 @@ export const timeScheduleService = {
     return handleResponse(res);
   },
 
-  exportExcel(projectId, discipline) {
+  exportExcel(projectId, filterValue) {
     const url = new URL(`${API_BASE_URL}/projects/${projectId}/time-schedule/export`);
-    if (discipline && discipline !== 'General') url.searchParams.append('discipline', discipline);
+    if (filterValue && filterValue !== 'General') {
+      if (filterValue.length > 20) {
+        url.searchParams.append('workCategoryId', filterValue);
+      } else {
+        url.searchParams.append('discipline', filterValue);
+      }
+    }
     window.open(url.toString(), "_blank");
   }
 };
