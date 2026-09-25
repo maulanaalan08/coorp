@@ -154,7 +154,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const activeDiscipline = (!activeWorkCategoryId && activeFilter !== ALL_CATEGORY_FILTER) ? activeFilter : '';
 
   const { rabGroups: groups, loadingGroups, errorGroups: fetchError, refreshGroups, createGroup, deleteGroup } = useRabGroups(projectId, activeDiscipline, activeWorkCategoryId);
-  const { deleteRabItem, updateRabItem, deleteBulk, bulkPrice, bulkSwitchJob, loading: loadingItems } = useRabItems(projectId);
+  const { deleteRabItem, updateRabItem, deleteBulk, bulkPrice, bulkSwitchJob, switchJob, loading: loadingItems } = useRabItems(projectId);
 
   // State untuk Tambah Group
   const [groupModal, setGroupModal] = useState(null);
@@ -527,17 +527,13 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         payload.ahspDiscipline = activeDiscipline;
       }
 
-      const switchPromise = fetch(`${API_BASE}/rab-items/${item.id}/switch-job`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + localStorage.getItem("token") },
-        body: JSON.stringify(payload),
-      }).then(async (res) => {
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "Gagal menghubungkan data AHSP.");
-        }
-        return refreshGroups();
-      });
+      const switchPromise = switchJob(
+        item.id,
+        sourceJobId,
+        overheadPercent !== "" ? Number(overheadPercent) : undefined,
+        activeDiscipline && activeDiscipline !== ALL_CATEGORY_FILTER ? activeDiscipline : undefined,
+        item.workCategoryId || activeWorkCategoryId || undefined,
+      ).then(() => refreshGroups());
 
       toast.promise(switchPromise, {
         loading: 'Menarik data Master AHSP...',
