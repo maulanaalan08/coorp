@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import ProjectSelector from '../components/ProjectSelector';
 import styles from '../styles/DataSurvey.module.css';
 import Header from '../components/Header';
+import Survey3DTab from './Survey3DTab';
 import {
   Plus, FileDown, Eye, Trash2, ChevronDown, ChevronUp,
   X, Map, RefreshCw, Camera, Edit
@@ -651,6 +652,7 @@ const DataSurvey = ({ initialProjectId = null }) => {
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSurvey, setEditingSurvey] = useState(null);
+  const [activeTab, setActiveTab] = useState('data-survey');
 
   React.useEffect(() => {
     if (initialProjectId) {
@@ -707,8 +709,8 @@ const DataSurvey = ({ initialProjectId = null }) => {
         onChange={(e) => setSelectedProjectId(e.target.value)}
       />
 
-      {/* STATS */}
-      {selectedProjectId && (
+      {/* STATS — hanya di tab Data Survey */}
+      {selectedProjectId && activeTab === 'data-survey' && (
         <div className={styles.statsRow}>
           <div className={styles.statBox}>
             <p className={styles.statNum}>{surveys.length}</p>
@@ -731,7 +733,27 @@ const DataSurvey = ({ initialProjectId = null }) => {
         </div>
       )}
 
-      {/* TABLE SURVEYS */}
+      {/* TAB NAVIGATION */}
+      {selectedProjectId && (
+        <div className={styles.tabNav}>
+          <button
+            className={`${styles.tabBtn} ${activeTab === 'data-survey' ? styles.tabBtnActive : ''}`}
+            onClick={() => setActiveTab('data-survey')}
+          >
+            Data Survey
+          </button>
+          <button
+            className={`${styles.tabBtn} ${activeTab === 'survey-3d' ? styles.tabBtnActive : ''}`}
+            onClick={() => setActiveTab('survey-3d')}
+          >
+            Hasil Desain 3D
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'survey-3d' ? (
+        <Survey3DTab projectId={selectedProjectId} />
+      ) : (
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
           <div className={styles.sectionTitle}>
@@ -806,6 +828,7 @@ const DataSurvey = ({ initialProjectId = null }) => {
           </table>
         </div>
       </div>
+      )}
 
       {/* MODAL BUAT SURVEY */}
       <SurveyModal

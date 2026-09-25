@@ -29,4 +29,14 @@ export const surveyService = {
   // URL untuk buka/unduh PDF (bukan fetch, langsung di <a href>)
   getPdfViewUrl: (surveyId) => `${BASE_URL}/api/surveys/${surveyId}/pdf/view`,
   getPdfDownloadUrl: (surveyId) => `${BASE_URL}/api/surveys/${surveyId}/pdf/download`,
+
+  // Hasil desain 3D per project: screenshot/render + link Google Drive.
+  get3dResult: (projectId) =>
+    fetchAPI(`/projects/${projectId}/survey-3d`),
+
+  save3dResult: (projectId, formData) =>
+    fetchAPI(`/projects/${projectId}/survey-3d`, {
+      method: 'PUT',
+      body: formData,
+    }),
 };
