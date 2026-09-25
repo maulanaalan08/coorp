@@ -18,7 +18,8 @@ function JoinOpnamePage({ initialProjectId = null }) {
     selectedDate, progressInputs, busyItems,
     handleProjectChange, handleDateChange, handleProgressChange, handleFileChange, handleSaveProgress,
     items, days, totalDays, startDate, groupedItems, selectedDay, summary,
-    discipline, setDiscipline, filterLabel, setFilterLabel
+    discipline, setDiscipline, filterLabel, setFilterLabel,
+    unsavedChanges, savingBatch, handleSaveAllProgress
   } = useJoinOpname(initialProjectId);
 
   React.useEffect(() => {
@@ -151,6 +152,16 @@ function JoinOpnamePage({ initialProjectId = null }) {
                     <p>Input progress dan upload foto pada tanggal yang dipilih, lalu simpan.</p>
                   </div>
                   <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    {unsavedChanges?.size > 0 && (
+                      <button 
+                        className="jo-btn jo-btn-save" 
+                        onClick={handleSaveAllProgress}
+                        disabled={savingBatch}
+                        style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
+                      >
+                        {savingBatch ? "Menyimpan..." : `Simpan Semua Perubahan (${unsavedChanges.size})`}
+                      </button>
+                    )}
                     <div className="jo-selected-date">{formatDate(selectedDate)}</div>
                     <button className="jo-btn jo-btn-primary" onClick={() => joinOpnameService.exportExcel(projectId, discipline, selectedDate)}>
                       ⬇ Excel

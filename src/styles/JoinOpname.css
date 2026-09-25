@@ -523,8 +523,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   left: 0;
   z-index: 5;
   background: #161513;
+  width: 230px;
   min-width: 230px;
   max-width: 230px;
+  box-sizing: border-box;
   white-space: normal;
 }
 .jo-table thead th.jo-daily-sticky-name {
@@ -537,7 +539,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   left: 230px;
   z-index: 5;
   background: #161513;
+  width: 70px;
   min-width: 70px;
+  max-width: 70px;
+  box-sizing: border-box;
   box-shadow: inset 2px 0 0 #d4af37, inset -2px 0 0 #d4af37 !important;
 }
 .jo-table thead th.jo-daily-sticky-weight {

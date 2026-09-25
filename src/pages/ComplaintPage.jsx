@@ -24,6 +24,31 @@ export default function ComplaintPage() {
   const [showBast2Modal, setShowBast2Modal] = useState(false);
   const [editData, setEditData] = useState(null);
 
+  const [activeTab, setActiveTab] = useState("COMPLAINT");
+  const [bast2List, setBast2List] = useState([]);
+  const [loadingBast2, setLoadingBast2] = useState(false);
+
+  useEffect(() => {
+    if (projectId) {
+      fetchBast2List();
+    } else {
+      setBast2List([]);
+    }
+  }, [projectId]);
+
+  const fetchBast2List = async () => {
+    try {
+      setLoadingBast2(true);
+      const res = await complaintService.getBast2List(projectId);
+      setBast2List(res || []);
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal memuat riwayat BAST 2");
+    } finally {
+      setLoadingBast2(false);
+    }
+  };
+
   // Fetch projects list
   useEffect(() => {
     const fetchProjects = async () => {
@@ -201,11 +226,25 @@ export default function ComplaintPage() {
   const handleBast2Submit = async (formData) => {
     try {
       if (complaintReport && complaintReport.id) {
-        await complaintService.generateBast2Pdf(complaintReport.id, formData);
+        await complaintService.createBast2(projectId, complaintReport.id, formData);
+        toast.success("BAST 2 berhasil disimpan!");
         setShowBast2Modal(false);
+        fetchBast2List();
+        setActiveTab("BAST2");
       }
     } catch (err) {
       toast.error(err.message || "Gagal menggenerate BAST 2");
+    }
+  };
+
+  const handleDeleteBast2 = async (id) => {
+    if (!window.confirm("Yakin ingin menghapus dokumen BAST 2 ini?")) return;
+    try {
+      await complaintService.deleteBast2(id);
+      toast.success("BAST 2 berhasil dihapus");
+      fetchBast2List();
+    } catch (err) {
+      toast.error(err.message || "Gagal menghapus BAST 2");
     }
   };
 
@@ -236,10 +275,36 @@ export default function ComplaintPage() {
         </div>
       ) : (
         <>
-          {isLoading && <div className="loading-state">Memuat data complaint...</div>}
-          {error && <div className="error-state">{error}</div>}
+          {/* Tabs Navigation */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '1px solid #333', paddingBottom: '12px' }}>
+            <button 
+              onClick={() => setActiveTab('COMPLAINT')}
+              style={{ 
+                padding: '8px 16px', fontWeight: 'bold', fontSize: '14px', borderRadius: '6px', cursor: 'pointer', border: 'none',
+                background: activeTab === 'COMPLAINT' ? '#d4af37' : '#1e1e1e',
+                color: activeTab === 'COMPLAINT' ? '#000' : '#888'
+              }}
+            >
+              Daftar Complain
+            </button>
+            <button 
+              onClick={() => setActiveTab('BAST2')}
+              style={{ 
+                padding: '8px 16px', fontWeight: 'bold', fontSize: '14px', borderRadius: '6px', cursor: 'pointer', border: 'none',
+                background: activeTab === 'BAST2' ? '#d4af37' : '#1e1e1e',
+                color: activeTab === 'BAST2' ? '#000' : '#888'
+              }}
+            >
+              Riwayat BAST 2
+            </button>
+          </div>
 
-          {!isLoading && !error && (
+          {activeTab === 'COMPLAINT' && (
+            <>
+              {isLoading && <div className="loading-state">Memuat data complaint...</div>}
+              {error && <div className="error-state">{error}</div>}
+
+              {!isLoading && !error && (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h2 className="section-title" style={{ marginBottom: 0 }}>Daftar Complain</h2>
@@ -399,6 +464,72 @@ export default function ComplaintPage() {
                 </div>
               )}
             </>
+          )}
+        </>
+      )}
+
+      {activeTab === 'BAST2' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h2 className="section-title" style={{ marginBottom: 0 }}>Riwayat Dokumen BAST 2</h2>
+              </div>
+              
+              {loadingBast2 ? (
+                <div className="loading-state">Memuat riwayat BAST 2...</div>
+              ) : bast2List.length === 0 ? (
+                <div className="complaint-card empty-state">
+                  <p>Belum ada BAST 2 yang digenerate untuk project ini.</p>
+                </div>
+              ) : (
+                <div className="complaint-card">
+                  <table className="complaint-table">
+                    <thead>
+                      <tr>
+                        <th>No. BAST</th>
+                        <th>No. SPK</th>
+                        <th>Tanggal Handover</th>
+                        <th>Pemberi Tugas</th>
+                        <th>Penerima Pekerjaan</th>
+                        <th>Status</th>
+                        <th>Dibuat Pada</th>
+                        <th>Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bast2List.map(bast => (
+                        <tr key={bast.id}>
+                          <td><strong>{bast.bastNumber}</strong></td>
+                          <td>{bast.spkNumber}</td>
+                          <td>{formatDate(bast.handoverDate)}</td>
+                          <td>{bast.pihakPertamaName}</td>
+                          <td>{bast.pihakKeduaName}</td>
+                          <td>{bast.statusText}</td>
+                          <td>{formatDate(bast.createdAt)}</td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button 
+                                className="btn-action" 
+                                onClick={() => complaintService.viewSavedBast2Pdf(bast.id)}
+                                style={{ padding: '4px 8px', fontSize: '11px', background: '#3b82f6', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <FileText size={12}/> View PDF
+                              </button>
+                              <button 
+                                className="btn-action" 
+                                onClick={() => handleDeleteBast2(bast.id)}
+                                style={{ padding: '4px 8px', fontSize: '11px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
         </>
       )}

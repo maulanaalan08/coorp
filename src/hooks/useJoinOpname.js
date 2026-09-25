@@ -21,6 +21,9 @@ export function useJoinOpname(initialProjectId) {
   const [discipline, setDiscipline] = useState("General");
   const [filterLabel, setFilterLabel] = useState("General");
 
+  const [unsavedChanges, setUnsavedChanges] = useState(new Set());
+  const [savingBatch, setSavingBatch] = useState(false);
+
   const showNotice = useCallback((type, message) => {
     if (type === 'success') {
       toast.success(message);
@@ -89,14 +92,18 @@ export function useJoinOpname(initialProjectId) {
   useEffect(() => { if (projectId) fetchJoinOpname(projectId, discipline); else setData(null); }, [projectId, discipline, fetchJoinOpname]);
 
   const handleProjectChange = (e) => {
+    if (unsavedChanges.size > 0 && !window.confirm("Ada pekerjaan yang belum disimpan! Yakin ingin pindah project?")) return;
     setProjectId(e.target.value);
     setData(null); setError(null); setProgressInputs({}); setSelectedDate("");
+    setUnsavedChanges(new Set());
   };
 
   const handleDateChange = (e) => {
+    if (unsavedChanges.size > 0 && !window.confirm("Ada pekerjaan yang belum disimpan! Yakin ingin pindah tanggal?")) return;
     const date = e.target.value;
     setSelectedDate(date);
     setProgressInputs(buildProgressInputs(data?.items || [], date));
+    setUnsavedChanges(new Set());
   };
 
   const handleProgressChange = (rabItemId, value) => {
@@ -106,6 +113,7 @@ export function useJoinOpname(initialProjectId) {
       ...prev,
       [rabItemId]: { ...prev[rabItemId], percent: numericValue }
     }));
+    setUnsavedChanges(prev => new Set(prev).add(rabItemId));
   };
 
   const handleFileChange = (rabItemId, files) => {
@@ -113,6 +121,7 @@ export function useJoinOpname(initialProjectId) {
       ...prev,
       [rabItemId]: { ...prev[rabItemId], files: files }
     }));
+    setUnsavedChanges(prev => new Set(prev).add(rabItemId));
   };
 
   const handleSaveProgress = async (item) => {
@@ -133,11 +142,52 @@ export function useJoinOpname(initialProjectId) {
       success: `Progress "${item.name}" berhasil disimpan.`,
       error: (err) => err.message || 'Gagal menyimpan progress.'
     }).then(() => {
+      setUnsavedChanges((prev) => {
+        const next = new Set(prev);
+        next.delete(item.rabItemId);
+        return next;
+      });
       fetchJoinOpname(projectId);
     }).catch(err => {
       console.error(err);
     }).finally(() => {
       setBusyItems((prev) => ({ ...prev, [item.rabItemId]: false }));
+    });
+  };
+
+  const handleSaveAllProgress = async () => {
+    if (!projectId) return;
+    if (!selectedDate) return showNotice("error", "Pilih tanggal progress terlebih dahulu.");
+    if (unsavedChanges.size === 0) return;
+
+    const itemsToSave = (data?.items || []).filter(i => unsavedChanges.has(i.rabItemId) && !i.hasChildren);
+    if (itemsToSave.length === 0) return;
+
+    setSavingBatch(true);
+    const newBusy = {};
+    itemsToSave.forEach(i => newBusy[i.rabItemId] = true);
+    setBusyItems(prev => ({ ...prev, ...newBusy }));
+
+    const promises = itemsToSave.map(item => {
+      const inputData = progressInputs[item.rabItemId];
+      const progress = Number(inputData?.percent || 0);
+      return joinOpnameService.updateProgress(item.rabItemId, selectedDate, progress, inputData.files);
+    });
+
+    toast.promise(Promise.all(promises), {
+      loading: 'Menyimpan semua progress...',
+      success: `Berhasil menyimpan ${itemsToSave.length} pekerjaan.`,
+      error: 'Beberapa progress gagal disimpan.'
+    }).then(() => {
+      setUnsavedChanges(new Set());
+      fetchJoinOpname(projectId);
+    }).finally(() => {
+      setSavingBatch(false);
+      setBusyItems(prev => {
+        const next = { ...prev };
+        itemsToSave.forEach(i => next[i.rabItemId] = false);
+        return next;
+      });
     });
   };
 
@@ -222,6 +272,7 @@ export function useJoinOpname(initialProjectId) {
     selectedDate, progressInputs, busyItems,
     handleProjectChange, handleDateChange, handleProgressChange, handleFileChange, handleSaveProgress,
     items, days, totalDays, startDate, groupedItems, selectedDay, summary,
-    discipline, setDiscipline, filterLabel, setFilterLabel
+    discipline, setDiscipline, filterLabel, setFilterLabel,
+    unsavedChanges, savingBatch, handleSaveAllProgress
   };
 }
