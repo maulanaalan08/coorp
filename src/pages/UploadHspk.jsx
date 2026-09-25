@@ -1,29 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '../styles/UploadHspk.module.css';
 import { UploadCloud, FileText, AlertCircle } from 'lucide-react';
 import Header from '../components/Header';
 import { hspkService } from '../services/hspkService';
 import toast from 'react-hot-toast';
 
-const GRADE_OPTIONS = {
-  SIPIL: ['A', 'B'],
-  INTERIOR: ['A', 'B', 'C'],
-};
-
 function UploadHspk() {
   const [file, setFile] = useState(null);
   const [period, setPeriod] = useState('');
-  const [discipline, setDiscipline] = useState('');
+  const [workCategoryId, setWorkCategoryId] = useState('');
   const [grade, setGrade] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [workCategories, setWorkCategories] = useState([]);
 
-  const gradeChoices = discipline ? GRADE_OPTIONS[discipline] : [];
+  // Ambil kategori master dari API
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:4000/api'}/work-categories`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setWorkCategories(Array.isArray(data) ? data.filter(c => c.isActive) : []))
+      .catch(() => setWorkCategories([]));
+  }, []);
 
-  const handleDisciplineChange = (e) => {
-    setDiscipline(e.target.value);
+  const selectedCategory = workCategories.find(c => c.id === workCategoryId);
+  const gradeChoices = selectedCategory ? ['A', 'B', 'C', 'D'] : [];
+
+  const handleCategoryChange = (e) => {
+    setWorkCategoryId(e.target.value);
     setGrade('');
   };
 
@@ -70,7 +77,12 @@ function UploadHspk() {
     const form = new FormData();
     form.append('file', file);
     form.append('period', period);
-    form.append('discipline', discipline);
+    if (workCategoryId) {
+      form.append('workCategoryId', workCategoryId);
+    } else {
+      // Legacy: kirim discipline dari kode kategori terpilih
+      if (selectedCategory) form.append('discipline', selectedCategory.code);
+    }
     form.append('grade', grade);
 
     toast.promise(hspkService.upload(form), {
@@ -141,18 +153,19 @@ function UploadHspk() {
           />
         </div>
 
-        {/* DISIPLIN & GRADE (BARIS 2 KOLOM) */}
+        {/* KATEGORI PEKERJAAN & GRADE (BARIS 2 KOLOM) */}
         <div className={styles.formRowGrid}>
           <div className={styles.hspkField}>
-            <label className={styles.hspkLabel}>DISIPLIN</label>
+            <label className={styles.hspkLabel}>KATEGORI PEKERJAAN</label>
             <select
               className={styles.hspkSelect}
-              value={discipline}
-              onChange={handleDisciplineChange}
+              value={workCategoryId}
+              onChange={handleCategoryChange}
             >
-              <option value="">– Pilih Disiplin –</option>
-              <option value="SIPIL">Sipil</option>
-              <option value="INTERIOR">Interior</option>
+              <option value="">– Pilih Kategori –</option>
+              {workCategories.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.name} ({cat.code})</option>
+              ))}
             </select>
           </div>
 

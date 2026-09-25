@@ -6,11 +6,11 @@ import { useProjects } from '../hooks/useProjects';
 import { useBvItems } from '../hooks/useBvItems';
 import { groupService } from '../services/groupService';
 import { hspkService } from '../services/hspkService';
-import { Pencil, Trash2, Plus, RefreshCw, Download } from 'lucide-react';
+import { Pencil, Trash2, Plus, RefreshCw, Download, Eye, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
-const DISCIPLINE_BADGE = { INTERIOR: '#a0522d', SIPIL: '#4682b4', GENERAL: '#666' };
+
 
 // ================================================================
 // MODAL GROUP / SUB-GROUP
@@ -89,31 +89,63 @@ function GroupModal({ isOpen, onClose, projectId, parentId, editGroup, onSuccess
 // ================================================================
 function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, parentItem, editItem, project, activeFilter, onSuccess }) {
   const hspkPeriod = project?.hspkPeriod;
-  const [mode, setMode] = useState('hspk');
+  const projectCategories = (project?.workCategories || [])
+    .filter((entry) => entry.isActive && entry.workCategory?.isActive !== false)
+    .sort((a, b) =>
+      (a.workCategory?.sortOrder ?? 0) - (b.workCategory?.sortOrder ?? 0)
+      || String(a.workCategory?.name || '').localeCompare(String(b.workCategory?.name || '')),
+    );
+  const categoryFromFilter = projectCategories.find(
+    (entry) => String(entry.workCategory?.code || '').toUpperCase() === activeFilter,
+  );
+  const inheritedWorkCategoryId = parentItem?.workCategoryId || null;
+  const initialWorkCategoryId = editItem
+    ? (editItem.workCategoryId || inheritedWorkCategoryId || '')
+    : (inheritedWorkCategoryId
+      || categoryFromFilter?.workCategoryId
+      || projectCategories[0]?.workCategoryId
+      || '');
+  const [mode, setMode] = useState('custom');
   const [sourceJobTypeId, setSourceJobTypeId] = useState('');
   const [name, setName] = useState('');
   const [keterangan, setKeterangan] = useState('');
   const [paymentUnit, setPaymentUnit] = useState('');
   const [ecommerceLink, setEcommerceLink] = useState('');
-  // Label disiplin hanya dipilih saat menambah/edit BARIS HEADER (level 1).
-  // Sub baris / anak otomatis mengikuti label induknya tanpa input pilihan.
-  const isHeaderLevel = !parentBvItemId;
-  const inheritedLabel = parentItem?.disciplineLabel || (activeFilter !== 'GENERAL' ? activeFilter : 'GENERAL');
+  const inheritedLabel = parentItem?.disciplineLabel || 'GENERAL';
+  const isRootItem = !parentBvItemId;
+  const canChooseCategory = isRootItem && !editItem?.parentBvItemId;
+  const [workCategoryId, setWorkCategoryId] = useState(initialWorkCategoryId);
+  const selectedProjectCategory = projectCategories.find(
+    (entry) => entry.workCategoryId === workCategoryId,
+  );
   const [disciplineLabel, setDisciplineLabel] = useState(() => {
-    if (editItem) return editItem.disciplineLabel || inheritedLabel || 'GENERAL';
-    return inheritedLabel || 'GENERAL';
+    if (editItem) return editItem.disciplineLabel || 'GENERAL';
+    return inheritedLabel;
   });
 
   const [jobTypes, setJobTypes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // only reset discipline when the modal opens/closes, not on every discipline/grade change
+  // Reset kategori saat modal dibuka; anak selalu mengikuti kategori induk.
   useEffect(() => {
-    if (isOpen) {
-      const nextLabel = editItem?.disciplineLabel || parentItem?.disciplineLabel || (activeFilter !== 'GENERAL' ? activeFilter : 'GENERAL');
-      setDisciplineLabel(nextLabel);
-    }
-  }, [isOpen, activeFilter, editItem?.disciplineLabel, parentItem?.disciplineLabel]);
+    if (!isOpen) return;
+    const nextCategoryId = editItem
+      ? (editItem.workCategoryId || parentItem?.workCategoryId || '')
+      : (parentItem?.workCategoryId
+        || categoryFromFilter?.workCategoryId
+        || projectCategories[0]?.workCategoryId
+        || '');
+    setWorkCategoryId(nextCategoryId);
+    setDisciplineLabel(editItem?.disciplineLabel || parentItem?.disciplineLabel || 'GENERAL');
+  }, [
+    isOpen,
+    editItem?.workCategoryId,
+    editItem?.disciplineLabel,
+    parentItem?.workCategoryId,
+    parentItem?.disciplineLabel,
+    activeFilter,
+    project?.id,
+  ]);
 
   const [breakdowns, setBreakdowns] = useState([
     {
@@ -132,86 +164,104 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  // Item baru mengikuti mode sumber harga kategori; item edit tidak diubah otomatis.
   useEffect(() => {
-    if (isOpen) {
-      const params = { limit: 100 };
-      if (hspkPeriod) params.period = hspkPeriod;
-      // Saat memilih HSPK, default ke label terpilih agar item master juga
-      // tetap terfilter disiplin bila user memilih label INTERIOR/SIPIL.
-      if (disciplineLabel && disciplineLabel !== 'GENERAL') {
-        params.discipline = disciplineLabel;
-        const matchedGrade =
-          disciplineLabel === 'INTERIOR'
-            ? project?.interiorGrade
-            : disciplineLabel === 'SIPIL'
-            ? project?.sipilGrade
-            : null;
-        if (matchedGrade) params.grade = matchedGrade;
-      }
+    if (!isOpen || editItem) return;
+    setMode(selectedProjectCategory?.pricingMode === 'HSPK' ? 'hspk' : 'custom');
+  }, [isOpen, editItem?.id, workCategoryId, selectedProjectCategory?.pricingMode]);
 
+  // Muat daftar AHSP saat periode/kategori berubah tanpa mereset pilihan mode input.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const params = { limit: 100 };
+    if (hspkPeriod) params.period = hspkPeriod;
+    if (selectedProjectCategory) {
+      params.workCategoryId = selectedProjectCategory.workCategoryId;
+      if (selectedProjectCategory.grade) params.grade = selectedProjectCategory.grade;
+    } else if (disciplineLabel && disciplineLabel !== 'GENERAL') {
+      params.discipline = disciplineLabel;
+      const matchedGrade = disciplineLabel === 'INTERIOR'
+        ? project?.interiorGrade
+        : disciplineLabel === 'SIPIL'
+          ? project?.sipilGrade
+          : null;
+      if (matchedGrade) params.grade = matchedGrade;
+    }
+
+    if (selectedProjectCategory?.pricingMode !== 'CUSTOM' || !selectedProjectCategory) {
       hspkService.getJobTypes(params)
         .then(res => setJobTypes(Array.isArray(res) ? res : res?.data || []))
         .catch((err) => console.error("Gagal load jobTypes:", err));
-
-      if (editItem) {
-        if (editItem.isHeaderOnly) {
-          setMode('header');
-        } else if (editItem.sourceJobTypeId) {
-          setMode('hspk');
-        } else {
-          setMode('custom');
-        }
-        setSourceJobTypeId(editItem.sourceJobTypeId || '');
-        setName(editItem.name || '');
-        setKeterangan(editItem.keterangan || '');
-        setPaymentUnit(editItem.paymentUnit || '');
-        setEcommerceLink(editItem.ecommerceLink || '');
-        setDisciplineLabel(editItem.disciplineLabel || 'SIPIL');
-        if (editItem.breakdowns?.length > 0) {
-          setBreakdowns(editItem.breakdowns.map(b => ({
-            keterangan: b.keterangan || '',
-            panjang: renderBvNumber(b.panjang), isPChecked: !!b.isPChecked,
-            lebar: renderBvNumber(b.lebar), isLChecked: !!b.isLChecked,
-            tinggi: renderBvNumber(b.tinggi), isTChecked: !!b.isTChecked,
-            luas: renderBvNumber(b.luas), isLuasChecked: !!b.isLuasChecked,
-            keliling: renderBvNumber(b.keliling), isKelChecked: !!b.isKelChecked,
-            berat: renderBvNumber(b.berat), isBeratChecked: !!b.isBeratChecked,
-            diameter: renderBvNumber(b.diameter),
-            jumlahSisi: renderBvNumber(b.jumlahSisi) || 1,
-            jumlahBh: renderBvNumber(b.jumlahBh) || 1,
-            waste: renderBvNumber(b.waste) || 0,
-          })));
-        }
-      } else {
-        setMode(parentBvItemId ? 'custom' : 'hspk');
-        setSourceJobTypeId('');
-        setName('');
-        setKeterangan('');
-        setPaymentUnit('');
-        setEcommerceLink('');
-        setBreakdowns([{
-          keterangan: '',
-          panjang: '', isPChecked: true,
-          lebar: '', isLChecked: true,
-          tinggi: '', isTChecked: false,
-          luas: '', isLuasChecked: false,
-          keliling: '', isKelChecked: false,
-          diameter: '',
-          berat: '', isBeratChecked: false,
-          jumlahSisi: 1, jumlahBh: 1, waste: 0,
-        }]);
-      }
-      setError(null);
+    } else {
+      setJobTypes([]);
+      setSourceJobTypeId('');
     }
   }, [
     isOpen,
-    editItem,
-    parentBvItemId,
     hspkPeriod,
     disciplineLabel,
+    workCategoryId,
+    selectedProjectCategory?.pricingMode,
+    selectedProjectCategory?.grade,
     project?.interiorGrade,
     project?.sipilGrade,
   ]);
+
+  // Inisialisasi isi form hanya saat modal/data item berubah.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (editItem) {
+      if (editItem.isHeaderOnly) {
+        setMode('header');
+      } else if (editItem.sourceJobTypeId) {
+        setMode('hspk');
+      } else {
+        setMode('custom');
+      }
+      setSourceJobTypeId(editItem.sourceJobTypeId || '');
+      setName(editItem.name || '');
+      setKeterangan(editItem.keterangan || '');
+      setPaymentUnit(editItem.paymentUnit || '');
+      setEcommerceLink(editItem.ecommerceLink || '');
+      setDisciplineLabel(editItem.disciplineLabel || 'GENERAL');
+      if (editItem.breakdowns?.length > 0) {
+        setBreakdowns(editItem.breakdowns.map(b => ({
+          keterangan: b.keterangan || '',
+          panjang: renderBvNumber(b.panjang), isPChecked: !!b.isPChecked,
+          lebar: renderBvNumber(b.lebar), isLChecked: !!b.isLChecked,
+          tinggi: renderBvNumber(b.tinggi), isTChecked: !!b.isTChecked,
+          luas: renderBvNumber(b.luas), isLuasChecked: !!b.isLuasChecked,
+          keliling: renderBvNumber(b.keliling), isKelChecked: !!b.isKelChecked,
+          berat: renderBvNumber(b.berat), isBeratChecked: !!b.isBeratChecked,
+          diameter: renderBvNumber(b.diameter),
+          jumlahSisi: renderBvNumber(b.jumlahSisi) || 1,
+          jumlahBh: renderBvNumber(b.jumlahBh) || 1,
+          waste: renderBvNumber(b.waste) || 0,
+        })));
+      }
+    } else {
+      setMode('custom');
+      setSourceJobTypeId('');
+      setName('');
+      setKeterangan('');
+      setPaymentUnit('');
+      setEcommerceLink('');
+      setBreakdowns([{
+        keterangan: '',
+        panjang: '', isPChecked: true,
+        lebar: '', isLChecked: true,
+        tinggi: '', isTChecked: false,
+        luas: '', isLuasChecked: false,
+        keliling: '', isKelChecked: false,
+        diameter: '',
+        berat: '', isBeratChecked: false,
+        jumlahSisi: 1, jumlahBh: 1, waste: 0,
+      }]);
+    }
+    setError(null);
+  }, [isOpen, editItem, parentBvItemId]);
 
   const filteredJobTypes = jobTypes.filter(j =>
     !searchQuery || j.name?.toLowerCase().includes(searchQuery.toLowerCase()) || (j.code && j.code.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -284,6 +334,15 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
 
     try {
       const isHeaderOnly = mode === 'header';
+      if (projectCategories.length > 0 && !workCategoryId && !editItem) {
+        throw new Error(parentBvItemId
+          ? 'Kategori item induk belum ditetapkan. Edit item induk terlebih dahulu.'
+          : 'Pilih kategori pekerjaan.');
+      }
+      if (mode === 'hspk' && selectedProjectCategory?.pricingMode === 'CUSTOM') {
+        throw new Error('Kategori ini memakai mode CUSTOM dan tidak memiliki master AHSP.');
+      }
+      const selectedCategoryCode = String(selectedProjectCategory?.workCategory?.code || '').toUpperCase();
       const payload = {
         groupId: groupId || null,
         parentBvItemId: parentBvItemId || null,
@@ -293,8 +352,13 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
         keterangan: keterangan.trim() || null,
         paymentUnit: isHeaderOnly ? null : paymentUnit.trim(),
         ecommerceLink: isHeaderOnly ? null : (ecommerceLink.trim() || null),
-        disciplineLabel: isHeaderLevel ? disciplineLabel || 'GENERAL' : undefined,
-        ahspDiscipline: (disciplineLabel === 'GENERAL' && mode === 'hspk') ? (sourceJobTypeId ? undefined : null) : undefined,
+        disciplineLabel: canChooseCategory
+          ? (['SIPIL', 'INTERIOR'].includes(selectedCategoryCode) ? selectedCategoryCode : disciplineLabel || 'GENERAL')
+          : undefined,
+        workCategoryId: canChooseCategory ? workCategoryId || null : undefined,
+        ahspDiscipline: (!workCategoryId && disciplineLabel === 'GENERAL' && mode === 'hspk')
+          ? (sourceJobTypeId ? undefined : null)
+          : undefined,
         breakdowns: isHeaderOnly ? [] : breakdowns.map(getBreakdownPayload),
       };
 
@@ -318,7 +382,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
 
   return (
     <div className={styles.modalOverlay}>
-      <div className={styles.modalBox}>
+      <div className={`${styles.modalBox} ${styles.bvItemModalBox}`}>
         <div className={styles.modalHeader}>
           <h3>{editItem ? 'Edit Baris Pekerjaan (BV)' : parentBvItemId ? 'Tambah Sub Uraian Pekerjaan' : 'Tambah Baris Pekerjaan (BV)'}</h3>
           <button type="button" className={styles.closeBtn} onClick={onClose}>✕</button>
@@ -327,150 +391,210 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
         {error && <div style={{ color: '#ff6b6b', background: '#3a1c1c', padding: 8, borderRadius: 3, marginBottom: 10, fontSize: 11 }}>{error}</div>}
 
         <form onSubmit={handleSubmit}>
-          <div className={styles.formGroup}>
-            <label>Mode</label>
-            <select value={mode} onChange={(e) => setMode(e.target.value)}>
-              <option value="hspk">Dari Master HSPK/AHSP</option>
-              <option value="custom">Custom (input manual)</option>
-              {!parentBvItemId && <option value="header">Header / Judul Pekerjaan</option>}
-            </select>
+          <div className={styles.bvInputSection}>
+            <div className={styles.bvSectionTitle}>1. Sumber pekerjaan</div>
+            <div className={styles.formGroup}>
+              <label>Mode input</label>
+              <select value={mode} onChange={(e) => setMode(e.target.value)}>
+                <option value="hspk">Dari Master HSPK/AHSP</option>
+                <option value="custom">Custom (input manual)</option>
+                {!parentBvItemId && <option value="header">Header / Judul Pekerjaan</option>}
+              </select>
+            </div>
           </div>
 
-          <div className={styles.formGroup}>
-            <label>Label Disiplin {isHeaderLevel ? '' : <span style={{ color: '#888', fontSize: 11 }}>(otomatis mengikuti induk)</span>}</label>
-              <select value={disciplineLabel} onChange={(e) => setDisciplineLabel(e.target.value)} disabled={!isHeaderLevel}>
-                <option value="GENERAL">General</option>
-                <option value="INTERIOR">Interior</option>
-                <option value="SIPIL">Sipil</option>
-              </select>
-            {isHeaderLevel && (
-              <small style={{ color: '#888', fontSize: 10 }}>
-                Menentukan master HSPK mana yang tersedia dan saat filter halaman BV.
-              </small>
+          <div className={styles.bvInputSection}>
+            <div className={styles.bvSectionTitle}>2. Kategori pekerjaan</div>
+            {projectCategories.length > 0 ? (
+              <div className={styles.formGroup}>
+                <label>{canChooseCategory ? 'Kategori proyek' : 'Kategori induk (diwariskan)'}</label>
+                <select
+                  value={workCategoryId}
+                  onChange={(event) => {
+                    if (!canChooseCategory) return;
+                    const nextId = event.target.value;
+                    setWorkCategoryId(nextId);
+                    const nextCode = String(
+                      projectCategories.find((entry) => entry.workCategoryId === nextId)?.workCategory?.code || '',
+                    ).toUpperCase();
+                    setDisciplineLabel(['SIPIL', 'INTERIOR'].includes(nextCode) ? nextCode : 'GENERAL');
+                  }}
+                  disabled={!canChooseCategory}
+                  required
+                >
+                  {canChooseCategory && !workCategoryId && (
+                    <option value="">Pilih kategori pekerjaan</option>
+                  )}
+                  {projectCategories.map((entry) => (
+                    <option key={entry.workCategoryId} value={entry.workCategoryId}>
+                      {entry.workCategory?.name || entry.workCategory?.code}
+                    </option>
+                  ))}
+                </select>
+                {selectedProjectCategory?.pricingMode === 'CUSTOM' && mode === 'hspk' && (
+                  <small className={styles.inheritedHint}>Kategori ini memakai sumber harga CUSTOM.</small>
+                )}
+              </div>
+            ) : (
+              <div className={styles.disciplineChoices}>
+                {[
+                  { value: 'SIPIL', label: 'Sipil' },
+                  { value: 'INTERIOR', label: 'Interior' },
+                  { value: 'GENERAL', label: 'General' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`${styles.disciplineChoice} ${disciplineLabel === option.value ? styles.disciplineChoiceActive : ''}`}
+                    onClick={() => canChooseCategory && setDisciplineLabel(option.value)}
+                    disabled={!canChooseCategory}
+                  >
+                    <span className={styles.disciplineDot} />
+                    <strong>{option.label}</strong>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
           {mode === 'hspk' && (
-            <div className={styles.formGroup}>
-              <label>Cari Jenis Pekerjaan</label>
-              <input
-                type="text"
-                placeholder="ketik nama pekerjaan..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ marginBottom: 6 }}
-              />
-              <select
-                value={sourceJobTypeId}
-                onChange={handleJobTypeSelect}
-                size={4}
-                style={{ fontSize: 11 }}
-              >
-                {filteredJobTypes.slice(0, 30).map(j => (
-                  <option key={j.id} value={j.id}>
-                    [{j.code || 'AHSP'}] {j.name} ({j.paymentUnit})
-                  </option>
-                ))}
-              </select>
+            <div className={styles.bvInputSection}>
+              <div className={styles.bvSectionTitle}>3. Pilih master AHSP ({selectedProjectCategory?.workCategory?.name || disciplineLabel})</div>
+              <div className={styles.formGroup}>
+                <label>Cari jenis pekerjaan</label>
+                <input
+                  type="text"
+                  placeholder="Ketik kode atau nama pekerjaan..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ marginBottom: 6 }}
+                />
+                <select
+                  value={sourceJobTypeId}
+                  onChange={handleJobTypeSelect}
+                  size={5}
+                  className={styles.ahspSelectList}
+                >
+                  {filteredJobTypes.slice(0, 40).map(j => (
+                    <option key={j.id} value={j.id}>
+                      [{j.code || 'AHSP'}] {j.name} ({j.paymentUnit})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
 
-          <div className={styles.formGroup}>
-            <label>Uraian Pekerjaan / Judul</label>
-            <input
-              type="text"
-              placeholder="mis. Pasangan Dinding Bata Merah"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
+          <div className={styles.bvInputSection}>
+            <div className={styles.bvSectionTitle}>{mode === 'hspk' ? '4. Rincian uraian' : '3. Rincian uraian'}</div>
+            <div className={styles.formGroup}>
+              <label>Uraian pekerjaan / judul</label>
+              <input
+                type="text"
+                placeholder="mis. Pasangan Dinding Bata Merah"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+
+            {mode !== 'header' && (
+              <div className={styles.formGridTwo}>
+                <div className={styles.formGroup}>
+                  <label>Satuan</label>
+                  <input
+                    type="text"
+                    placeholder="m2 / m1 / m3 / buah"
+                    value={paymentUnit}
+                    onChange={(e) => setPaymentUnit(e.target.value)}
+                    required={mode !== 'header'}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Link e-commerce (opsional)</label>
+                  <input
+                    type="text"
+                    placeholder="nama produk / link"
+                    value={ecommerceLink}
+                    onChange={(e) => setEcommerceLink(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {mode !== 'header' && (
-            <div className={styles.formGroup}>
-              <label>Satuan</label>
-              <input
-                type="text"
-                placeholder="m2 / m1 / m3 / buah"
-                value={paymentUnit}
-                onChange={(e) => setPaymentUnit(e.target.value)}
-                required={mode !== 'header'}
-              />
-            </div>
-          )}
-
-          {mode !== 'header' && (
             <>
-              <div className={styles.formGroup}>
-                <label>Link E-Commerce (opsional)</label>
-                <input
-                  type="text"
-                  placeholder="nama produk / link"
-                  value={ecommerceLink}
-                  onChange={(e) => setEcommerceLink(e.target.value)}
-                />
-              </div>
-
-              <fieldset style={{ border: '1px solid #333', padding: 10, borderRadius: 3, marginTop: 10 }}>
-                <legend style={{ fontSize: 11, color: '#aaa', padding: '0 4px' }}>Breakdown Dimensi (kelompokkan per Keterangan)</legend>
+              <div className={styles.bvInputSection}>
+                <div className={styles.bvSectionHeaderRow}>
+                  <div className={styles.bvSectionTitle}>{mode === 'hspk' ? '5. Breakdown dimensi' : '4. Breakdown dimensi'}</div>
+                  <small className={styles.inheritedHint}>Centang dimensi yang digunakan untuk perhitungan volume</small>
+                </div>
 
                 {breakdowns.map((b, i) => (
-                  <div key={i} style={{ border: '1px solid #222', background: '#111', padding: 8, borderRadius: 3, marginBottom: 8 }}>
-                    <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                  <div key={i} className={styles.breakdownCard}>
+                    <div className={styles.breakdownCardHeader}>
+                      <span className={styles.breakdownIndex}>{String(i + 1).padStart(2, '0')}</span>
                       <input
                         type="text"
-                        placeholder="Keterangan (mis. Main Lobby Area A)"
+                        placeholder="Keterangan area (mis. Lobby Area A)"
                         value={b.keterangan}
                         onChange={(e) => {
                           const val = e.target.value;
                           setBreakdowns(prev => prev.map((item, idx) => idx === i ? { ...item, keterangan: val } : item));
                         }}
-                        style={{ flex: 1, fontSize: 11, padding: 4, background: '#222', border: '1px solid #333', color: '#fff' }}
+                        className={styles.breakdownDescInput}
                       />
                       {breakdowns.length > 1 && (
-                        <button type="button" className={styles.btnSmall} onClick={() => setBreakdowns(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
+                        <button type="button" className={styles.btnDanger} onClick={() => setBreakdowns(prev => prev.filter((_, idx) => idx !== i))}>Hapus</button>
                       )}
                     </div>
 
-                    <div className={styles.dimHeaderLabel}>Panjang | Lebar | Tinggi | Luas | Keliling | Diameter | Berat</div>
-                    <div className={styles.dimGridRow}>
+                    <div className={styles.dimGridResponsive}>
                       {[
-                        { key: 'panjang', checkKey: 'isPChecked', label: 'P' },
-                        { key: 'lebar', checkKey: 'isLChecked', label: 'L' },
-                        { key: 'tinggi', checkKey: 'isTChecked', label: 'T' },
-                        { key: 'luas', checkKey: 'isLuasChecked', label: 'Luas' },
-                        { key: 'keliling', checkKey: 'isKelChecked', label: 'Kel' },
-                        { key: 'diameter', label: 'Dia' },
+                        { key: 'panjang', checkKey: 'isPChecked', label: 'Panjang' },
+                        { key: 'lebar', checkKey: 'isLChecked', label: 'Lebar' },
+                        { key: 'tinggi', checkKey: 'isTChecked', label: 'Tinggi' },
+                        { key: 'luas', checkKey: 'isLuasChecked', label: 'Luas manual' },
+                        { key: 'keliling', checkKey: 'isKelChecked', label: 'Keliling' },
+                        { key: 'diameter', label: 'Diameter' },
                         { key: 'berat', checkKey: 'isBeratChecked', label: 'Berat' },
-                      ].map(f => (
-                        <div key={f.key} className={styles.dimCheckGroup}>
-                          {f.checkKey ? (
+                      ].map(f => {
+                        const isChecked = f.checkKey ? !!b[f.checkKey] : true;
+                        return (
+                          <div key={f.key} className={`${styles.dimFieldCard} ${isChecked ? styles.dimFieldCardActive : ''}`}>
+                            <label className={styles.dimFieldLabel}>
+                              {f.checkKey ? (
+                                <input
+                                  type="checkbox"
+                                  checked={b[f.checkKey]}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setBreakdowns(prev => prev.map((item, idx) => idx === i ? { ...item, [f.checkKey]: checked } : item));
+                                  }}
+                                />
+                              ) : <span style={{ width: 14 }} />}
+                              <span>{f.label}</span>
+                            </label>
                             <input
-                              type="checkbox"
-                              checked={b[f.checkKey]}
+                              type="text"
+                              inputMode="decimal"
+                              placeholder={f.label}
+                              value={b[f.key]}
+                              disabled={f.checkKey ? !isChecked : false}
                               onChange={(e) => {
-                                const checked = e.target.checked;
-                                setBreakdowns(prev => prev.map((item, idx) => idx === i ? { ...item, [f.checkKey]: checked } : item));
+                                const val = e.target.value;
+                                setBreakdowns(prev => prev.map((item, idx) => idx === i ? { ...item, [f.key]: val } : item));
                               }}
                             />
-                          ) : <span aria-hidden="true" style={{ width: 13 }} />}
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            placeholder={f.label}
-                            value={b[f.key]}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setBreakdowns(prev => prev.map((item, idx) => idx === i ? { ...item, [f.key]: val } : item));
-                            }}
-                          />
-                        </div>
-                      ))}
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11 }}>
-                        <span>Sisi:</span>
+                    <div className={styles.dimExtraGrid}>
+                      <div className={styles.dimExtraItem}>
+                        <label>Jumlah sisi</label>
                         <input
                           type="text"
                           inputMode="decimal"
@@ -479,11 +603,10 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                             const val = e.target.value;
                             setBreakdowns(prev => prev.map((item, idx) => idx === i ? { ...item, jumlahSisi: val } : item));
                           }}
-                          style={{ width: '100%', fontSize: 11, padding: 3, background: '#222', border: '1px solid #333', color: '#fff' }}
                         />
                       </div>
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11 }}>
-                        <span>Bh:</span>
+                      <div className={styles.dimExtraItem}>
+                        <label>Jumlah buah</label>
                         <input
                           type="text"
                           inputMode="decimal"
@@ -492,11 +615,10 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                             const val = e.target.value;
                             setBreakdowns(prev => prev.map((item, idx) => idx === i ? { ...item, jumlahBh: val } : item));
                           }}
-                          style={{ width: '100%', fontSize: 11, padding: 3, background: '#222', border: '1px solid #333', color: '#fff' }}
                         />
                       </div>
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11 }}>
-                        <span>Waste%:</span>
+                      <div className={styles.dimExtraItem}>
+                        <label>Waste %</label>
                         <input
                           type="text"
                           inputMode="decimal"
@@ -505,15 +627,14 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                             const val = e.target.value;
                             setBreakdowns(prev => prev.map((item, idx) => idx === i ? { ...item, waste: val } : item));
                           }}
-                          style={{ width: '100%', fontSize: 11, padding: 3, background: '#222', border: '1px solid #333', color: '#fff' }}
                         />
                       </div>
                     </div>
                   </div>
                 ))}
 
-                <button type="button" className={styles.btnSmall} onClick={handleAddBreakdown}>+ Tambah Keterangan</button>
-              </fieldset>
+                <button type="button" className={styles.btnSmall} onClick={handleAddBreakdown}>+ Tambah Keterangan Area</button>
+              </div>
             </>
           )}
 
@@ -532,25 +653,28 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
 // ================================================================
 // KOMPONEN UTAMA BACKUP VOLUME
 // ================================================================
-const FILTER_OPTIONS = ['GENERAL', 'INTERIOR', 'SIPIL'];
+const ALL_CATEGORY_FILTER = 'GENERAL';
 
 function parseBvHash() {
   const raw = window.location.hash.replace('#', '');
-  if (!raw.startsWith('bv')) return { tab: 'bv', filter: 'GENERAL' };
-  const parts = raw.split('/');
-  const filter = parts[1]?.toUpperCase();
-  return { tab: 'bv', filter: FILTER_OPTIONS.includes(filter) ? filter : 'GENERAL' };
+  if (!raw.startsWith('bv')) return { tab: 'bv', filter: ALL_CATEGORY_FILTER };
+  const filter = raw.split('/')[1]?.trim().toUpperCase();
+  // Accept dynamic category codes plus legacy SIPIL/INTERIOR/GENERAL hashes.
+  return { tab: 'bv', filter: filter || ALL_CATEGORY_FILTER };
 }
 
-function filterBvByDiscipline(items, label) {
-  if (label === 'GENERAL') return items;
+function filterBvByCategory(items, category) {
+  if (!category || category === ALL_CATEGORY_FILTER) return items;
+  const categoryId = category.workCategoryId || category.id;
+  const categoryCode = String(category.code || '').toUpperCase();
   return items.reduce((acc, it) => {
     const matchingChildren = it.children?.length
-      ? filterBvByDiscipline(it.children, label)
+      ? filterBvByCategory(it.children, category)
       : [];
-    const itemLabel = it.disciplineLabel || 'GENERAL';
-    const match = itemLabel === 'GENERAL' || itemLabel === label;
-    if (match || matchingChildren.length > 0) {
+    const legacyLabel = String(it.disciplineLabel || '').toUpperCase();
+    const matchesById = categoryId && it.workCategoryId === categoryId;
+    const matchesLegacy = !it.workCategoryId && legacyLabel === categoryCode;
+    if (matchesById || matchesLegacy || matchingChildren.length > 0) {
       acc.push({ ...it, children: matchingChildren });
     }
     return acc;
@@ -562,7 +686,17 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
   const [activeFilter, setActiveFilter] = useState(() => parseBvHash().filter);
   const [groupPage, setGroupPage] = useState(1);
+  const [expandedGroupIds, setExpandedGroupIds] = useState(() => new Set());
   const GROUPS_PER_PAGE = 10;
+
+  const toggleGroup = (groupId) => {
+    setExpandedGroupIds((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
 
   // Sinkronkan filter dengan hash URL
   useEffect(() => {
@@ -599,6 +733,18 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [checkedIds, setCheckedIds] = useState([]);
+  const [rabBusyMessage, setRabBusyMessage] = useState('');
+
+  // Jalankan aksi ke RAB sambil menampilkan layar proses.
+  const runRabAction = async (message, action) => {
+    if (rabBusyMessage) return;
+    setRabBusyMessage(message);
+    try {
+      return await action();
+    } finally {
+      setRabBusyMessage('');
+    }
+  };
 
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [groupModalParentId, setGroupModalParentId] = useState(null);
@@ -611,6 +757,40 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   const [editBvItem, setEditBvItem] = useState(null);
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
+  const configuredProjectCategories = (selectedProject?.workCategories || [])
+    .filter((entry) => entry.isActive && entry.workCategory?.isActive !== false)
+    .sort((a, b) =>
+      (a.workCategory?.sortOrder ?? 0) - (b.workCategory?.sortOrder ?? 0)
+      || String(a.workCategory?.name || '').localeCompare(String(b.workCategory?.name || '')),
+    );
+  const projectCategoryOptions = configuredProjectCategories.length > 0
+    ? configuredProjectCategories.map((entry) => ({
+        id: entry.workCategoryId,
+        workCategoryId: entry.workCategoryId,
+        code: String(entry.workCategory?.code || '').toUpperCase(),
+        name: entry.workCategory?.name || entry.workCategory?.code || 'Kategori',
+      }))
+    : [
+        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'Sipil' },
+        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'Interior' },
+      ];
+  const categoryFilterOptions = [
+    { id: ALL_CATEGORY_FILTER, workCategoryId: null, code: ALL_CATEGORY_FILTER, name: 'Semua' },
+    ...projectCategoryOptions,
+  ];
+  const selectedFilterCategory = activeFilter === ALL_CATEGORY_FILTER
+    ? ALL_CATEGORY_FILTER
+    : projectCategoryOptions.find((category) => category.code === activeFilter) || null;
+  const activeCategoryLabel = activeFilter === ALL_CATEGORY_FILTER
+    ? 'Semua'
+    : selectedFilterCategory?.name || activeFilter;
+
+  useEffect(() => {
+    if (!selectedProjectId || activeFilter === ALL_CATEGORY_FILTER) return;
+    if (!projectCategoryOptions.some((category) => category.code === activeFilter)) {
+      window.location.hash = `bv/${ALL_CATEGORY_FILTER}`;
+    }
+  }, [selectedProjectId, activeFilter, projectCategoryOptions.map((category) => category.code).join('|')]);
 
   const fetchGroups = async () => {
     if (!selectedProjectId) {
@@ -740,10 +920,14 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   };
 
   const handleBulkLink = async () => {
-    if (checkedIds.length === 0) return;
+    if (checkedIds.length === 0 || rabBusyMessage) return;
     if (!window.confirm(`Link ${checkedIds.length} item terpilih ke RAB?`)) return;
-    
-    toast.promise(linkToRabBulk(checkedIds), {
+
+    const action = runRabAction(
+      `Menghubungkan ${checkedIds.length} item BV ke RAB...`,
+      () => linkToRabBulk(checkedIds),
+    );
+    toast.promise(action, {
       loading: 'Menautkan item ke RAB...',
       success: 'Berhasil menautkan item ke RAB!',
       error: 'Gagal menautkan item.'
@@ -756,10 +940,14 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   };
 
   const handleBulkSync = async () => {
-    if (checkedIds.length === 0) return;
+    if (checkedIds.length === 0 || rabBusyMessage) return;
     if (!window.confirm(`Sync ${checkedIds.length} item terpilih ke RAB?`)) return;
-    
-    toast.promise(syncBulk(checkedIds), {
+
+    const action = runRabAction(
+      `Menyinkronkan ${checkedIds.length} item BV dengan RAB...`,
+      () => syncBulk(checkedIds),
+    );
+    toast.promise(action, {
       loading: 'Mensinkronkan item ke RAB...',
       success: 'Berhasil mensinkronkan item ke RAB!',
       error: 'Gagal mensinkronkan item.'
@@ -796,7 +984,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
           />
         </th>
         <th rowSpan={2}>NO</th>
-        <th rowSpan={2}>URAIAN PEKERJAAN</th>
+        <th rowSpan={2} className={styles.jobDescriptionHeader}>URAIAN PEKERJAAN</th>
         <th colSpan={2} rowSpan={1}>VOLUME</th>
         <th rowSpan={2}>KETERANGAN</th>
         <th rowSpan={2}>Panjang<br />(m)</th>
@@ -830,6 +1018,16 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
       const isChecked = checkedIds.includes(it.id);
       const hasSingleBreakdown = it.breakdowns && it.breakdowns.length === 1;
       const b0 = hasSingleBreakdown ? it.breakdowns[0] : null;
+      const statusLabel = it.linkStatus === 'SUDAH_DILINK'
+        ? 'Sudah di-link'
+        : it.linkStatus === 'BELUM_SINKRON'
+          ? 'Perlu sinkronisasi'
+          : 'Belum di-link';
+      const statusClass = it.linkStatus === 'SUDAH_DILINK'
+        ? styles.statusDotLinked
+        : it.linkStatus === 'BELUM_SINKRON'
+          ? styles.statusDotWarning
+          : styles.statusDotUnlinked;
 
       let ketText = it.sourceJobType
         ? "HSPK: " + (it.sourceJobType.reference || "")
@@ -838,6 +1036,15 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
       if (hasSingleBreakdown && b0?.keterangan) {
         ketText = b0.keterangan;
       }
+
+      const categoryCode = String(it.workCategory?.code || it.disciplineLabel || 'GENERAL').toUpperCase();
+      const categoryLabel = it.workCategory?.name
+        || (categoryCode !== ALL_CATEGORY_FILTER ? categoryCode : '');
+      const categoryClass = categoryCode === 'SIPIL'
+        ? styles.disciplineSipil
+        : categoryCode === 'INTERIOR'
+          ? styles.disciplineInterior
+          : '';
 
       return (
         <React.Fragment key={it.id}>
@@ -850,22 +1057,11 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
               />
             </td>
             <td>{no}</td>
-            <td className="left" style={{ paddingLeft: isChild ? 18 : 6 }}>
+            <td className={styles.jobDescriptionCell} style={{ paddingLeft: isChild ? 18 : 6 }}>
               {isChild ? '-- ' : ''}{it.name}
-              {it.disciplineLabel && it.disciplineLabel !== 'GENERAL' && (
-                <span
-                  style={{
-                    marginLeft: 8,
-                    fontSize: 9,
-                    textTransform: 'uppercase',
-                    padding: '1px 5px',
-                    borderRadius: 3,
-                    background: DISCIPLINE_BADGE[it.disciplineLabel] || '#666',
-                    color: '#fff',
-                    verticalAlign: 'middle',
-                  }}
-                >
-                  {it.disciplineLabel}
+              {categoryLabel && (
+                <span className={`${styles.disciplineBadge} ${categoryClass}`}>
+                  {categoryLabel}
                 </span>
               )}
             </td>
@@ -893,33 +1089,40 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             <td className="num">{it.isHeaderOnly ? '' : renderBvVolume(it.totalVolume)}</td>
             <td>{it.paymentUnit || ''}</td>
             <td>{renderCleanLink(it.ecommerceLink)}</td>
-            {/* KOLOM STATUS */}
             <td>
-              {it.isHeaderOnly ? '' : (
-                <span className={
-                  it.linkStatus === 'SUDAH_DILINK' ? styles.badgeSinkron : 
-                  it.linkStatus === 'BELUM_SINKRON' ? styles.badgeWarning : /* Tambahkan style.badgeWarning di CSS Anda (misal warna kuning/oranye) */
-                  styles.badgeBelum
-                }>
-                  {
-                    it.linkStatus === 'SUDAH_DILINK' ? 'Sudah di-link' : 
-                    it.linkStatus === 'BELUM_SINKRON' ? 'Perlu Sync' : 
-                    'Belum di-link'
-                  }
-                </span>
-              )}
+              <span
+                className={`${styles.statusDot} ${statusClass}`}
+                title={statusLabel}
+                aria-label={statusLabel}
+                role="img"
+              />
             </td>
 
             {/* KOLOM AKSI */}
             <td>
-              <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
+              <div className={styles.rowActions}>
                 <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditBv(it)} title="Edit">
                   <Pencil size={14} />
                 </button>
                 
                 {/* TAMPILKAN TOMBOL LINK JIKA BELUM PERNAH DILINK */}
                 {(!it.linkStatus || it.linkStatus === 'BELUM_DILINK') && (
-                  <button type="button" className={styles.btnGreen} onClick={() => linkToRab(it.id, { includeChildren: true })}>
+                  <button
+                    type="button"
+                    className={styles.btnGreen}
+                    disabled={Boolean(rabBusyMessage)}
+                    onClick={() => {
+                      const action = runRabAction(
+                        'Menghubungkan BV ke RAB...',
+                        () => linkToRab(it.id, { includeChildren: true }),
+                      );
+                      toast.promise(action, {
+                        loading: 'Menautkan item ke RAB...',
+                        success: 'Berhasil menautkan item ke RAB!',
+                        error: 'Gagal menautkan item.'
+                      }).catch(err => console.error(err));
+                    }}
+                  >
                     Link
                   </button>
                 )}
@@ -928,16 +1131,24 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                 {it.linkStatus === 'BELUM_SINKRON' && (
                   <button 
                     type="button" 
-                    className={styles.btnOutline} 
-                    style={{ borderColor: '#e2c044', color: '#e2c044', fontSize: '11px', padding: '4px 8px' }} 
+                    className={`${styles.btnOutline} ${styles.btnSync}`}
+                    disabled={Boolean(rabBusyMessage)}
                     onClick={() => {
-                      toast.promise(syncBvItem(it.id), {
-                        loading: 'Sinkronisasi ke RAB...',
-                        success: 'Berhasil disinkronkan ke RAB!',
+                      const treeIds = getAllIdsFromTable([it]);
+                      const hasChildren = treeIds.length > 1;
+                      const action = runRabAction(
+                        hasChildren
+                          ? 'Menyinkronkan header dan seluruh baris turunannya...'
+                          : 'Menyinkronkan item BV dengan RAB...',
+                        () => (hasChildren ? syncBulk(treeIds) : syncBvItem(it.id)),
+                      );
+                      toast.promise(action, {
+                        loading: hasChildren ? 'Sinkronisasi header dan seluruh baris turunannya...' : 'Sinkronisasi ke RAB...',
+                        success: hasChildren ? 'Header dan seluruh baris turunannya berhasil disinkronkan!' : 'Berhasil disinkronkan ke RAB!',
                         error: 'Gagal sinkronisasi.'
                       }).catch(err => console.error(err));
                     }} 
-                    title="Dimensi/Volume berubah, sinkronkan ke RAB"
+                    title="Sinkronkan item beserta seluruh turunannya ke RAB"
                   >
                     Sync Ulang
                   </button>
@@ -985,7 +1196,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
     });
   };
 
-  const filteredBvItems = filterBvByDiscipline(bvItems, activeFilter);
+  const filteredBvItems = filterBvByCategory(bvItems, selectedFilterCategory);
 
   const bvByGroup = {};
   filteredBvItems.forEach(it => {
@@ -994,182 +1205,308 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
     bvByGroup[gid].push(it);
   });
 
-  // Export seluruh BV ke Excel via backend endpoint
-  const exportBvToExcel = async () => {
+  // Buka View BV sesuai kategori aktif dengan autentikasi.
+  const viewBv = async () => {
     if (!selectedProjectId) return;
+
+    const viewLabel = activeCategoryLabel;
+    const previewWindow = window.open('', '_blank');
+    if (!previewWindow) {
+      toast.error('Popup diblokir browser. Izinkan popup untuk membuka View BV.');
+      return;
+    }
+
+    previewWindow.document.write(`<p style="font-family:Arial,sans-serif;padding:24px">Memuat View BV ${viewLabel}...</p>`);
+
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/projects/${selectedProjectId}/bv-items/export-excel`, {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const query = new URLSearchParams();
+      if (selectedFilterCategory?.workCategoryId) {
+        query.set('workCategoryId', selectedFilterCategory.workCategoryId);
+      } else {
+        query.set('discipline', activeFilter);
+      }
+      const viewUrl = `${apiBase}/api/projects/${selectedProjectId}/bv-items/view?${query.toString()}`;
+      const res = await fetch(viewUrl, {
+        headers: token
+          ? { Authorization: [String.fromCharCode(66, 101, 97, 114, 101, 114), token].join(' ') }
+          : {},
+      });
+      if (!res.ok) throw new Error(`View BV ${viewLabel} gagal (${res.status})`);
+
+      const html = await res.text();
+      previewWindow.document.open();
+      previewWindow.document.write(html);
+      previewWindow.document.close();
+    } catch (err) {
+      console.error(err);
+      previewWindow.close();
+      toast.error(err.message || `Gagal membuka View BV ${viewLabel}`);
+    }
+  };
+
+  // Export BV ke Excel sesuai kategori proyek aktif.
+  const exportBvToExcel = async ({ scope, workCategoryId = null, code, label }) => {
+    if (!selectedProjectId) return;
+    const exportLabel = label || code || scope;
+
+    try {
+      const token = localStorage.getItem('token');
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const query = new URLSearchParams();
+      if (workCategoryId) query.set('workCategoryId', workCategoryId);
+      else query.set('scope', scope || code || ALL_CATEGORY_FILTER);
+      const exportUrl = `${apiBase}/api/projects/${selectedProjectId}/bv-items/export-excel?${query.toString()}`;
+      const res = await fetch(exportUrl, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) throw new Error('Export gagal');
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload.error || `Export gagal (${res.status})`);
+      }
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       const projectName = (selectedProject?.name || 'proyek').replace(/[^a-zA-Z0-9]/g, '_');
-      a.download = `BV_${projectName}.xlsx`;
+      const downloadCode = code || scope || 'BV';
+      a.download = `BV_${downloadCode}_${projectName}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('Export Excel berhasil');
+      toast.success(`Export BV ${exportLabel} berhasil`);
     } catch (err) {
       console.error(err);
-      toast.error('Gagal export Excel');
+      toast.error(err.message || `Gagal export BV ${exportLabel}`);
     }
   };
   const sortedGroups = [...groups].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const visibleGroups = sortedGroups.filter(g => {
-    if (activeFilter === 'GENERAL') return true;
-    // Saat filter selain GENERAL, group hanya tampil jika punya item BV dengan label cocok
+    if (activeFilter === ALL_CATEGORY_FILTER) return true;
     return bvByGroup[g.id]?.length > 0;
   });
   const totalGroupPages = Math.max(1, Math.ceil(visibleGroups.length / GROUPS_PER_PAGE));
   const safeGroupPage = Math.min(groupPage, totalGroupPages);
   const pagedGroups = visibleGroups.slice((safeGroupPage - 1) * GROUPS_PER_PAGE, safeGroupPage * GROUPS_PER_PAGE);
 
+  if (rabBusyMessage) {
+    return (
+      <div className="auth-splash">
+        <div className="splash-logo" style={{ fontSize: '1rem' }}>DIVES CORP.</div>
+        <div className="splash-spinner" />
+        <div style={{ color: 'var(--auth-gold)', textAlign: 'center' }}>
+          {rabBusyMessage}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.bvWrapper}>
       <Header />
+      <div className={styles.topLine} />
 
       <div className={styles.bvHeader}>
         <div className={styles.headerTitle}>
-          <h2 style={{ fontFamily: "'Fraunces', serif" }}>BV — BACK UP VOLUME</h2>
-          <p>{selectedProject ? `${selectedProject.name} (${selectedProject.discipline} ${selectedProject.hspkPeriod})` : 'Kelola struktur Group Pekerjaan, Sub-Group, serta rincian dimensi volume.'}</p>
-          <div className={styles.headerActions}>
-            <button className={styles.btnPrimary} onClick={() => handleOpenAddGroup(null)} disabled={!selectedProjectId}>
-              + Tambah Group Pekerjaan
-            </button>
-            {/* Link antar modul: BV -> RAB dengan proyek yang sama terpilih */}
-            <button
-              type="button"
-              className={styles.btnOutline}
-              disabled={!selectedProjectId}
-              onClick={() => onGoToRab?.(selectedProjectId)}
-              title="Buka RAB untuk proyek ini"
-            >
-              Lihat RAB &rarr;
-            </button>
-            <button
-              type="button"
-              className={styles.btnOutline}
-              disabled={!selectedProjectId || filteredBvItems.length === 0}
-              onClick={exportBvToExcel}
-              title="Export Backup Volume ke Excel"
-            >
-              <Download size={16} style={{ marginRight: 4 }} />
-              Export Excel
-            </button>
-          </div>
+          <span className={styles.pageEyebrow}>PERENCANAAN PROYEK</span>
+          <h2>BV — BACK UP VOLUME</h2>
+          <p>{selectedProject ? `${selectedProject.name} · ${selectedProject.discipline || 'General'} · Periode ${selectedProject.hspkPeriod}` : 'Kelola group pekerjaan, uraian, dan rincian volume proyek.'}</p>
         </div>
-      </div>
-
-      <ProjectSelector
-        projectId={selectedProjectId}
-        projectList={projects.map(p => {
-          const int = p.interiorGrade || (p.discipline === 'INTERIOR' ? p.grade : null);
-          const sip = p.sipilGrade || (p.discipline === 'SIPIL' ? p.grade : null);
-          return {
-            ...p,
-            displayName: `${p.name} — ${p.client?.name || '-'} (${int ? `Int:${int}` : ''}${int && sip ? ' · ' : ''}${sip ? `Sip:${sip}` : ''}${!int && !sip ? 'General' : ''} ${p.hspkPeriod})`
-          };
-        })}
-        loading={loadingProjects}
-        onChange={(e) => {
-          setSelectedProjectId(e.target.value);
-          onProjectChange?.(e.target.value || null);
-        }}
-      />
-
-      {selectedProjectId && (
-        <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ color: '#888', fontSize: 12 }}>Filter tampilan:</span>
-          {FILTER_OPTIONS.map(opt => (
-            <a
-              key={opt}
-              href={`#bv/${opt}`}
-              onClick={(e) => {
-                e.preventDefault();
-                window.location.hash = `bv/${opt}`;
-              }}
-              className={`${styles.filterBtn} ${activeFilter === opt ? styles.filterBtnActive : ''}`}
-            >
-              {opt === 'GENERAL' ? 'General' : opt === 'INTERIOR' ? 'Interior' : 'Sipil'}
-            </a>
-          ))}
-        </div>
-      )}
-
-      {selectedProjectId && (
-        <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className={styles.headerActions}>
+          <button className={styles.btnPrimary} onClick={() => handleOpenAddGroup(null)} disabled={!selectedProjectId}>
+            <Plus size={16} /> Tambah Group
+          </button>
           <button
             type="button"
             className={styles.btnOutline}
-            onClick={() => handleToggleCheckAll(filteredBvItems)}
+            disabled={!selectedProjectId}
+            onClick={() => onGoToRab?.(selectedProjectId)}
+            title="Buka RAB untuk proyek ini"
           >
-            ☑ Pilih/Batal Semua
+            Lihat RAB &rarr;
           </button>
-          <span style={{ color: '#aaa', fontSize: 12 }}>
-            {checkedIds.length} item terpilih
-          </span>
+          <button
+            type="button"
+            className={styles.btnOutline}
+            disabled={!selectedProjectId}
+            onClick={viewBv}
+            title={`Buka View BV ${activeCategoryLabel}`}
+          >
+            <Eye size={16} /> View {activeCategoryLabel}
+          </button>
+          <details className={styles.exportDropdown}>
+            <summary
+              className={styles.btnOutline}
+              aria-disabled={!selectedProjectId}
+              onClick={(event) => {
+                if (!selectedProjectId) event.preventDefault();
+              }}
+            >
+              <Download size={16} /> Export Excel <ChevronDown size={14} />
+            </summary>
+            <div className={styles.exportMenu}>
+              {[
+                { scope: 'GENERAL', code: 'GENERAL', label: 'BV General' },
+                ...projectCategoryOptions.map((option) => ({
+                  workCategoryId: option.workCategoryId,
+                  code: option.code,
+                  label: `BV ${option.name}`,
+                })),
+                {
+                  scope: 'ALL',
+                  code: 'ALL',
+                  label: `Semua — ${projectCategoryOptions.length + 1} Sheet`,
+                },
+              ].map((exportOption) => (
+                <button
+                  key={exportOption.workCategoryId || exportOption.scope}
+                  type="button"
+                  className={styles.exportMenuItem}
+                  disabled={!selectedProjectId}
+                  onClick={(event) => {
+                    event.currentTarget.closest('details')?.removeAttribute('open');
+                    exportBvToExcel(exportOption);
+                  }}
+                >
+                  {exportOption.label}
+                </button>
+              ))}
+            </div>
+          </details>
         </div>
-      )}
+      </div>
+
+      <div className={styles.workspaceControls}>
+        <div className={styles.projectSelectorShell}>
+          <span className={styles.projectActiveLabel}>PROJECT AKTIF</span>
+          <ProjectSelector
+            projectId={selectedProjectId}
+            projectList={projects.map(p => {
+              const int = p.interiorGrade || (p.discipline === 'INTERIOR' ? p.grade : null);
+              const sip = p.sipilGrade || (p.discipline === 'SIPIL' ? p.grade : null);
+              return {
+                ...p,
+                displayName: `${p.name} — ${p.client?.name || '-'} (${int ? `Int:${int}` : ''}${int && sip ? ' · ' : ''}${sip ? `Sip:${sip}` : ''}${!int && !sip ? 'General' : ''} ${p.hspkPeriod})`
+              };
+            })}
+            loading={loadingProjects}
+            onChange={(e) => {
+              setExpandedGroupIds(new Set());
+              setSelectedProjectId(e.target.value);
+              onProjectChange?.(e.target.value || null);
+            }}
+          />
+        </div>
+
+        {selectedProjectId && (
+          <div className={styles.controlBar}>
+            <div className={styles.filterGroup}>
+              <span className={styles.controlLabel}>Kategori</span>
+              {categoryFilterOptions.map((option) => (
+                <a
+                  key={option.id}
+                  href={`#bv/${option.code}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.location.hash = `bv/${option.code}`;
+                  }}
+                  className={`${styles.filterBtn} ${activeFilter === option.code ? styles.filterBtnActive : ''}`}
+                >
+                  {option.name}
+                </a>
+              ))}
+            </div>
+            <div className={styles.selectionTools}>
+              <button
+                type="button"
+                className={styles.btnSubtle}
+                onClick={() => handleToggleCheckAll(filteredBvItems)}
+              >
+                Pilih Semua
+              </button>
+              <span className={`${styles.selectionCount} ${checkedIds.length > 0 ? styles.selectionCountActive : ''}`}>
+                {checkedIds.length} terpilih
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {checkedIds.length > 0 && (
-        <div style={{ padding: '10px 14px', background: '#1c1c1c', border: '1px dashed #d4af37', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-          <span style={{ fontWeight: 'bold', color: '#f3e5ab' }}>
-            {checkedIds.length} Item Terpilih
+        <div className={styles.bulkBar}>
+          <span className={styles.bulkSummary}>
+            <strong>{checkedIds.length}</strong> item terpilih
           </span>
-          <button type="button" className={styles.btnDanger} onClick={handleBulkDelete}>
-            <Trash2 size={16} style={{ marginRight: 4 }} />
-            Hapus Massal
-          </button>
-          {(() => {
-             const selectedItems = bvItems.filter(i => checkedIds.includes(i.id));
-             const allBelumSinkron = selectedItems.length > 0 && selectedItems.every(i => i.linkStatus === 'BELUM_SINKRON');
-             
-             if (allBelumSinkron) {
-               return (
-                  <button type="button" className={styles.btnPrimary} onClick={handleBulkSync}>
-                    <RefreshCw size={16} style={{ marginRight: 4 }} />
-                    Sync RAB Massal
-                  </button>
-               );
-             } else {
+          <div className={styles.bulkActions}>
+            <button type="button" className={styles.btnDanger} onClick={handleBulkDelete}>
+              <Trash2 size={15} /> Hapus
+            </button>
+            {(() => {
+               const selectedItems = bvItems.filter(i => checkedIds.includes(i.id));
+               const allBelumSinkron = selectedItems.length > 0 && selectedItems.every(i => i.linkStatus === 'BELUM_SINKRON');
+
+               if (allBelumSinkron) {
+                 return (
+                    <button type="button" className={styles.btnPrimary} onClick={handleBulkSync}>
+                      <RefreshCw size={15} /> Sync ke RAB
+                    </button>
+                 );
+               }
+
                return (
                   <button type="button" className={styles.btnPrimary} onClick={handleBulkLink}>
-                    Link RAB Massal
+                    Link ke RAB
                   </button>
                );
-             }
-          })()}
+            })()}
+          </div>
         </div>
       )}
 
       {selectedProjectId && (
         <div>
           {loadingGroups || loadingBv ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
+            <div className={styles.pageState}>
               Memuat data BackUp Volume...
             </div>
           ) : visibleGroups.length === 0 ? (
-            <div className={styles.groupBlock} style={{ padding: 20, textAlign: 'center', color: '#888' }}>
-              {activeFilter === 'GENERAL'
+            <div className={styles.emptyState}>
+              {activeFilter === ALL_CATEGORY_FILTER
                 ? 'Belum ada Group Pekerjaan. Klik "+ Tambah Group Pekerjaan" untuk memulai.'
-                : `Tidak ada group yang memiliki baris pekerjaan bertipe ${activeFilter}.`}
+                : `Tidak ada group yang memiliki baris pekerjaan kategori ${activeCategoryLabel}.`}
             </div>
           ) : (
             <>
             {pagedGroups.map((g, idx) => {
               const counter = { n: 1 };
               const groupItems = bvByGroup[g.id] || [];
+              const groupOrdinal = ((safeGroupPage - 1) * GROUPS_PER_PAGE) + idx;
+              const isExpanded = expandedGroupIds.has(g.id);
 
               return (
-                <div key={g.id} className={styles.groupBlock}>
-                  <div className={styles.groupHead}>
-                    <span>{ROMAN[idx] || idx + 1}. {g.name}</span>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                <div key={g.id} className={`${styles.groupBlock} ${isExpanded ? styles.groupBlockExpanded : ''}`}>
+                  <div
+                    className={styles.groupHead}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isExpanded}
+                    onClick={() => toggleGroup(g.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleGroup(g.id);
+                      }
+                    }}
+                  >
+                    <div className={styles.groupTitle}>
+                      <ChevronDown className={`${styles.groupChevron} ${isExpanded ? styles.groupChevronOpen : ''}`} size={17} />
+                      <span className={styles.groupIndex}>{ROMAN[groupOrdinal] || groupOrdinal + 1}</span>
+                      <span>{g.name}</span>
+                    </div>
+                    <div className={styles.groupActions} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                       <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(g.id, null)} title="Tambah Baris">
                         <Plus size={14} /> Baris
                       </button>
@@ -1182,13 +1519,16 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                     </div>
                   </div>
 
+                  {isExpanded && (
+                    <div className={styles.groupContent}>
+
                   {g.children?.map((sg, sgIdx) => {
                     const subGroupItems = bvByGroup[sg.id] || [];
                     return (
                       <React.Fragment key={sg.id}>
                         <div className={styles.subgroupHead}>
-                          <span>{sgIdx + 1}. {sg.name}</span>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span className={styles.subgroupTitle}>{sgIdx + 1}. {sg.name}</span>
+                          <div className={styles.groupActions}>
                             <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(sg.id, null)} title="Tambah Baris">
                               <Plus size={14} /> Baris
                             </button>
@@ -1201,22 +1541,36 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                           </div>
                         </div>
                         {subGroupItems.length > 0 ? (
-                          <table className={styles.bvTable}>
-                            {renderTableHeader(subGroupItems)}
-                            <tbody>{renderItemRows(subGroupItems, counter)}</tbody>
-                          </table>
+                          <div className={styles.tableWrap}>
+                            <table className={styles.bvTable}>
+                              {renderTableHeader(subGroupItems)}
+                              <tbody>{renderItemRows(subGroupItems, counter)}</tbody>
+                            </table>
+                          </div>
                         ) : (
-                          <p style={{ padding: '12px 28px', color: '#666', fontSize: 12, margin: 0 }}>Belum ada baris pekerjaan di sub-group ini.</p>
+                          <p className={styles.subgroupEmpty}>Belum ada baris pekerjaan di sub-group ini.</p>
                         )}
                       </React.Fragment>
                     );
                   })}
 
                   {groupItems.length > 0 && (
-                    <table className={styles.bvTable}>
-                      {renderTableHeader(groupItems)}
-                      <tbody>{renderItemRows(groupItems, counter)}</tbody>
-                    </table>
+                    <div className={styles.tableWrap}>
+                      <table className={styles.bvTable}>
+                        {renderTableHeader(groupItems)}
+                        <tbody>{renderItemRows(groupItems, counter)}</tbody>
+                      </table>
+                    </div>
+                  )}
+                  {groupItems.length === 0 && (!g.children || g.children.length === 0) && (
+                    <div className={styles.groupEmpty}>
+                      <span>Belum ada baris pekerjaan di group ini.</span>
+                      <button type="button" className={styles.btnPrimary} onClick={() => handleOpenAddBv(g.id, null)}>
+                        <Plus size={14} /> Tambah Baris
+                      </button>
+                    </div>
+                  )}
+                    </div>
                   )}
                 </div>
               );

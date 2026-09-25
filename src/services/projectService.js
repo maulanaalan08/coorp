@@ -25,6 +25,13 @@ export const projectService = {
       body: JSON.stringify(projectData),
     }),
 
+  // Simpan konfigurasi kategori pekerjaan per proyek
+  updateCategories: (id, categories) =>
+    fetchAPI(`/projects/${id}/categories`, {
+      method: 'PUT',
+      body: JSON.stringify({ categories }),
+    }),
+
   // Delete project
   delete: (id) =>
     fetchAPI(`/projects/${id}`, {

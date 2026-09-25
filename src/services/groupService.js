@@ -8,9 +8,12 @@ const authHeaders = () => {
 
 export const groupService = {
   // Ambil tree group untuk project tertentu
-  getByProjectId: (projectId, discipline = '') => {
-    const query = discipline ? `?discipline=${encodeURIComponent(discipline)}` : '';
-    return fetchAPI(`/projects/${projectId}/rab-groups${query}`, { headers: authHeaders() });
+  getByProjectId: (projectId, discipline = '', workCategoryId = null) => {
+    const params = new URLSearchParams();
+    if (workCategoryId) params.set('workCategoryId', workCategoryId);
+    else if (discipline) params.set('discipline', discipline);
+    const query = params.toString();
+    return fetchAPI(`/projects/${projectId}/rab-groups${query ? `?${query}` : ''}`, { headers: authHeaders() });
   },
 
   // Buat Group / Sub-Group baru

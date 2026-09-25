@@ -8,9 +8,12 @@ const authHeaders = () => {
 
 export const rabService = {
   // Ambil semua item RAB untuk project tertentu
-  getByProjectId: (projectId, discipline = '') => {
-    const query = discipline ? `?discipline=${encodeURIComponent(discipline)}` : '';
-    return fetchAPI(`/projects/${projectId}/rab-items${query}`, { headers: authHeaders() });
+  getByProjectId: (projectId, discipline = '', workCategoryId = null) => {
+    const params = new URLSearchParams();
+    if (workCategoryId) params.set('workCategoryId', workCategoryId);
+    else if (discipline) params.set('discipline', discipline);
+    const query = params.toString();
+    return fetchAPI(`/projects/${projectId}/rab-items${query ? `?${query}` : ''}`, { headers: authHeaders() });
   },
 
   // Update RAB item (modal, overhead %, rincian komponen)
@@ -34,11 +37,11 @@ export const rabService = {
     }),
 
   // Switch Job Type (Suntik AHSP ke RAB Item)
-  switchJob: (id, newJobTypeId, customOverhead, ahspDiscipline) =>
+  switchJob: (id, newJobTypeId, customOverhead, ahspDiscipline, workCategoryId) =>
     fetchAPI(`/rab-items/${id}/switch-job`, {
       method: 'PUT',
       headers: authHeaders(),
-      body: JSON.stringify({ newJobTypeId, customOverhead, ahspDiscipline }),
+      body: JSON.stringify({ newJobTypeId, customOverhead, ahspDiscipline, workCategoryId }),
     }),
 
   // Bulk price update

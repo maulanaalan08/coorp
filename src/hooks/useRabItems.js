@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { rabService } from '../services/rabService';
 
-export const useRabItems = (projectId, discipline = '') => {
+export const useRabItems = (projectId, discipline = '', workCategoryId = null) => {
   const [rabItems, setRabItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -14,7 +14,7 @@ export const useRabItems = (projectId, discipline = '') => {
     setLoading(true);
     setError(null);
     try {
-      const data = await rabService.getByProjectId(projectId, discipline);
+      const data = await rabService.getByProjectId(projectId, discipline, workCategoryId);
       setRabItems(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message || 'Gagal memuat data RAB');
@@ -22,7 +22,7 @@ export const useRabItems = (projectId, discipline = '') => {
     } finally {
       setLoading(false);
     }
-  }, [projectId, discipline]);
+  }, [projectId, discipline, workCategoryId]);
 
   const updateRabItem = useCallback(async (id, data) => {
     try {

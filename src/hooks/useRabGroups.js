@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { groupService } from '../services/groupService';
 
-export const useRabGroups = (projectId, discipline = '') => {
+export const useRabGroups = (projectId, discipline = '', workCategoryId = null) => {
   const [rabGroups, setRabGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [errorGroups, setErrorGroups] = useState(null);
@@ -14,7 +14,7 @@ export const useRabGroups = (projectId, discipline = '') => {
     setLoadingGroups(true);
     setErrorGroups(null);
     try {
-      const data = await groupService.getByProjectId(projectId, discipline);
+      const data = await groupService.getByProjectId(projectId, discipline, workCategoryId);
       setRabGroups(Array.isArray(data) ? data : []);
     } catch (err) {
       setErrorGroups(err.message || 'Gagal memuat data grup RAB');
@@ -22,7 +22,7 @@ export const useRabGroups = (projectId, discipline = '') => {
     } finally {
       setLoadingGroups(false);
     }
-  }, [projectId, discipline]);
+  }, [projectId, discipline, workCategoryId]);
 
   const createGroup = useCallback(async (data) => {
     try {
