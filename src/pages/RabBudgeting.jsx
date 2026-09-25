@@ -124,11 +124,11 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         id: entry.workCategoryId,
         workCategoryId: entry.workCategoryId,
         code: String(entry.workCategory?.code || '').toUpperCase(),
-        name: entry.workCategory?.name || entry.workCategory?.code || 'Kategori',
+        name: String(entry.workCategory?.code || '').toUpperCase(),
       }))
     : [
-        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'Sipil' },
-        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'Interior' },
+        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'SIPIL' },
+        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'INTERIOR' },
       ];
   const categoryFilterOptions = [
     { id: ALL_CATEGORY_FILTER, workCategoryId: null, code: ALL_CATEGORY_FILTER, name: 'Semua' },
@@ -1509,9 +1509,9 @@ function RabGroupNode({
             {group.discipline}
           </span>
         )}
-        {group.workCategory?.name && group.workCategory?.code !== 'GENERAL' && (
+        {group.workCategory?.code && group.workCategory?.code !== 'GENERAL' && (
           <span className={styles["rab-group-discipline"]} style={{ background: DISCIPLINE_BADGE[group.workCategory?.code] || "#666", color: "#fff" }}>
-            {group.workCategory.name}
+            {group.workCategory.code}
           </span>
         )}
         <span className={styles["rab-group-subtotal"]}>{fmtRp(subtotal)}</span>
@@ -1606,9 +1606,9 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, c
         <td>
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
             {!hasChildren && <span className={[styles["rab-src"], styles[source.key]].join(" ")}>{source.label}</span>}
-            {item.workCategory?.name && item.workCategory?.code !== 'GENERAL' && (
+            {item.workCategory?.code && item.workCategory?.code !== 'GENERAL' && (
               <span className={styles["rab-group-discipline"]} style={{ background: DISCIPLINE_BADGE[item.workCategory?.code] || "#666", color: "#fff" }}>
-                {item.workCategory.name}
+                {item.workCategory.code}
               </span>
             )}
             {item.discipline && item.discipline !== "GENERAL" && (
