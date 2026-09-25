@@ -374,11 +374,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     if (!Number.isFinite(rabUnitPrice) || rabUnitPrice < 0) {
       return toast.error("RAB Satuan tidak valid.");
     }
-    const overheadPercent = Number(sellingModal.overheadPercent);
-    const payload = {
-      rabUnitPrice,
-      ...(Number.isFinite(overheadPercent) && overheadPercent >= 0 ? { overheadPercent } : {}),
-    };
+    const payload = { rabUnitPrice };
     toast.promise(
       updateRabItem(sellingModal.item.id, payload).then(() => refreshGroups()),
       {
@@ -1399,15 +1395,13 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
 
             <div className={styles["rab-selling-input-grid"]}>
               <div>
-                <label className={styles["rab-selling-input-label"]}>Overhead / Profit %</label>
+                <span className={styles["rab-selling-input-label"]}>Overhead / Profit %</span>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  type="text"
                   className={styles["rab-selling-input"]}
-                  value={sellingModal.overheadPercent}
-                  onChange={(e) => setSellingModal({ ...sellingModal, overheadPercent: e.target.value })}
-                  placeholder="0"
+                  value={`${Number(sellingModal.overheadPercent) || 0}%`}
+                  aria-label="Overhead / Profit % (ditetapkan Perencana)"
+                  readOnly
                 />
               </div>
               <div>
@@ -1422,7 +1416,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
               </div>
             </div>
             <p className={styles["rab-selling-hint"]}>
-              <strong>Overhead / Profit %</strong> diatur SUPER_ADMIN. Kosongkan Override untuk pakai RAB Auto (RAP + OH).
+              <strong>Overhead / Profit %</strong> ditetapkan oleh Perencana. Override hanya mengubah RAB Satuan, tanpa mengubah RAP atau overhead.
             </p>
 
             {sellingModal.rabUnitPrice !== "" && (
