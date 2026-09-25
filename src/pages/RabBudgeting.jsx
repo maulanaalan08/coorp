@@ -554,7 +554,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         .map((c) => ({
           name: c.name.trim(),
           unit: c.unit.trim() || "-",
-          section: c.section === "ALAT" ? "ALAT" : "BAHAN",
+          section: ["BAHAN", "UPAH", "ALAT"].includes(c.section) ? c.section : "BAHAN",
           coefficient: Number(c.coefficient),
           unitPrice: Number(String(c.unitPrice).replace(/[^0-9]/g, "")) || 0,
         }));
