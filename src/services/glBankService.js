@@ -48,6 +48,34 @@ const glBankService = {
     });
     return fetchAPI(`/gl-bank/saldo?${qs.toString()}`, { headers: getAuthHeaders() });
   },
+  getSummary: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") qs.append(k, v);
+    });
+    return fetchAPI(`/gl-bank/summary?${qs.toString()}`, { headers: getAuthHeaders() });
+  },
+  getRekeningBank: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") qs.append(k, v);
+    });
+    return fetchAPI(`/gl-bank/rekening-bank?${qs.toString()}`, { headers: getAuthHeaders() });
+  },
+  createRekeningBank: (payload) =>
+    fetchAPI("/gl-bank/rekening-bank", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }),
+  updateRekeningBank: (id, payload) =>
+    fetchAPI(`/gl-bank/rekening-bank/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }),
+  deleteRekeningBank: (id) =>
+    fetchAPI(`/gl-bank/rekening-bank/${id}`, { method: "DELETE", headers: getAuthHeaders() }),
   createTransaksi: (payload) =>
     fetchAPI("/gl-bank/transaksi", {
       method: "POST",

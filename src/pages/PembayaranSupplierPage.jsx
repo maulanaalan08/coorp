@@ -12,12 +12,13 @@ const fmtTgl = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digi
 const statusBadge = (status) => {
   const map = {
     PENDING: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+    PARTIAL: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
     PAID: 'bg-green-500/10 text-green-400 border-green-500/30',
   };
   return map[status] || 'bg-gray-500/10 text-gray-400 border-gray-500/30';
 };
 
-const METODE_BAYAR = ['TRANSFER', 'CASH', 'CEK', 'GIRO'];
+const METODE_BAYAR = ['TRANSFER', 'CASH', 'CEK', 'GIRO', 'TEMPO'];
 
 const PembayaranSupplierPage = () => {
   const [pembayarans, setPembayarans] = useState([]);
@@ -30,20 +31,25 @@ const PembayaranSupplierPage = () => {
   const [pos, setPOs] = useState([]);
   const [akunList, setAkunList] = useState([]);
   const [masterAkunList, setMasterAkunList] = useState([]);
+  const [rekeningBanks, setRekeningBanks] = useState([]);
 
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState({
     supplierId: '',
     pengajuanId: '',
     poId: '',
+    totalTagihan: '',
     jumlah: '',
     metode: 'TRANSFER',
+    status: 'PENDING',
     keterangan: '',
     tanggal: new Date().toISOString().split('T')[0],
     jatuhTempo: '',
     tanggalBayar: '',
     tipeAkunKasBank: 'KAS',
     akunKasBank: '',
+    rekeningBankId: '',
+    tambahPembayaran: true,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -61,18 +67,20 @@ const PembayaranSupplierPage = () => {
 
   const fetchMasters = useCallback(async () => {
     try {
-      const [supData, pjData, poData, akunRes, masterAkunRes] = await Promise.all([
+      const [supData, pjData, poData, akunRes, masterAkunRes, rekeningRes] = await Promise.all([
         poService.getSuppliers(),
         purchasingService.getPengajuanBayar(),
         poService.getPOs(),
         glBankService.getAkun(),
         glBankService.getMasterAkun(),
+        glBankService.getRekeningBank({ activeOnly: 1 }),
       ]);
       setSuppliers(Array.isArray(supData) ? supData : []);
       setPengajuans(Array.isArray(pjData) ? pjData : []);
       setPOs(Array.isArray(poData) ? poData : []);
       setAkunList(Array.isArray(akunRes?.data) ? akunRes.data : []);
       setMasterAkunList(Array.isArray(masterAkunRes?.data) ? masterAkunRes.data : []);
+      setRekeningBanks(Array.isArray(rekeningRes?.data) ? rekeningRes.data : []);
     } catch (err) {
       console.error('Gagal memuat master data:', err);
     }
@@ -100,14 +108,18 @@ const PembayaranSupplierPage = () => {
         supplierId: pembayaran.supplierId || '',
         pengajuanId: pembayaran.pengajuanId || '',
         poId: pembayaran.poId || '',
-        jumlah: pembayaran.jumlahBayar || pembayaran.jumlah || '',
+        totalTagihan: pembayaran.totalTagihan || '',
+        jumlah: '',
         metode: pembayaran.metodeBayar || pembayaran.metode || 'TRANSFER',
+        status: pembayaran.status || 'PENDING',
         keterangan: pembayaran.keterangan || '',
         tanggal: pembayaran.tanggal ? new Date(pembayaran.tanggal).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         jatuhTempo: pembayaran.jatuhTempo ? new Date(pembayaran.jatuhTempo).toISOString().split('T')[0] : '',
         tanggalBayar: pembayaran.tanggalBayar ? new Date(pembayaran.tanggalBayar).toISOString().split('T')[0] : '',
         tipeAkunKasBank: pembayaran.tipeAkunKasBank || 'KAS',
         akunKasBank: pembayaran.akunKasBank || '',
+        rekeningBankId: pembayaran.rekeningBankId || '',
+        tambahPembayaran: true,
       });
     } else {
       setEditId(null);
@@ -115,14 +127,18 @@ const PembayaranSupplierPage = () => {
         supplierId: '',
         pengajuanId: '',
         poId: '',
+        totalTagihan: '',
         jumlah: '',
         metode: 'TRANSFER',
+        status: 'PENDING',
         keterangan: '',
         tanggal: new Date().toISOString().split('T')[0],
         jatuhTempo: '',
         tanggalBayar: '',
         tipeAkunKasBank: 'KAS',
         akunKasBank: '',
+        rekeningBankId: '',
+        tambahPembayaran: true,
       });
     }
     setIsModalOpen(true);
@@ -140,14 +156,18 @@ const PembayaranSupplierPage = () => {
       supplierId: formData.supplierId,
       pengajuanId: formData.pengajuanId ? formData.pengajuanId : null,
       poId: formData.poId ? formData.poId : null,
+      totalTagihan: Number(formData.totalTagihan || 0),
       jumlahBayar: Number(formData.jumlah),
       metodeBayar: formData.metode,
+      status: formData.status,
       keterangan: formData.keterangan,
       tanggal: formData.tanggal,
       jatuhTempo: formData.jatuhTempo ? formData.jatuhTempo : null,
       tanggalBayar: formData.tanggalBayar ? formData.tanggalBayar : null,
       tipeAkunKasBank: formData.tipeAkunKasBank || 'KAS',
       akunKasBank: formData.akunKasBank ? formData.akunKasBank.trim() : '',
+      rekeningBankId: formData.rekeningBankId || null,
+      tambahPembayaran: Boolean(formData.tambahPembayaran),
     };
 
     try {
@@ -252,8 +272,14 @@ const PembayaranSupplierPage = () => {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge(p.status)}`}>
-                          {p.status === 'PENDING' ? 'Belum Bayar' : p.status === 'PAID' ? 'Lunas' : p.status || 'Belum Bayar'}
+                          {p.status === 'PENDING' ? 'Belum Bayar' : p.status === 'PARTIAL' ? 'Sebagian / Tempo' : p.status === 'PAID' ? 'Lunas' : p.status || 'Belum Bayar'}
                         </span>
+                        <div className="text-[10px] text-[#777] mt-1">
+                          Dibayar: {fmtRp(p.totalTerbayar ?? p.jumlahBayar ?? 0)}
+                        </div>
+                        <div className="text-[10px] text-[#777]">
+                          Sisa: {fmtRp(p.sisaBayar ?? 0)}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button
@@ -299,6 +325,32 @@ const PembayaranSupplierPage = () => {
                     {pos.map((p) => <option key={p.id} value={p.id}>{p.poNumber || ('PO-' + p.id)}</option>)}
                   </select>
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-[#888] mb-1">Total Tagihan (Rp)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.totalTagihan}
+                      onChange={(e) => setFormData({ ...formData, totalTagihan: e.target.value })}
+                      placeholder="0"
+                      className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-[#888] mb-1">Status Pembayaran</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
+                    >
+                      <option value="PENDING">Belum Bayar</option>
+                      <option value="PARTIAL">Sebagian / Tempo</option>
+                      <option value="PAID">Lunas</option>
+                    </select>
+                  </div>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -322,6 +374,34 @@ const PembayaranSupplierPage = () => {
                       {METODE_BAYAR.map((m) => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-[#888] mb-1">Rekening Bank</label>
+                  <select
+                    value={formData.rekeningBankId}
+                    onChange={(e) => setFormData({ ...formData, rekeningBankId: e.target.value, tipeAkunKasBank: 'BANK' })}
+                    className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
+                  >
+                    <option value="">-- Pilih Rekening Bank --</option>
+                    {rekeningBanks.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {`${r.namaRekening} - ${r.nomorRekening}${r.namaBank ? ` (${r.namaBank})` : ''}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="bg-[#22201c] border border-[#2a2a2a] rounded-lg p-3">
+                  <label className="flex items-center gap-2 text-xs text-[#ccc] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.tambahPembayaran)}
+                      onChange={(e) => setFormData({ ...formData, tambahPembayaran: e.target.checked })}
+                    />
+                    Edit sebagai cicilan/pelunasan baru (tambahkan histori pembayaran)
+                  </label>
+                  <p className="text-[10px] text-[#666] mt-1">Jika aktif, nominal dianggap pembayaran tambahan dan otomatis masuk Buku Besar.</p>
                 </div>
 
                 <div>
