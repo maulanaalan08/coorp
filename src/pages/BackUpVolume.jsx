@@ -170,40 +170,48 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
     setMode(selectedProjectCategory?.pricingMode === 'HSPK' ? 'hspk' : 'custom');
   }, [isOpen, editItem?.id, workCategoryId, selectedProjectCategory?.pricingMode]);
 
-  // Muat daftar AHSP saat periode/kategori berubah tanpa mereset pilihan mode input.
+  // Muat daftar AHSP saat periode/kategori berubah; pencarian dikirim ke server
+  // (debounce) agar tidak terbatas pada 100 item pertama yang ke-load.
   useEffect(() => {
     if (!isOpen) return;
 
-    const params = { limit: 100 };
-    if (hspkPeriod) params.period = hspkPeriod;
-    if (selectedProjectCategory) {
-      params.workCategoryId = selectedProjectCategory.workCategoryId;
-      if (selectedProjectCategory.grade) params.grade = selectedProjectCategory.grade;
-    } else if (disciplineLabel && disciplineLabel !== 'GENERAL') {
-      params.discipline = disciplineLabel;
-      const matchedGrade = disciplineLabel === 'INTERIOR'
-        ? project?.interiorGrade
-        : disciplineLabel === 'SIPIL'
-          ? project?.sipilGrade
-          : null;
-      if (matchedGrade) params.grade = matchedGrade;
-    }
+    const timer = setTimeout(() => {
+      const params = { limit: 100 };
+      if (hspkPeriod) params.period = hspkPeriod;
+      if (searchQuery.trim().length >= 2) params.search = searchQuery.trim();
+      if (selectedProjectCategory) {
+        params.workCategoryId = selectedProjectCategory.workCategoryId;
+        if (selectedProjectCategory.grade) params.grade = selectedProjectCategory.grade;
+      } else if (disciplineLabel && disciplineLabel !== 'GENERAL') {
+        params.discipline = disciplineLabel;
+        const matchedGrade = disciplineLabel === 'INTERIOR'
+          ? project?.interiorGrade
+          : disciplineLabel === 'SIPIL'
+            ? project?.sipilGrade
+            : null;
+        if (matchedGrade) params.grade = matchedGrade;
+      }
 
-    if (selectedProjectCategory?.pricingMode !== 'CUSTOM' || !selectedProjectCategory) {
-      hspkService.getJobTypes(params)
-        .then(res => setJobTypes(Array.isArray(res) ? res : res?.data || []))
-        .catch((err) => console.error("Gagal load jobTypes:", err));
-    } else {
-      setJobTypes([]);
-      setSourceJobTypeId('');
-    }
+      if (selectedProjectCategory?.pricingMode !== 'CUSTOM' || !selectedProjectCategory) {
+        hspkService.getJobTypes(params)
+          .then(res => setJobTypes(Array.isArray(res) ? res : res?.data || []))
+          .catch((err) => console.error("Gagal load jobTypes:", err));
+      } else {
+        setJobTypes([]);
+        setSourceJobTypeId('');
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
   }, [
     isOpen,
     hspkPeriod,
     disciplineLabel,
     workCategoryId,
+    searchQuery,
     selectedProjectCategory?.pricingMode,
     selectedProjectCategory?.grade,
+    selectedProjectCategory?.workCategoryId,
     project?.interiorGrade,
     project?.sipilGrade,
   ]);
@@ -427,7 +435,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                   )}
                   {projectCategories.map((entry) => (
                     <option key={entry.workCategoryId} value={entry.workCategoryId}>
-                      {entry.workCategory?.name || entry.workCategory?.code}
+                      {String(entry.workCategory?.code || '').toUpperCase()}
                     </option>
                   ))}
                 </select>
@@ -459,7 +467,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
 
           {mode === 'hspk' && (
             <div className={styles.bvInputSection}>
-              <div className={styles.bvSectionTitle}>3. Pilih master AHSP ({selectedProjectCategory?.workCategory?.name || disciplineLabel})</div>
+              <div className={styles.bvSectionTitle}>3. Pilih master AHSP ({selectedProjectCategory ? String(selectedProjectCategory.workCategory?.code || '').toUpperCase() : disciplineLabel})</div>
               <div className={styles.formGroup}>
                 <label>Cari jenis pekerjaan</label>
                 <input
@@ -477,7 +485,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                 >
                   {filteredJobTypes.slice(0, 40).map(j => (
                     <option key={j.id} value={j.id}>
-                      [{j.code || 'AHSP'}] {j.name} ({j.paymentUnit})
+                      [{j.reference || j.workCategory?.code || 'AHSP'}] {j.name} ({j.paymentUnit})
                     </option>
                   ))}
                 </select>
@@ -768,11 +776,13 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
         id: entry.workCategoryId,
         workCategoryId: entry.workCategoryId,
         code: String(entry.workCategory?.code || '').toUpperCase(),
-        name: entry.workCategory?.name || entry.workCategory?.code || 'Kategori',
+        name: String(entry.workCategory?.code || '').toUpperCase(),
+        grade: entry.grade || null,
+        pricingMode: entry.pricingMode || null,
       }))
     : [
-        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'Sipil' },
-        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'Interior' },
+        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'SIPIL', grade: selectedProject?.sipilGrade || null },
+        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'INTERIOR', grade: selectedProject?.interiorGrade || null },
       ];
   const categoryFilterOptions = [
     { id: ALL_CATEGORY_FILTER, workCategoryId: null, code: ALL_CATEGORY_FILTER, name: 'Semua' },
@@ -1038,8 +1048,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
       }
 
       const categoryCode = String(it.workCategory?.code || it.disciplineLabel || 'GENERAL').toUpperCase();
-      const categoryLabel = it.workCategory?.name
-        || (categoryCode !== ALL_CATEGORY_FILTER ? categoryCode : '');
+      const categoryLabel = categoryCode !== ALL_CATEGORY_FILTER ? categoryCode : '';
       const categoryClass = categoryCode === 'SIPIL'
         ? styles.disciplineSipil
         : categoryCode === 'INTERIOR'

@@ -19,6 +19,13 @@ export const hspkService = {
     return fetchAPI(`/hspk/jobtypes${query ? `?${query}` : ''}`);
   },
 
+  // Riwayat upload (daftar batch AHSP yang sudah masuk)
+  getBatches: () => fetchAPI('/uploads'),
+
+  // Hapus satu batch upload beserta data AHSP-nya
+  deleteBatch: (id) =>
+    fetchAPI(`/uploads/${id}`, { method: 'DELETE' }),
+
   // Upload HSPK/AHSP Excel file
   upload: (formData) =>
     fetchAPI('/upload', {

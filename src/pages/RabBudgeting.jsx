@@ -124,11 +124,13 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         id: entry.workCategoryId,
         workCategoryId: entry.workCategoryId,
         code: String(entry.workCategory?.code || '').toUpperCase(),
-        name: entry.workCategory?.name || entry.workCategory?.code || 'Kategori',
+        name: String(entry.workCategory?.code || '').toUpperCase(),
+        grade: entry.grade || null,
+        pricingMode: entry.pricingMode || null,
       }))
     : [
-        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'Sipil' },
-        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'Interior' },
+        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'SIPIL', grade: project?.sipilGrade || null },
+        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'INTERIOR', grade: project?.interiorGrade || null },
       ];
   const categoryFilterOptions = [
     { id: ALL_CATEGORY_FILTER, workCategoryId: null, code: ALL_CATEGORY_FILTER, name: 'Semua' },
@@ -154,7 +156,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const activeDiscipline = (!activeWorkCategoryId && activeFilter !== ALL_CATEGORY_FILTER) ? activeFilter : '';
 
   const { rabGroups: groups, loadingGroups, errorGroups: fetchError, refreshGroups, createGroup, deleteGroup } = useRabGroups(projectId, activeDiscipline, activeWorkCategoryId);
-  const { deleteRabItem, updateRabItem, deleteBulk, bulkPrice, bulkSwitchJob, loading: loadingItems } = useRabItems(projectId);
+  const { deleteRabItem, updateRabItem, deleteBulk, bulkPrice, bulkSwitchJob, switchJob, loading: loadingItems } = useRabItems(projectId);
 
   // State untuk Tambah Group
   const [groupModal, setGroupModal] = useState(null);
@@ -411,8 +413,15 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       const item = editModal?.item || {};
       const itemWorkCategoryId = item.workCategoryId || activeWorkCategoryId;
       const discipline = itemWorkCategoryId ? '' : (item.discipline || activeDiscipline || "");
+      // Grade mengikuti kategori item (bukan tab aktif): kalau item punya kategori,
+      // ambil grade dari konfigurasi proyek untuk kategori tersebut — supaya saat
+      // browsing di tab SEMUA pun hasil pencarian tetap scoped ke grade yang dipilih
+      // saat pembuatan project, bukan semua grade di periode itu.
+      const categoryConfig = itemWorkCategoryId
+        ? (project?.workCategories || []).find((wc) => wc.workCategoryId === itemWorkCategoryId)
+        : null;
       const grade = itemWorkCategoryId
-        ? (selectedFilterCategory?.grade || item.grade || null)
+        ? (categoryConfig?.grade || item.grade || selectedFilterCategory?.grade || null)
         : (item.grade || project?.grade || null);
       const params = new URLSearchParams({ q: query.trim() });
       if (itemWorkCategoryId) {
@@ -527,17 +536,13 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         payload.ahspDiscipline = activeDiscipline;
       }
 
-      const switchPromise = fetch(`${API_BASE}/rab-items/${item.id}/switch-job`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + localStorage.getItem("token") },
-        body: JSON.stringify(payload),
-      }).then(async (res) => {
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "Gagal menghubungkan data AHSP.");
-        }
-        return refreshGroups();
-      });
+      const switchPromise = switchJob(
+        item.id,
+        sourceJobId,
+        overheadPercent !== "" ? Number(overheadPercent) : undefined,
+        activeDiscipline && activeDiscipline !== ALL_CATEGORY_FILTER ? activeDiscipline : undefined,
+        item.workCategoryId || activeWorkCategoryId || undefined,
+      ).then(() => refreshGroups());
 
       toast.promise(switchPromise, {
         loading: 'Menarik data Master AHSP...',
@@ -554,7 +559,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         .map((c) => ({
           name: c.name.trim(),
           unit: c.unit.trim() || "-",
-          section: c.section === "ALAT" ? "ALAT" : "BAHAN",
+          section: ["BAHAN", "UPAH", "ALAT"].includes(c.section) ? c.section : "BAHAN",
           coefficient: Number(c.coefficient),
           unitPrice: Number(String(c.unitPrice).replace(/[^0-9]/g, "")) || 0,
         }));
@@ -1509,9 +1514,9 @@ function RabGroupNode({
             {group.discipline}
           </span>
         )}
-        {group.workCategory?.name && group.workCategory?.code !== 'GENERAL' && (
+        {group.workCategory?.code && group.workCategory?.code !== 'GENERAL' && (
           <span className={styles["rab-group-discipline"]} style={{ background: DISCIPLINE_BADGE[group.workCategory?.code] || "#666", color: "#fff" }}>
-            {group.workCategory.name}
+            {group.workCategory.code}
           </span>
         )}
         <span className={styles["rab-group-subtotal"]}>{fmtRp(subtotal)}</span>
@@ -1606,9 +1611,9 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, c
         <td>
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
             {!hasChildren && <span className={[styles["rab-src"], styles[source.key]].join(" ")}>{source.label}</span>}
-            {item.workCategory?.name && item.workCategory?.code !== 'GENERAL' && (
+            {item.workCategory?.code && item.workCategory?.code !== 'GENERAL' && (
               <span className={styles["rab-group-discipline"]} style={{ background: DISCIPLINE_BADGE[item.workCategory?.code] || "#666", color: "#fff" }}>
-                {item.workCategory.name}
+                {item.workCategory.code}
               </span>
             )}
             {item.discipline && item.discipline !== "GENERAL" && (

@@ -71,13 +71,27 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
       await Promise.all(
         workCategories.map(async (cat) => {
           try {
-            // Kategori legacy (SIPIL/INTERIOR) pakai discipline;
-            // kategori dinamis (MEP, dll) pakai workCategoryId
-            const isLegacy = cat.code === "SIPIL" || cat.code === "INTERIOR";
-            const grades = isLegacy
-              ? await hspkService.getGradesByPeriodDiscipline(selectedPeriod, cat.code)
-              : await hspkService.getGradesByPeriodCategory(selectedPeriod, cat.id);
-            gradesMap[cat.id] = Array.isArray(grades) ? grades : [];
+            // Semua upload baru tersimpan berdasarkan workCategoryId, termasuk
+            // SIPIL dan INTERIOR. Fallback discipline menjaga data legacy tetap terbaca.
+            const categoryGradesResult = await hspkService.getGradesByPeriodCategory(
+              selectedPeriod,
+              cat.id
+            );
+            const dynamicGrades = Array.isArray(categoryGradesResult)
+              ? categoryGradesResult
+              : [];
+            const categoryCode = String(cat.code || "").toUpperCase();
+            const isLegacyCategory = categoryCode === "SIPIL" || categoryCode === "INTERIOR";
+
+            if (dynamicGrades.length > 0 || !isLegacyCategory) {
+              gradesMap[cat.id] = dynamicGrades;
+            } else {
+              const legacyGrades = await hspkService.getGradesByPeriodDiscipline(
+                selectedPeriod,
+                categoryCode
+              );
+              gradesMap[cat.id] = Array.isArray(legacyGrades) ? legacyGrades : [];
+            }
           } catch {
             gradesMap[cat.id] = [];
           }
@@ -142,6 +156,18 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
       return;
     }
 
+    // Sipil dan Interior wajib ikut dalam setiap project.
+    const requiredCodes = ["SIPIL", "INTERIOR"];
+    for (const code of requiredCodes) {
+      const category = workCategories.find(
+        (item) => String(item.code).toUpperCase() === code
+      );
+      if (!category || !selectedCategories[category.id]?.isActive) {
+        toast.error(`Kategori ${code === "SIPIL" ? "Sipil" : "Interior"} wajib dipilih.`);
+        return;
+      }
+    }
+
     // Validasi: kategori HSPK wajib punya grade
     for (const [catId, cfg] of activeCats) {
       if (cfg.pricingMode === "HSPK" && !cfg.grade) {
@@ -153,25 +179,30 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
       }
     }
 
+    const categories = activeCats.map(([workCategoryId, cfg]) => ({
+      workCategoryId,
+      pricingMode: cfg.pricingMode,
+      grade: cfg.grade || null,
+      isActive: true,
+    }));
+
+    const gradeForCode = (code) => {
+      const cat = workCategories.find(
+        (item) => String(item.code).toUpperCase() === code
+      );
+      const cfg = cat ? selectedCategories[cat.id] : null;
+      return cfg?.pricingMode === "HSPK" ? cfg.grade || null : null;
+    };
+
     const createPromise = projectService.create({
       name: projectName.trim(),
       clientName: client.trim(),
       location: location.trim(),
       hspkPeriod: Number(selectedPeriod),
-      // Legacy fields: ambil dari kategori SIPIL/INTERIOR jika aktif
-      interiorGrade:
-        selectedCategories[
-          workCategories.find((c) => c.code === "INTERIOR")?.id
-        ]?.pricingMode === "HSPK"
-          ? selectedCategories[workCategories.find((c) => c.code === "INTERIOR")?.id]
-              ?.grade || null
-          : null,
-      sipilGrade:
-        selectedCategories[workCategories.find((c) => c.code === "SIPIL")?.id]
-          ?.pricingMode === "HSPK"
-          ? selectedCategories[workCategories.find((c) => c.code === "SIPIL")?.id]
-              ?.grade || null
-          : null,
+      categories,
+      // Legacy fields tetap dikirim agar klien lama yang membaca ini kompatibel.
+      interiorGrade: gradeForCode("INTERIOR"),
+      sipilGrade: gradeForCode("SIPIL"),
     });
 
     toast
@@ -180,23 +211,7 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
         success: "Project berhasil dibuat!",
         error: "Gagal membuat project.",
       })
-      .then(async (project) => {
-        const categories = activeCats.map(([catId, cfg]) => ({
-          workCategoryId: catId,
-          pricingMode: cfg.pricingMode,
-          grade: cfg.grade || null,
-          isActive: true,
-        }));
-
-        try {
-          await projectService.updateCategories(project.id, categories);
-        } catch (err) {
-          console.error("Gagal simpan kategori proyek:", err);
-          toast.error(
-            "Kategori proyek gagal disimpan, tapi project sudah dibuat."
-          );
-        }
-
+      .then(() => {
         setProjectName("");
         setClient("");
         setLocation("");
