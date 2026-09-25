@@ -259,3 +259,192 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* ===================== MODE EDIT (UPLOAD ULANG) ===================== */
+.editModeBanner {
+  margin-top: 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background-color: rgba(232, 200, 116, 0.08);
+  border: 1px solid rgba(232, 200, 116, 0.35);
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  color: var(--gold);
+}
+
+.editModeCancel {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.editModeCancel:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* ===================== RIWAYAT UPLOAD ===================== */
+.historyTableWrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: #11100e;
+}
+
+.historyTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.historyTable thead th {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: var(--gold-dim);
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background-color: #15130f;
+}
+
+.historyTable tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #201c15;
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.historyTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.historyTable tbody tr:hover td {
+  background-color: #17140f;
+}
+
+.monoCell {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.fileCell {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.catBadge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--gold);
+  background-color: rgba(232, 200, 116, 0.1);
+  border: 1px solid rgba(232, 200, 116, 0.25);
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+
+.statusBadge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid;
+}
+
+.statusSuccess {
+  color: #86efac;
+  border-color: rgba(134, 239, 172, 0.35);
+  background-color: rgba(134, 239, 172, 0.08);
+}
+
+.statusPartial {
+  color: var(--gold);
+  border-color: rgba(232, 200, 116, 0.35);
+  background-color: rgba(232, 200, 116, 0.08);
+}
+
+.statusFailed {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.35);
+  background-color: rgba(248, 113, 113, 0.08);
+}
+
+.historyEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 36px 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  border: 1px dashed var(--border-dashed);
+  border-radius: 6px;
+  background-color: #11100e;
+}
+
+.actionBtns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background-color: #1c1a16;
+  border: 1px solid #332d22;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.iconBtn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.iconBtnDanger:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.iconBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinIcon {
+  animation: hspkSpin 1s linear infinite;
+}
+
+@keyframes hspkSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
