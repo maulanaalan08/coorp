@@ -6,7 +6,14 @@ import { projectService } from "../services/projectService";
 import { workCategoryService } from "../services/workCategoryService";
 import toast from "react-hot-toast";
 
-const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
+const CreateProjectModal = ({
+  isOpen,
+  onClose,
+  onProjectCreated,
+  initialProject = null,
+  onProjectSaved,
+}) => {
+  const isEditMode = Boolean(initialProject?.id);
   const [projectName, setProjectName] = useState("");
   const [client, setClient] = useState("");
   const [location, setLocation] = useState("");
@@ -15,6 +22,7 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
   const [periods, setPeriods] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState("");
   const [hspkLoading, setHspkLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // Kategori pekerjaan dinamis
   const [workCategories, setWorkCategories] = useState([]);
@@ -23,21 +31,38 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
   // Grades per kategori: { [categoryId]: ["A", "B"] }
   const [categoryGrades, setCategoryGrades] = useState({});
 
-  // Load periode + kategori saat modal buka
+  // Load periode + kategori saat modal buka, sekaligus prefill saat Edit.
   useEffect(() => {
     if (!isOpen) return;
+
+    setProjectName(initialProject?.name || "");
+    setClient(initialProject?.client?.name || "");
+    setLocation(initialProject?.location || "");
+    setSelectedPeriod(
+      initialProject?.hspkPeriod != null ? String(initialProject.hspkPeriod) : ""
+    );
+    setSelectedCategories({});
+    setCategoryGrades({});
+    setHspkLoading(true);
+    setSaving(false);
 
     const fetchPeriods = async () => {
       try {
         const result = await hspkService.getAvailableCombos();
         const combos = Array.isArray(result) ? result : [];
-        const uniqPeriods = Array.from(new Set(combos.map((r) => r.period)))
+        const currentPeriod = initialProject?.hspkPeriod;
+        const uniqPeriods = Array.from(
+          new Set([
+            ...combos.map((r) => r.period),
+            ...(currentPeriod != null ? [currentPeriod] : []),
+          ])
+        )
           .filter(Boolean)
           .sort((a, b) => Number(b) - Number(a));
         setPeriods(uniqPeriods);
       } catch (err) {
         console.error(err);
-        setPeriods([]);
+        setPeriods(initialProject?.hspkPeriod ? [initialProject.hspkPeriod] : []);
       } finally {
         setHspkLoading(false);
       }
@@ -48,6 +73,39 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
         const cats = await workCategoryService.getAll();
         const activeCats = (Array.isArray(cats) ? cats : []).filter((c) => c.isActive);
         setWorkCategories(activeCats);
+
+        if (!initialProject) return;
+        const existingConfigs = Array.isArray(initialProject.workCategories)
+          ? initialProject.workCategories
+          : [];
+        const next = {};
+
+        if (existingConfigs.length > 0) {
+          existingConfigs.forEach((config) => {
+            const categoryId = config.workCategoryId || config.workCategory?.id;
+            if (!categoryId) return;
+            next[categoryId] = {
+              pricingMode: String(config.pricingMode || "CUSTOM").toUpperCase(),
+              grade: config.grade || "",
+              isActive: config.isActive !== false,
+            };
+          });
+        } else {
+          // Proyek legacy: migrasikan konfigurasi Sipil/Interior ke bentuk dinamis.
+          activeCats.forEach((category) => {
+            const code = String(category.code || "").toUpperCase();
+            if (code !== "SIPIL" && code !== "INTERIOR") return;
+            const legacyGrade = code === "SIPIL"
+              ? initialProject.sipilGrade
+              : initialProject.interiorGrade;
+            next[category.id] = {
+              pricingMode: legacyGrade ? "HSPK" : "CUSTOM",
+              grade: legacyGrade || "",
+              isActive: true,
+            };
+          });
+        }
+        setSelectedCategories(next);
       } catch (err) {
         console.error("Gagal load kategori:", err);
         setWorkCategories([]);
@@ -56,7 +114,7 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
 
     fetchPeriods();
     fetchCategories();
-  }, [isOpen]);
+  }, [isOpen, initialProject]);
 
   // Load grade per kategori saat periode berubah
   useEffect(() => {
@@ -97,7 +155,20 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
           }
         })
       );
-      if (!cancelled) setCategoryGrades(gradesMap);
+      if (!cancelled) {
+        setCategoryGrades(gradesMap);
+        setSelectedCategories((prev) => {
+          const next = { ...prev };
+          Object.entries(next).forEach(([categoryId, config]) => {
+            if (config.pricingMode !== "HSPK") return;
+            const grades = gradesMap[categoryId] || [];
+            if (config.grade && !grades.includes(config.grade)) {
+              next[categoryId] = { ...config, grade: "" };
+            }
+          });
+          return next;
+        });
+      }
     };
 
     if (workCategories.length > 0) loadGrades();
@@ -109,13 +180,34 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
   if (!isOpen) return null;
 
   const toggleCategory = (catId) => {
-    setSelectedCategories((prev) => ({
-      ...prev,
-      [catId]: {
-        ...prev[catId],
-        isActive: !prev[catId]?.isActive,
-      },
-    }));
+    setSelectedCategories((prev) => {
+      const wasActive = Boolean(prev[catId]?.isActive);
+      if (wasActive) {
+        return { ...prev, [catId]: { ...prev[catId], isActive: false } };
+      }
+
+      // Centang = langsung pilih sumber harga default. Jika data HSPK tersedia
+      // untuk periode terpilih, mode HSPK + grade pertama; jika tidak, Custom.
+      // Ini mencegah dropdown "Sumber Harga" tampil kosong saat kartu aktif.
+      const grades = categoryGrades[catId] || [];
+      const previousMode = String(prev[catId]?.pricingMode || "").toUpperCase();
+      const hasPreviousMode = previousMode === "HSPK" || previousMode === "CUSTOM";
+      const pricingMode = hasPreviousMode
+        ? previousMode
+        : grades.length > 0 ? "HSPK" : "CUSTOM";
+      const previousGrade = prev[catId]?.grade || "";
+      const grade = pricingMode === "HSPK"
+        ? grades.includes(previousGrade) ? previousGrade : grades[0] || ""
+        : "";
+      return {
+        ...prev,
+        [catId]: {
+          pricingMode,
+          grade,
+          isActive: true,
+        },
+      };
+    });
   };
 
   const setCategoryMode = (catId, mode) => {
@@ -194,24 +286,30 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
       return cfg?.pricingMode === "HSPK" ? cfg.grade || null : null;
     };
 
-    const createPromise = projectService.create({
+    const payload = {
       name: projectName.trim(),
       clientName: client.trim(),
       location: location.trim(),
       hspkPeriod: Number(selectedPeriod),
       categories,
-      // Legacy fields tetap dikirim agar klien lama yang membaca ini kompatibel.
+      // Legacy fields tetap disinkronkan agar pembaca lama tetap kompatibel.
       interiorGrade: gradeForCode("INTERIOR"),
       sipilGrade: gradeForCode("SIPIL"),
-    });
+    };
+    const savePromise = isEditMode
+      ? projectService.update(initialProject.id, payload)
+      : projectService.create(payload);
 
+    setSaving(true);
     toast
-      .promise(createPromise, {
-        loading: "Membuat project...",
-        success: "Project berhasil dibuat!",
-        error: "Gagal membuat project.",
+      .promise(savePromise, {
+        loading: isEditMode ? "Menyimpan perubahan..." : "Membuat project...",
+        success: isEditMode
+          ? "Project berhasil diperbarui!"
+          : "Project berhasil dibuat!",
+        error: (err) => err?.message || `Gagal ${isEditMode ? "memperbarui" : "membuat"} project.`,
       })
-      .then(() => {
+      .then((savedProject) => {
         setProjectName("");
         setClient("");
         setLocation("");
@@ -219,17 +317,22 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
         setSelectedCategories({});
         setCategoryGrades({});
 
-        if (onProjectCreated) onProjectCreated();
+        if (isEditMode) {
+          if (onProjectSaved) onProjectSaved(savedProject);
+        } else if (onProjectCreated) {
+          onProjectCreated(savedProject);
+        }
         onClose();
       })
-      .catch((err) => console.error(err));
+      .catch((err) => console.error(err))
+      .finally(() => setSaving(false));
   };
 
   return (
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
-          <h3>Create New Project</h3>
+          <h3>{isEditMode ? "Edit Project" : "Create New Project"}</h3>
           <button className="close-btn" type="button" onClick={onClose}>
             <X size={20} />
           </button>
@@ -317,15 +420,11 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
                     key={cat.id}
                     className={`cat-card ${cfg.isActive ? "is-active" : "is-inactive"}`}
                   >
-                    <label
-                      className="cat-card-header"
-                      onClick={() => toggleCategory(cat.id)}
-                    >
+                    <label className="cat-card-header">
                       <input
                         type="checkbox"
                         checked={cfg.isActive}
                         onChange={() => toggleCategory(cat.id)}
-                        onClick={(e) => e.stopPropagation()}
                       />
                       <span className="cat-card-name">{cat.name}</span>
                       <span className="cat-card-code">{cat.code}</span>
@@ -379,11 +478,13 @@ const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
           </div>
 
           <div className="actions">
-            <button type="button" className="cancel" onClick={onClose}>
+            <button type="button" className="cancel" onClick={onClose} disabled={saving}>
               Cancel
             </button>
-            <button type="submit" className="create">
-              Create Project
+            <button type="submit" className="create" disabled={saving}>
+              {saving
+                ? isEditMode ? "Saving..." : "Creating..."
+                : isEditMode ? "Save Changes" : "Create Project"}
             </button>
           </div>
         </form>
