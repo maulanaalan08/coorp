@@ -673,23 +673,23 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // ==========================================================
   // EXPORT & VIEW
   // ==========================================================
-  const exportRabExcel = async () => {
-    if (!isSuperAdmin) return toast.error("Hanya SUPER_ADMIN yang dapat melihat RAB Selling.");
+  const exportRabExcel = async (mode = "COMBINED") => {
+    if (!isSuperAdmin) return toast.error("Hanya SUPER_ADMIN yang dapat export RAP/RAB.");
     if (!projectId) return;
     try {
-      const params = new URLSearchParams();
-      if (activeWorkCategoryId) params.set("workCategoryId", activeWorkCategoryId);
-      else if (activeDiscipline && activeDiscipline !== ALL_CATEGORY_FILTER) params.set("discipline", activeDiscipline);
+      const params = new URLSearchParams({ mode });
       const response = await fetch(`${API_BASE}/projects/${projectId}/rab-items/export?${params.toString()}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-      if (!response.ok) throw new Error("Gagal export RAB.");
+      if (!response.ok) throw new Error("Gagal export RAP/RAB.");
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
       link.href = url;
-      link.download = `RAB_${project?.name || projectId}.xlsx`;
+      const label = mode === "COMBINED" ? "RAP_RAB" : mode;
+      link.download = `${label}_${project?.name || projectId}.xlsx`;
       link.click();
       URL.revokeObjectURL(url);
+      toast.success(`Export ${label} seluruh kategori berhasil.`);
     } catch (error) {
       toast.error(error.message);
     }
@@ -729,23 +729,42 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     const url = URL.createObjectURL(await response.blob());
     const link = document.createElement("a"); link.href = url; link.download = `TimeSchedule_${project?.name || projectId}.xlsx`; link.click(); URL.revokeObjectURL(url);
   };
-  const viewRap = async () => {
+  const openRabDocument = async ({ mode = "RAP", format = "" } = {}) => {
     if (!projectId) return;
+    if ((mode === "RAB" || format === "invoice") && !isSuperAdmin) {
+      return toast.error("Hanya SUPER_ADMIN yang dapat membuka RAB Selling atau invoice.");
+    }
+
+    const previewWindow = window.open("", "_blank");
+    if (!previewWindow) {
+      return toast.error("Popup diblokir browser. Izinkan popup untuk membuka dokumen RAB.");
+    }
+    previewWindow.document.write('<p style="font-family:Arial,sans-serif;padding:24px">Memuat dokumen RAB...</p>');
+
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ mode });
+      if (format) params.set("format", format);
       if (activeWorkCategoryId) params.set("workCategoryId", activeWorkCategoryId);
       else if (activeDiscipline && activeDiscipline !== ALL_CATEGORY_FILTER) params.set("discipline", activeDiscipline);
       const response = await fetch(`${API_BASE}/projects/${projectId}/rab-items/view?${params.toString()}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-      if (!response.ok) throw new Error("Gagal membuka RAB.");
-      const url = URL.createObjectURL(await response.blob());
-      window.open(url, "_blank", "noopener,noreferrer");
-      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Gagal membuka dokumen RAB.");
+      }
+      const html = await response.text();
+      previewWindow.document.open();
+      previewWindow.document.write(html);
+      previewWindow.document.close();
     } catch (error) {
+      previewWindow.close();
       toast.error(error.message);
     }
   };
+  const viewRap = () => openRabDocument({ mode: "RAP" });
+  const viewRab = () => openRabDocument({ mode: "RAB" });
+  const viewInvoice = () => openRabDocument({ mode: "RAB", format: "invoice" });
 
   // ==========================================================
   // SYNC FINANCE
@@ -924,7 +943,11 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                     padding: '6px 0'
                   }}>
                     {[
-                      ...(isSuperAdmin ? [{ label: `RAB (${activeCategoryLabel})`, action: exportRabExcel }] : []),
+                      ...(isSuperAdmin ? [
+                        { label: `Export RAP (Semua Kategori)`, action: () => exportRabExcel("RAP") },
+                        { label: `Export RAB (Semua Kategori)`, action: () => exportRabExcel("RAB") },
+                        { label: `Export RAP + RAB (Semua Kategori)`, action: () => exportRabExcel("COMBINED") },
+                      ] : []),
                       { label: `BackUp Volume (${activeCategoryLabel})`, action: exportBvExcel },
                       { divider: true },
                       ...(isSuperAdmin ? [{ label: 'Semua Label (Lengkap)', action: exportFullExcel }] : []),
@@ -956,6 +979,12 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
               </div>
 
               <button className={styles["rab-btn"]} onClick={viewRap} type="button">View RAP</button>
+              {isSuperAdmin && (
+                <>
+                  <button className={styles["rab-btn"]} onClick={viewRab} type="button">View RAB</button>
+                  <button className={styles["rab-btn"]} onClick={viewInvoice} type="button">Invoice Client</button>
+                </>
+              )}
 
               {isSuperAdmin && (project?.rabStatus === "LOCKED" ? (
                 <button className={[styles["rab-btn"], styles["rab-btn-danger"]].join(" ")} onClick={handleCancelFinance} type="button">Batal Kirim Finance</button>
