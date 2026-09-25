@@ -253,7 +253,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .jo-summary-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 16px;
 }
 
@@ -445,28 +445,23 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .jo-status-belum-mulai {
-  background: #2a261e;
-  color: #9ca3af;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 
 .jo-status-on-progress {
-  background: rgba(96, 165, 250, 0.1);
-  color: #60a5fa;
+  background: rgba(234, 179, 8, 0.1);
+  color: #eab308;
 }
 
-.jo-status-qc-check {
-  background: rgba(212, 175, 55, 0.1);
-  color: #d4af37;
+.jo-status-quality-check {
+  background: rgba(217, 70, 239, 0.1);
+  color: #d946ef;
 }
 
 .jo-status-selesai {
-  background: rgba(46, 125, 50, 0.2);
-  color: #81c784;
-}
-
-.jo-status-volume-over {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
 }
 
 .jo-input-column {
@@ -543,9 +538,22 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   z-index: 5;
   background: #161513;
   min-width: 70px;
-  box-shadow: 4px 0 6px -4px rgba(0,0,0,0.3);
+  box-shadow: inset 2px 0 0 #d4af37, inset -2px 0 0 #d4af37 !important;
 }
 .jo-table thead th.jo-daily-sticky-weight {
+  z-index: 20 !important;
+  background: #0c0b09;
+}
+
+.jo-daily-sticky-right {
+  position: sticky !important;
+  right: 0;
+  z-index: 5;
+  background: #161513;
+  min-width: 80px;
+  box-shadow: inset 2px 0 0 #d4af37, inset -2px 0 0 #d4af37 !important;
+}
+.jo-table thead th.jo-daily-sticky-right {
   z-index: 20 !important;
   background: #0c0b09;
 }

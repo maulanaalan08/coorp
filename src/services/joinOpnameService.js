@@ -7,15 +7,22 @@ async function handleResponse(response) {
   if (!response.ok) throw new Error(json?.error || json?.message || `Error status ${response.status}`);
   return json;
 }
-
 export const joinOpnameService = {
+  getAuthHeaders: () => {
+    const token = localStorage.getItem('token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+  },
   getProjects: async () => {
-    const response = await fetch(buildApiUrl(API_BASE_URL, "/projects"));
+    const response = await fetch(buildApiUrl(API_BASE_URL, "/projects"), {
+      headers: joinOpnameService.getAuthHeaders()
+    });
     return handleResponse(response);
   },
 
   getJoinOpname: async (projectId, discipline) => {
-    const response = await fetch(buildApiUrl(API_BASE_URL, `/projects/${projectId}/join-opname`, { discipline }));
+    const response = await fetch(buildApiUrl(API_BASE_URL, `/projects/${projectId}/join-opname`, { discipline }), {
+      headers: joinOpnameService.getAuthHeaders()
+    });
     return handleResponse(response);
   },
 
@@ -35,6 +42,7 @@ export const joinOpnameService = {
     const response = await fetch(buildApiUrl(API_BASE_URL, `/rab-items/${rabItemId}/progress`), {
       method: "PUT",
       body: formData, // fetch otomatis mengatur headers Content-Type multipart/form-data
+      headers: joinOpnameService.getAuthHeaders()
     });
     return handleResponse(response);
   },

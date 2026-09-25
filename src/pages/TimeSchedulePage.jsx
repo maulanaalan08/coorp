@@ -63,11 +63,17 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
   const handleSaveAllSchedules = async () => {
     const schedulesToSave = [];
     for (const [rabItemId, draft] of Object.entries(editDrafts)) {
-      if (draft.startDate && draft.endDate) {
+      const item = items.find(i => i.rabItemId === rabItemId);
+      if (!item) continue;
+      
+      const startDate = draft.startDate ?? (item.startDate ? String(item.startDate).slice(0, 10) : "");
+      const endDate = draft.endDate ?? (item.endDate ? String(item.endDate).slice(0, 10) : "");
+
+      if (startDate && endDate) {
         schedulesToSave.push({
           rabItemId,
-          startDate: draft.startDate,
-          endDate: draft.endDate,
+          startDate,
+          endDate,
         });
       }
     }

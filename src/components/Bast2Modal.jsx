@@ -115,10 +115,11 @@ const Bast2Modal = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
 
           <div className={styles.formGroup}>
             <label className={styles.label}>Status / Keterangan (Opsional)</label>
-            <input
-              type="text"
+            <textarea
               name="statusText"
               className={styles.input}
+              rows={3}
+              style={{ resize: 'vertical' }}
               value={formData.statusText}
               onChange={handleChange}
               placeholder="SELESAI DIKERJAKAN 100% dan DITERIMA DENGAN BAIK"

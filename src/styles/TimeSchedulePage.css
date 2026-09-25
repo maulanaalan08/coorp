@@ -371,13 +371,14 @@
 
 /* Kolom tetap */
 .tsp-col-name { left: 0; min-width: 250px; max-width: 250px; }
+.tsp-col-label { left: 250px; min-width: 120px; max-width: 120px; }
 .tsp-name-wrapper { white-space: normal; word-wrap: break-word; line-height: 1.4; }
-.tsp-col-unit { left: 250px; min-width: 70px; max-width: 70px; }
-.tsp-col-volume { left: 320px; min-width: 80px; max-width: 80px; text-align: right; }
-.tsp-col-price { left: 400px; min-width: 130px; max-width: 130px; text-align: right; }
-.tsp-col-weight { left: 530px; min-width: 80px; max-width: 80px; text-align: right; }
-.tsp-col-range { left: 610px; min-width: 140px; max-width: 140px; }
-.tsp-col-action { left: 750px; min-width: 80px; max-width: 80px; box-shadow: 4px 0 6px -4px rgba(0,0,0,0.3); }
+.tsp-col-unit { left: 370px; min-width: 70px; max-width: 70px; }
+.tsp-col-volume { left: 440px; min-width: 80px; max-width: 80px; text-align: right; }
+.tsp-col-price { left: 520px; min-width: 130px; max-width: 130px; text-align: right; }
+.tsp-col-weight { left: 650px; min-width: 80px; max-width: 80px; text-align: right; }
+.tsp-col-range { left: 730px; min-width: 140px; max-width: 140px; }
+.tsp-col-action { left: 870px; min-width: 80px; max-width: 80px; box-shadow: 4px 0 6px -4px rgba(0,0,0,0.3); }
 
 .tsp-week-col {
   min-width: 64px;

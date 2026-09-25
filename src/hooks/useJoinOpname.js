@@ -38,16 +38,8 @@ export function useJoinOpname(initialProjectId) {
       const breakdown = (item.dailyBreakdown || []).find((day) => toInputDate(day.date) === date);
       
       let defaultPercent = "0";
-      if (breakdown) {
+      if (breakdown && breakdown.hasProgress) {
         defaultPercent = String(breakdown.progress ?? 0);
-      } else {
-        let maxPrevProgress = 0;
-        (item.dailyBreakdown || []).forEach(day => {
-          if (new Date(day.date).getTime() < targetTime) {
-            maxPrevProgress = Math.max(maxPrevProgress, day.progress ?? 0);
-          }
-        });
-        defaultPercent = String(maxPrevProgress);
       }
 
       result[item.rabItemId] = {
@@ -81,7 +73,9 @@ export function useJoinOpname(initialProjectId) {
       const json = await joinOpnameService.getJoinOpname(id, disc === "General" ? "" : disc);
       setData(json);
       if (!selectedDate && json?.days?.length) {
-        const initDate = toInputDate(json.days[0].date);
+        const todayStr = toInputDate(new Date());
+        const maxDateStr = toInputDate(json.days[json.days.length - 1].date);
+        const initDate = todayStr > maxDateStr ? maxDateStr : todayStr;
         setSelectedDate(initDate);
         setProgressInputs(buildProgressInputs(json.items || [], initDate));
       } else {
@@ -137,7 +131,7 @@ export function useJoinOpname(initialProjectId) {
     toast.promise(joinOpnameService.updateProgress(item.rabItemId, selectedDate, progress, inputData.files), {
       loading: 'Menyimpan progress...',
       success: `Progress "${item.name}" berhasil disimpan.`,
-      error: 'Gagal menyimpan progress.'
+      error: (err) => err.message || 'Gagal menyimpan progress.'
     }).then(() => {
       fetchJoinOpname(projectId);
     }).catch(err => {
@@ -175,17 +169,52 @@ export function useJoinOpname(initialProjectId) {
   const selectedDay = useMemo(() => days.find((day) => toInputDate(day.date) === selectedDate), [days, selectedDate]);
 
   const summary = useMemo(() => {
-    if (!items.length) return { totalItems: 0, completed: 0, onProgress: 0, notStarted: 0, averageProgress: 0 };
-    let completed = 0, onProgress = 0, notStarted = 0, total = 0;
+    if (!items.length) return { totalItems: 0, completed: 0, qualityCheck: 0, onProgress: 0, notStarted: 0, accumulatedWeight: 0, unfilledDays: 0 };
+    let completed = 0, qualityCheck = 0, onProgress = 0, notStarted = 0;
+    let accumulatedWeight = 0;
+
     items.forEach((item) => {
       const progress = Number(item.rekapProgress) || 0;
-      total += progress;
-      if (progress === 0) notStarted += 1;
-      else if (progress >= 100) completed += 1;
-      else onProgress += 1;
+      
+      if (!item.hasChildren) {
+         accumulatedWeight += (Number(item.weight) * progress) / 100;
+      }
+
+      if (progress >= 100) completed += 1;
+      else if (progress >= 95) qualityCheck += 1;
+      else if (progress > 50) onProgress += 1;
+      else notStarted += 1;
     });
-    return { totalItems: items.length, completed, onProgress, notStarted, averageProgress: total / items.length };
-  }, [items]);
+
+    let unfilledDays = 0;
+    if (days.length > 0) {
+      const today = new Date().setHours(0,0,0,0);
+      days.forEach(day => {
+        const dayTime = new Date(day.date).setHours(0,0,0,0);
+        if (dayTime > today) return; // Ignore future days
+        
+        let hasExpected = false;
+        let missed = false;
+        
+        items.forEach(item => {
+          if (item.hasChildren) return;
+          const breakdown = item.dailyBreakdown?.find(r => r.dayNumber === day.dayNumber);
+          if (breakdown?.inSchedule) {
+            hasExpected = true;
+            if (!breakdown.progress || breakdown.progress <= 0) {
+              missed = true;
+            }
+          }
+        });
+        
+        if (hasExpected && missed) {
+          unfilledDays++;
+        }
+      });
+    }
+
+    return { totalItems: items.length, completed, qualityCheck, onProgress, notStarted, accumulatedWeight, unfilledDays };
+  }, [items, days]);
 
   return {
     projectId, projectList, loadingProjects, projectError,

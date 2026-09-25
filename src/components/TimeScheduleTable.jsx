@@ -49,6 +49,7 @@ export default function TimeScheduleTable({
         <thead>
           <tr>
             <th className="tsp-sticky-col tsp-col-name">Nama Pekerjaan</th>
+            <th className="tsp-sticky-col tsp-col-label">Label</th>
             <th className="tsp-sticky-col tsp-col-unit">Satuan</th>
             <th className="tsp-sticky-col tsp-col-volume">Volume</th>
             <th className="tsp-sticky-col tsp-col-price">Nilai RAP</th>
@@ -69,7 +70,7 @@ export default function TimeScheduleTable({
           {groupedItems.map(([groupName, groupItems]) => (
             <React.Fragment key={groupName}>
               <tr className="tsp-group-heading-row">
-                <td className="tsp-sticky-col tsp-group-heading" colSpan={isChart ? 5 : 7}>{groupName}</td>
+                <td className="tsp-sticky-col tsp-group-heading" colSpan={isChart ? 6 : 8}>{groupName}</td>
                 {isChart && periods.map((p) => <td key={p.index} className="tsp-week-col tsp-group-heading-cell" />)}
               </tr>
               {groupItems.map((item) => {
@@ -85,10 +86,13 @@ export default function TimeScheduleTable({
                       <div className="tsp-name-wrapper">
                         {item.isChild && <span className="tsp-child-indent">↳ </span>}
                         {item.name}
+                      </div>
+                    </td>
+                    <td className="tsp-sticky-col tsp-col-label">
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
                         {item.discipline && item.discipline !== 'GENERAL' && (
                           <span
                             style={{
-                              marginLeft: '6px',
                               fontSize: '9px',
                               textTransform: 'uppercase',
                               padding: '2px 6px',
@@ -100,8 +104,8 @@ export default function TimeScheduleTable({
                             {item.discipline}
                           </span>
                         )}
-                        {item.isByOwner && <span className="tsp-owner-tag" style={{ marginLeft: '6px' }}>By Owner</span>}
-                        {item.isStip && <span className="tsp-stip-tag" style={{ marginLeft: '6px' }}>Stip</span>}
+                        {item.isByOwner && <span className="tsp-owner-tag">By Owner</span>}
+                        {item.isStip && <span className="tsp-stip-tag">Stip</span>}
                       </div>
                     </td>
                     <td className="tsp-sticky-col tsp-col-unit">{item.paymentUnit || "-"}</td>

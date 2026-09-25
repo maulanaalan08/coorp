@@ -10,6 +10,8 @@ import "../styles/TimeSchedulePage.css";
 import toast from "react-hot-toast";
 
 function JoinOpnamePage({ initialProjectId = null }) {
+  const dailyTableWrapperRef = React.useRef(null);
+
   const {
     projectId, projectList, loadingProjects, projectError,
     data, loading, error, notice,
@@ -29,6 +31,20 @@ function JoinOpnamePage({ initialProjectId = null }) {
       }
     }
   }, [loadingProjects, loading, error, projectError]);
+
+  React.useEffect(() => {
+    // Auto-scroll to current day column
+    if (dailyTableWrapperRef.current) {
+      // Find the first cell of the current day
+      const currentDayEl = dailyTableWrapperRef.current.querySelector('.jo-current-day-cell');
+      if (currentDayEl) {
+        const wrapper = dailyTableWrapperRef.current;
+        // Calculate the scroll position to center the cell
+        const scrollLeft = currentDayEl.offsetLeft - (wrapper.clientWidth / 2) + (currentDayEl.clientWidth / 2);
+        wrapper.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+      }
+    }
+  }, [selectedDate, days]);
 
   return (
     <div className="join-opname-page">
@@ -78,9 +94,23 @@ function JoinOpnamePage({ initialProjectId = null }) {
           <div className="jo-summary-grid">
             <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #e5e7eb' }}><span>Total Item</span><strong style={{ color: '#e5e7eb' }}>{summary.totalItems}</strong></div>
             <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #ef4444' }}><span>Belum Mulai</span><strong style={{ color: '#ef4444' }}>{summary.notStarted}</strong></div>
-            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #60a5fa' }}><span>On Progress</span><strong style={{ color: '#60a5fa' }}>{summary.onProgress}</strong></div>
-            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #81c784' }}><span>Selesai</span><strong style={{ color: '#81c784' }}>{summary.completed}</strong></div>
-            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #d4af37' }}><span>Rata-rata Progress</span><strong style={{ color: '#d4af37' }}>{formatPercent(summary.averageProgress)}%</strong></div>
+            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #eab308' }}><span>On Progress</span><strong style={{ color: '#eab308' }}>{summary.onProgress}</strong></div>
+            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #d946ef' }}><span>Quality Check</span><strong style={{ color: '#d946ef' }}>{summary.qualityCheck}</strong></div>
+            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #22c55e' }}><span>Selesai</span><strong style={{ color: '#22c55e' }}>{summary.completed}</strong></div>
+            <div className="jo-card jo-summary-card" style={{ borderTop: '3px solid #d4af37' }}><span>Akumulasi Bobot</span><strong style={{ color: '#d4af37' }}>{formatPercent(summary.accumulatedWeight)}%</strong></div>
+          </div>
+          
+          <div className="jo-card" style={{ 
+            marginTop: '16px', 
+            borderLeft: summary.unfilledDays > 0 ? '4px solid #ef4444' : '4px solid #22c55e', 
+            backgroundColor: summary.unfilledDays > 0 ? '#1a1010' : '#0a1a10',
+            padding: '12px 16px'
+          }}>
+            <div style={{ color: summary.unfilledDays > 0 ? '#ef4444' : '#22c55e', fontWeight: 'bold', fontSize: '13px' }}>
+              {summary.unfilledDays > 0 
+                ? `⚠️ Perhatian: Terdapat ${summary.unfilledDays} hari kerja di mana progress harian tidak diisi secara lengkap.` 
+                : '✔️ Semua hari kerja telah diisi dengan lengkap sejauh ini.'}
+            </div>
           </div>
 
           {loading && <div className="jo-card jo-loading"><div className="jo-spinner" /><span>Memuat data Join Opname...</span></div>}
@@ -155,18 +185,25 @@ function JoinOpnamePage({ initialProjectId = null }) {
               <div className="jo-table-header">
                 <div><h2>Breakdown Progress Harian</h2><p>Progress, bobot, dan volume terlaksana setiap hari.</p></div>
               </div>
-              <div className="jo-table-wrapper">
+              <div className="jo-table-wrapper" ref={dailyTableWrapperRef}>
                 <table className="jo-table jo-daily-table">
                   <thead>
                     <tr>
                       <th className="jo-daily-sticky-name">Pekerjaan</th>
                       <th className="jo-daily-sticky-weight">Bobot</th>
-                      {days.map((day) => (
-                        <th key={day.dayNumber}>
-                          <div>Hari {day.dayNumber}</div>
-                          <small>{formatDate(day.date)}</small>
-                        </th>
-                      ))}
+                      {days.map((day) => {
+                        const isRealTimeToday = new Date(day.date).setHours(0,0,0,0) === new Date().setHours(0,0,0,0);
+                        return (
+                          <th 
+                            key={day.dayNumber}
+                            style={isRealTimeToday ? { background: '#eab308', color: '#000' } : {}}
+                          >
+                            <div style={isRealTimeToday ? { fontWeight: 'bold', color: '#000' } : {}}>Hari {day.dayNumber}</div>
+                            <small style={isRealTimeToday ? { color: '#111', fontWeight: 'bold' } : {}}>{formatDate(day.date)}</small>
+                          </th>
+                        );
+                      })}
+                      <th className="jo-daily-sticky-right">Rekap</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -177,6 +214,8 @@ function JoinOpnamePage({ initialProjectId = null }) {
                         {days.map((day) => {
                           const breakdown = item.dailyBreakdown?.find((r) => r.dayNumber === day.dayNumber);
                           const isOob = breakdown && !breakdown.inSchedule && !breakdown.hasProgress;
+                          const isMissed = breakdown?.inSchedule && (!breakdown.progress || breakdown.progress <= 0) && (new Date(day.date).setHours(0,0,0,0) <= new Date().setHours(0,0,0,0));
+                          
                           return (
                             <td key={day.dayNumber} className={selectedDate === toInputDate(day.date) ? "jo-current-day-cell" : ""}>
                               {item.hasChildren ? (
@@ -185,7 +224,9 @@ function JoinOpnamePage({ initialProjectId = null }) {
                                 <div className="jo-day-progress jo-muted" style={{opacity: 0.3}}>-</div>
                               ) : (
                                 <div className="jo-day-progress">
-                                  <strong>{formatPercent(breakdown?.progress || 0)}%</strong>
+                                  <strong style={{ color: isMissed ? '#ef4444' : 'inherit' }}>
+                                    {formatPercent(breakdown?.progress || 0)}%
+                                  </strong>
                                   <small>Vol: {formatNumber(breakdown?.volume || 0)}</small>
                                 
                                 {/* Fungsi untuk melihat foto aktual lapangan jika URL tersedia */}
@@ -217,6 +258,7 @@ function JoinOpnamePage({ initialProjectId = null }) {
                             </td>
                           );
                         })}
+                        <td className="jo-daily-sticky-right"><strong>{formatPercent(item.rekapProgress)}%</strong></td>
                       </tr>
                     ))}
                   </tbody>
