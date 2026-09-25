@@ -11,10 +11,6 @@ import {
   MoreVertical,
   ChevronLeft,
   ChevronRight,
-  X,
-  Save,
-  Pencil,
-  Trash2
 } from "lucide-react";
 
 import Header from "../components/Header";
@@ -22,188 +18,7 @@ import StatCard from "../components/StatCard";
 import ProjectTableRow from "../components/ProjectTableRow";
 import CreateProjectModal from "../components/CreateProjectModal";
 import { useProjects } from "../hooks/useProjects";
-import { hspkService } from "../services/hspkService";
 import toast from "react-hot-toast";
-
-// ================================================================
-// INLINE EDIT MODAL — Desain selaras dengan CreateProjectModal
-// ================================================================
-function EditProjectModal({ editProject, editForm, setEditForm, editError, savingEdit, onClose, onChange, onSubmit }) {
-  const [hspkOptions, setHspkOptions] = React.useState([]);
-  const [hspkLoading, setHspkLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    const fetchHspk = async () => {
-      try {
-        const result = await hspkService.getAvailableCombos();
-        setHspkOptions(result);
-      } catch (err) {
-        console.error(err);
-        setHspkOptions([]);
-      } finally {
-        setHspkLoading(false);
-      }
-    };
-    if (editProject) fetchHspk();
-  }, [editProject]);
-
-  const filteredHspkOptions = hspkOptions.filter(combo => {
-    if (!editForm.discipline) return false;
-    return combo.discipline?.toUpperCase() === editForm.discipline.toUpperCase();
-  });
-
-  if (!editProject) return null;
-
-  return (
-    <div className="modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !savingEdit) onClose(); }}>
-      <div className="modal-content" style={{ maxWidth: 640 }}>
-        <div className="modal-header">
-          <h3>Edit Project</h3>
-          <button className="close-btn" type="button" onClick={onClose} disabled={savingEdit}>
-            <X size={20} />
-          </button>
-        </div>
-
-        <form className="project-form" onSubmit={onSubmit}>
-          {editError && (
-            <div style={{
-              background: 'rgba(239,68,68,0.1)',
-              border: '1px solid rgba(239,68,68,0.35)',
-              color: '#ef4444',
-              padding: '12px 16px',
-              borderRadius: 4,
-              fontSize: '0.85rem',
-              marginBottom: 20
-            }}>
-              {editError}
-            </div>
-          )}
-
-          <div className="card">
-            <h2>Informasi Project</h2>
-            <div className="grid">
-              <div className="form-group">
-                <label>Project Name</label>
-                <input
-                  id="edit-name"
-                  name="name"
-                  type="text"
-                  value={editForm.name}
-                  onChange={onChange}
-                  placeholder="Nama project"
-                  disabled={savingEdit}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Client Name</label>
-                <input
-                  id="edit-clientName"
-                  name="clientName"
-                  type="text"
-                  value={editForm.clientName}
-                  onChange={onChange}
-                  placeholder="Nama client"
-                  disabled={savingEdit}
-                />
-              </div>
-
-              <div className="form-group full">
-                <label>Location</label>
-                <input
-                  id="edit-location"
-                  name="location"
-                  type="text"
-                  value={editForm.location}
-                  onChange={onChange}
-                  placeholder="Lokasi project"
-                  disabled={savingEdit}
-                />
-              </div>
-
-              <div className="form-group full">
-                <label>Kategori Pekerjaan</label>
-                <select
-                  name="discipline"
-                  value={editForm.discipline}
-                  onChange={(e) => {
-                    onChange(e);
-                    // Reset grade & hspkPeriod on discipline change to force re-selection
-                    setEditForm((prev) => ({ ...prev, grade: "", hspkPeriod: "" }));
-                  }}
-                  disabled={savingEdit}
-                >
-                  <option value="">— Pilih Kategori —</option>
-                  <option value="SIPIL">Sipil</option>
-                  <option value="INTERIOR">Interior</option>
-                </select>
-              </div>
-
-              <div className="form-group full">
-                <label>Pilih Data HSPK</label>
-                <select
-                  value={
-                    filteredHspkOptions.findIndex(
-                      (c) =>
-                        String(c.period) === String(editForm.hspkPeriod) &&
-                        String(c.grade) === String(editForm.grade)
-                    ) !== -1
-                      ? filteredHspkOptions.findIndex(
-                          (c) =>
-                            String(c.period) === String(editForm.hspkPeriod) &&
-                            String(c.grade) === String(editForm.grade)
-                        )
-                      : ""
-                  }
-                  onChange={(e) => {
-                    const idx = e.target.value;
-                    const selected = filteredHspkOptions[idx];
-                    if (selected) {
-                      setEditForm((prev) => ({
-                        ...prev,
-                        hspkPeriod: selected.period,
-                        grade: selected.grade,
-                        discipline: selected.discipline,
-                      }));
-                    }
-                  }}
-                  disabled={savingEdit || !editForm.discipline}
-                >
-                  <option value="" disabled>
-                    {hspkLoading
-                      ? "-- memuat --"
-                      : !editForm.discipline
-                      ? "-- Pilih kategori pekerjaan dulu --"
-                      : "-- pilih data HSPK --"}
-                  </option>
-                  {filteredHspkOptions.map((combo, index) => (
-                    <option key={index} value={index}>
-                      {combo.period} — {combo.discipline} — Grade {combo.grade}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="actions">
-            <button type="button" className="cancel" onClick={onClose} disabled={savingEdit}>
-              Cancel
-            </button>
-            <button type="submit" className="create" disabled={savingEdit}>
-              {savingEdit ? (
-                <><RefreshCw size={16} style={{ display: 'inline', marginRight: 6, animation: 'spin 1s linear infinite' }} /> Saving...</>
-              ) : (
-                <><Save size={16} style={{ display: 'inline', marginRight: 6 }} /> Save Changes</>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 // ================================================================
 // KOMPONEN UTAMA DASHBOARD
@@ -216,25 +31,19 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
     loadingSurvey,
     error,
     refresh: loadProjects,
-    updateProject,
     deleteProject,
   } = useProjects();
 
-  // Modal States
+  // Create dan Edit memakai modal yang sama.
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editProject, setEditProject] = useState(null);
-  const [editForm, setEditForm] = useState({
-    name: "", location: "", hspkPeriod: "", discipline: "", grade: "", clientName: "",
-  });
-  const [savingEdit, setSavingEdit] = useState(false);
-  const [editError, setEditError] = useState(null);
 
   // ============================================================
   // HANDLERS
   // ============================================================
   const handleDeleteProject = async (id, name) => {
     if (!window.confirm(`Hapus project "${name}"?`)) return;
-    
+
     toast.promise(deleteProject(id), {
       loading: 'Menghapus project...',
       success: 'Project berhasil dihapus!',
@@ -245,58 +54,11 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
   };
 
   const openEditProjectModal = (project) => {
-    setEditError(null);
     setEditProject(project);
-    setEditForm({
-      name: project?.name || "",
-      location: project?.location || "",
-      hspkPeriod: project?.hspkPeriod != null ? String(project.hspkPeriod) : "",
-      discipline: project?.discipline || "",
-      grade: project?.grade || "",
-      clientName: project?.client?.name || "",
-    });
   };
 
   const closeEditProjectModal = () => {
-    if (savingEdit) return;
     setEditProject(null);
-    setEditError(null);
-  };
-
-  const handleEditChange = (e) => {
-    const { name, value } = e.target;
-    setEditForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSaveEditProject = async (e) => {
-    e.preventDefault();
-    if (!editProject?.id || !editForm.name.trim()) return;
-    setSavingEdit(true);
-    try {
-      const updatePromise = updateProject(editProject.id, {
-        name: editForm.name.trim(),
-        location: editForm.location.trim(),
-        hspkPeriod: editForm.hspkPeriod === "" ? null : Number(editForm.hspkPeriod),
-        discipline: editForm.discipline.trim(),
-        grade: editForm.grade.trim(),
-        clientName: editForm.clientName.trim(),
-      });
-
-      toast.promise(updatePromise, {
-        loading: 'Menyimpan perubahan...',
-        success: 'Project berhasil diperbarui!',
-        error: 'Gagal memperbarui project.'
-      }).then(() => {
-        closeEditProjectModal();
-      }).catch((err) => {
-        setEditError(err.message);
-      }).finally(() => {
-        setSavingEdit(false);
-      });
-    } catch (err) {
-      setEditError(err.message);
-      setSavingEdit(false);
-    }
   };
 
   React.useEffect(() => {
@@ -396,17 +158,17 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
         </div>
       </div>
 
-      <CreateProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onProjectCreated={loadProjects} />
+      <CreateProjectModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onProjectCreated={loadProjects}
+      />
 
-      <EditProjectModal
-        editProject={editProject}
-        editForm={editForm}
-        setEditForm={setEditForm}
-        editError={editError}
-        savingEdit={savingEdit}
+      <CreateProjectModal
+        isOpen={Boolean(editProject)}
+        initialProject={editProject}
         onClose={closeEditProjectModal}
-        onChange={handleEditChange}
-        onSubmit={handleSaveEditProject}
+        onProjectSaved={loadProjects}
       />
     </div>
   );
