@@ -135,11 +135,23 @@ const Survey3DTab = ({ projectId }) => {
 
   const handleSave = async () => {
     if (!projectId) return;
+
+    const resourcesToSave = resources.filter((resource) => (
+      resource.title.trim() || resource.url.trim()
+    ));
+    const invalidResourceIndex = resourcesToSave.findIndex((resource) => (
+      !resource.title.trim() || !resource.url.trim()
+    ));
+    if (invalidResourceIndex !== -1) {
+      toast.error(`Judul dan URL data pendukung ke-${invalidResourceIndex + 1} wajib diisi.`);
+      return;
+    }
+
     const formData = new FormData();
     formData.append('survey3dData', JSON.stringify({
       status,
       notes: notes.trim() || '',
-      resources: resources.map((resource) => ({
+      resources: resourcesToSave.map((resource) => ({
         type: resource.type,
         title: resource.title.trim(),
         url: resource.url.trim(),
@@ -159,7 +171,7 @@ const Survey3DTab = ({ projectId }) => {
     toast.promise(surveyService.save3dResult(projectId, formData), {
       loading: 'Menyimpan hasil desain 3D...',
       success: 'Hasil desain 3D tersimpan!',
-      error: 'Gagal menyimpan hasil desain 3D.',
+      error: (error) => error?.message || 'Gagal menyimpan hasil desain 3D.',
     }).then((data) => {
       setStatus(data.status || 'NOT_STARTED');
       setResources(normalizeLoadedResources(data));
