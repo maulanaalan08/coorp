@@ -429,6 +429,182 @@ select.select3d option {
   color: #f2ead9;
 }
 
+.resource3dSection {
+  margin-top: 18px;
+  padding: 16px;
+  background: #12100c;
+  border: 1px solid #322b1e;
+  border-radius: 6px;
+}
+
+.resource3dHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.resource3dEyebrow {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: #7d6733;
+}
+
+.resource3dHint {
+  margin: 4px 0 0;
+  font-size: 0.76rem;
+  color: #a89c85;
+}
+
+.resource3dList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resource3dItem {
+  display: grid;
+  grid-template-columns: 30px minmax(130px, 0.7fr) minmax(160px, 1fr) minmax(220px, 1.5fr) 34px 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #17140f;
+  border: 1px solid #282218;
+  border-radius: 4px;
+}
+
+.resource3dNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #322b1e;
+  border-radius: 50%;
+  color: #c9a24b;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+}
+
+.resource3dType {
+  width: fit-content;
+  padding: 4px 7px;
+  border: 1px solid #3d3321;
+  border-radius: 3px;
+  color: #c9a24b;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+}
+
+.resource3dReadOnly {
+  grid-column: span 3;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.resource3dReadOnly strong {
+  color: #f2ead9;
+  font-size: 0.84rem;
+}
+
+.resource3dReadOnly span {
+  overflow: hidden;
+  color: #a89c85;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource3dOpen,
+.resource3dDelete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  box-sizing: border-box;
+  transition: border-color 0.2s, color 0.2s, background-color 0.2s;
+}
+
+.resource3dOpen {
+  border: 1px solid #3d3321;
+  color: #c9a24b;
+  background: transparent;
+}
+
+.resource3dOpen:hover {
+  border-color: #c9a24b;
+  color: #e8c874;
+}
+
+.resource3dDelete {
+  border: 1px solid rgba(239, 68, 68, 0.32);
+  color: #ef4444;
+  background: transparent;
+  cursor: pointer;
+}
+
+.resource3dDelete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+}
+
+.resource3dEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 74px;
+  color: #7d6733;
+  border: 1px dashed #322b1e;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 900px) {
+  .form3dRow {
+    grid-template-columns: 1fr;
+  }
+
+  .resource3dItem {
+    grid-template-columns: 30px 1fr 34px 34px;
+  }
+
+  .resource3dItem > .select3d,
+  .resource3dItem > .input3d {
+    grid-column: 2 / -1;
+  }
+
+  .resource3dItem > .resource3dNumber {
+    grid-row: 1;
+  }
+
+  .resource3dReadOnly {
+    grid-column: 2 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .resource3dHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .resource3dHeader .btnIcon {
+    justify-content: center;
+  }
+
+  .resource3dItem {
+    grid-template-columns: 30px 1fr 34px 34px;
+  }
+}
+
 .gallery3d {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

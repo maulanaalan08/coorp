@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { RefreshCw, Map, Link2, ExternalLink, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { RefreshCw, Map, Link2, ExternalLink, Upload, X, Image as ImageIcon, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { surveyService } from '../services/surveyService';
@@ -26,6 +26,33 @@ const STATUS_3D_COLOR = {
   FINAL: '#4ade80',
 };
 
+const RESOURCE_TYPE_OPTIONS = [
+  { value: 'GOOGLE_DRIVE', label: 'Google Drive' },
+  { value: 'MODEL_3D', label: 'Model 3D' },
+  { value: 'DOCUMENT', label: 'Dokumen' },
+  { value: 'OTHER_LINK', label: 'Link Lainnya' },
+];
+
+const emptyResource = () => ({
+  type: 'GOOGLE_DRIVE',
+  title: '',
+  url: '',
+});
+
+const normalizeLoadedResources = (data) => {
+  if (Array.isArray(data.resources) && data.resources.length > 0) {
+    return data.resources.map(({ id, type, title, url }) => ({ id, type, title, url }));
+  }
+  if (data.gdriveUrl) {
+    return [{
+      type: 'GOOGLE_DRIVE',
+      title: 'Model 3D - Google Drive',
+      url: data.gdriveUrl,
+    }];
+  }
+  return [];
+};
+
 const Survey3DTab = ({ projectId }) => {
   const { user } = useAuth();
   const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'PERENCANA';
@@ -33,7 +60,7 @@ const Survey3DTab = ({ projectId }) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('NOT_STARTED');
-  const [gdriveUrl, setGdriveUrl] = useState('');
+  const [resources, setResources] = useState([]);
   const [notes, setNotes] = useState('');
   const [existingImages, setExistingImages] = useState([]);
   const [newFiles, setNewFiles] = useState([]);
@@ -45,7 +72,7 @@ const Survey3DTab = ({ projectId }) => {
     let cancelled = false;
     if (!projectId) {
       setStatus('NOT_STARTED');
-      setGdriveUrl('');
+      setResources([]);
       setNotes('');
       setExistingImages([]);
       setNewFiles([]);
@@ -57,7 +84,7 @@ const Survey3DTab = ({ projectId }) => {
       .then((data) => {
         if (cancelled) return;
         setStatus(data.status || 'NOT_STARTED');
-        setGdriveUrl(data.gdriveUrl || '');
+        setResources(normalizeLoadedResources(data));
         setNotes(data.notes || '');
         setExistingImages(Array.isArray(data.images) ? data.images : []);
         setNewFiles([]);
@@ -88,13 +115,35 @@ const Survey3DTab = ({ projectId }) => {
     setExistingImages((prev) => prev.filter((img) => img.id !== id));
   };
 
+  const handleAddResource = () => {
+    if (resources.length >= 20) {
+      toast.error('Maksimal 20 data pendukung untuk satu hasil desain.');
+      return;
+    }
+    setResources((prev) => [...prev, emptyResource()]);
+  };
+
+  const handleUpdateResource = (index, field, value) => {
+    setResources((prev) => prev.map((resource, resourceIndex) => (
+      resourceIndex === index ? { ...resource, [field]: value } : resource
+    )));
+  };
+
+  const handleRemoveResource = (index) => {
+    setResources((prev) => prev.filter((_, resourceIndex) => resourceIndex !== index));
+  };
+
   const handleSave = async () => {
     if (!projectId) return;
     const formData = new FormData();
     formData.append('survey3dData', JSON.stringify({
       status,
-      gdriveUrl: gdriveUrl.trim() || '',
       notes: notes.trim() || '',
+      resources: resources.map((resource) => ({
+        type: resource.type,
+        title: resource.title.trim(),
+        url: resource.url.trim(),
+      })),
       existingImages: existingImages.map((img) => ({ id: img.id, caption: img.caption || '' })),
     }));
     for (let i = 0; i < newFiles.length; i++) {
@@ -113,7 +162,7 @@ const Survey3DTab = ({ projectId }) => {
       error: 'Gagal menyimpan hasil desain 3D.',
     }).then((data) => {
       setStatus(data.status || 'NOT_STARTED');
-      setGdriveUrl(data.gdriveUrl || '');
+      setResources(normalizeLoadedResources(data));
       setNotes(data.notes || '');
       setExistingImages(Array.isArray(data.images) ? data.images : []);
       setNewFiles([]);
@@ -185,50 +234,116 @@ const Survey3DTab = ({ projectId }) => {
           )}
         </div>
         <div className={styles.formGroup}>
-          <label>Link Google Drive (Model 3D)</label>
+          <label>Catatan Desain</label>
           {canEdit ? (
-            <input
-              type="url"
+            <textarea
               className={styles.input3d}
-              placeholder="https://drive.google.com/file/d/..."
-              value={gdriveUrl}
-              onChange={(e) => setGdriveUrl(e.target.value)}
+              rows={2}
+              placeholder="Catatan untuk tim terkait hasil desain 3D..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
             />
           ) : (
-            <div className={styles.select3d} style={{ opacity: 0.7, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Link2 size={13} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {gdriveUrl || '-'}
-              </span>
-            </div>
+            <div className={styles.select3d} style={{ opacity: 0.7, whiteSpace: 'pre-wrap' }}>{notes || '-'}</div>
           )}
         </div>
       </div>
 
-      {gdriveUrl && (
-        <a
-          className={styles.btnOutline}
-          style={{ alignSelf: 'flex-start' }}
-          href={gdriveUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <ExternalLink size={14} /> Buka Model 3D di Google Drive
-        </a>
-      )}
+      <div className={styles.resource3dSection}>
+        <div className={styles.resource3dHeader}>
+          <div>
+            <span className={styles.resource3dEyebrow}>DATA PENDUKUNG ({resources.length}/20)</span>
+            <p className={styles.resource3dHint}>Google Drive, file model 3D, dokumen, dan link lainnya.</p>
+          </div>
+          {canEdit && (
+            <button type="button" className={styles.btnIcon} onClick={handleAddResource}>
+              <Plus size={13} /> Tambah Data
+            </button>
+          )}
+        </div>
 
-      <div className={styles.formGroup}>
-        <label>Catatan Desain</label>
-        {canEdit ? (
-          <textarea
-            className={styles.input3d}
-            rows={2}
-            placeholder="Catatan untuk tim terkait hasil desain 3D..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
+        {resources.length > 0 ? (
+          <div className={styles.resource3dList}>
+            {resources.map((resource, index) => (
+              <div key={resource.id || `resource-${index}`} className={styles.resource3dItem}>
+                {canEdit ? (
+                  <>
+                    <span className={styles.resource3dNumber}>{index + 1}</span>
+                    <select
+                      className={styles.select3d}
+                      value={resource.type}
+                      aria-label={`Jenis data pendukung ${index + 1}`}
+                      onChange={(e) => handleUpdateResource(index, 'type', e.target.value)}
+                    >
+                      {RESOURCE_TYPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                    <input
+                      className={styles.input3d}
+                      value={resource.title}
+                      maxLength={150}
+                      placeholder="Judul data"
+                      aria-label={`Judul data pendukung ${index + 1}`}
+                      onChange={(e) => handleUpdateResource(index, 'title', e.target.value)}
+                    />
+                    <input
+                      type="url"
+                      className={styles.input3d}
+                      value={resource.url}
+                      placeholder="https://..."
+                      aria-label={`URL data pendukung ${index + 1}`}
+                      onChange={(e) => handleUpdateResource(index, 'url', e.target.value)}
+                    />
+                    {resource.url && (
+                      <a
+                        className={styles.resource3dOpen}
+                        href={resource.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Buka link"
+                      >
+                        <ExternalLink size={14} />
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      className={styles.resource3dDelete}
+                      onClick={() => handleRemoveResource(index)}
+                      title="Hapus data"
+                    >
+                      <X size={14} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className={styles.resource3dNumber}>{index + 1}</span>
+                    <span className={styles.resource3dType}>
+                      {RESOURCE_TYPE_OPTIONS.find((option) => option.value === resource.type)?.label || resource.type}
+                    </span>
+                    <div className={styles.resource3dReadOnly}>
+                      <strong>{resource.title}</strong>
+                      <span>{resource.url}</span>
+                    </div>
+                    <a
+                      className={styles.resource3dOpen}
+                      href={resource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Buka link"
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         ) : (
-          <div className={styles.select3d} style={{ opacity: 0.7, whiteSpace: 'pre-wrap' }}>{notes || '-'}</div>
+          <div className={styles.resource3dEmpty}>
+            <Link2 size={20} />
+            <span>Belum ada data pendukung hasil desain 3D.</span>
+          </div>
         )}
       </div>
 
