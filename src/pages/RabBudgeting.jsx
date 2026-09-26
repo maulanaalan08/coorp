@@ -674,7 +674,13 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // EXPORT & VIEW
   // ==========================================================
   const exportRabExcel = async (mode = "COMBINED") => {
-    if (!isSuperAdmin) return toast.error("Hanya SUPER_ADMIN yang dapat export RAP/RAB.");
+    const canExportRap = isSuperAdmin || canEditRap;
+    if (mode === "RAP" && !canExportRap) {
+      return toast.error("Export RAP hanya untuk SUPER_ADMIN, PROJECT_MANAGER, atau PERENCANA.");
+    }
+    if (mode !== "RAP" && !isSuperAdmin) {
+      return toast.error("Export RAB dan RAP + RAB hanya untuk SUPER_ADMIN.");
+    }
     if (!projectId) return;
     try {
       const params = new URLSearchParams({ mode });
@@ -943,8 +949,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                     padding: '6px 0'
                   }}>
                     {[
-                      ...(isSuperAdmin ? [
+                      ...((isSuperAdmin || canEditRap) ? [
                         { label: `Export RAP (Semua Kategori)`, action: () => exportRabExcel("RAP") },
+                      ] : []),
+                      ...(isSuperAdmin ? [
                         { label: `Export RAB (Semua Kategori)`, action: () => exportRabExcel("RAB") },
                         { label: `Export RAP + RAB (Semua Kategori)`, action: () => exportRabExcel("COMBINED") },
                       ] : []),
@@ -978,7 +986,9 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                 )}
               </div>
 
-              <button className={styles["rab-btn"]} onClick={viewRap} type="button">View RAP</button>
+              {(isSuperAdmin || canEditRap) && (
+                <button className={styles["rab-btn"]} onClick={viewRap} type="button">View RAP</button>
+              )}
               {isSuperAdmin && (
                 <>
                   <button className={styles["rab-btn"]} onClick={viewRab} type="button">View RAB</button>
