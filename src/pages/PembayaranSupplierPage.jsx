@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Banknote, Plus, Search, Save, X, Edit2, Wallet, Landmark } from 'lucide-react';
+import { Banknote, Plus, Search, Save, X, Edit2 } from 'lucide-react';
 import Header from '../components/Header';
 import { purchasingService } from '../services/purchasingService';
 import { poService } from '../services/poService';
@@ -29,9 +29,8 @@ const PembayaranSupplierPage = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [pengajuans, setPengajuans] = useState([]);
   const [pos, setPOs] = useState([]);
-  const [akunList, setAkunList] = useState([]);
-  const [masterAkunList, setMasterAkunList] = useState([]);
   const [rekeningBanks, setRekeningBanks] = useState([]);
+  const [tipeRekeningList, setTipeRekeningList] = useState([]);
 
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState({
@@ -46,9 +45,8 @@ const PembayaranSupplierPage = () => {
     tanggal: new Date().toISOString().split('T')[0],
     jatuhTempo: '',
     tanggalBayar: '',
-    tipeAkunKasBank: 'KAS',
-    akunKasBank: '',
     rekeningBankId: '',
+    tipeRekeningId: '',
     tambahPembayaran: true,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,20 +65,18 @@ const PembayaranSupplierPage = () => {
 
   const fetchMasters = useCallback(async () => {
     try {
-      const [supData, pjData, poData, akunRes, masterAkunRes, rekeningRes] = await Promise.all([
+      const [supData, pjData, poData, rekeningRes, tipeRekeningRes] = await Promise.all([
         poService.getSuppliers(),
         purchasingService.getPengajuanBayar(),
         poService.getPOs(),
-        glBankService.getAkun(),
-        glBankService.getMasterAkun(),
         glBankService.getRekeningBank({ activeOnly: 1 }),
+        glBankService.getTipeRekening({ isActive: 1 }),
       ]);
       setSuppliers(Array.isArray(supData) ? supData : []);
       setPengajuans(Array.isArray(pjData) ? pjData : []);
       setPOs(Array.isArray(poData) ? poData : []);
-      setAkunList(Array.isArray(akunRes?.data) ? akunRes.data : []);
-      setMasterAkunList(Array.isArray(masterAkunRes?.data) ? masterAkunRes.data : []);
       setRekeningBanks(Array.isArray(rekeningRes?.data) ? rekeningRes.data : []);
+      setTipeRekeningList(Array.isArray(tipeRekeningRes?.data) ? tipeRekeningRes.data : []);
     } catch (err) {
       console.error('Gagal memuat master data:', err);
     }
@@ -116,9 +112,8 @@ const PembayaranSupplierPage = () => {
         tanggal: pembayaran.tanggal ? new Date(pembayaran.tanggal).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         jatuhTempo: pembayaran.jatuhTempo ? new Date(pembayaran.jatuhTempo).toISOString().split('T')[0] : '',
         tanggalBayar: pembayaran.tanggalBayar ? new Date(pembayaran.tanggalBayar).toISOString().split('T')[0] : '',
-        tipeAkunKasBank: pembayaran.tipeAkunKasBank || 'KAS',
-        akunKasBank: pembayaran.akunKasBank || '',
         rekeningBankId: pembayaran.rekeningBankId || '',
+        tipeRekeningId: pembayaran.tipeRekeningId || pembayaran.rekeningBank?.tipeRekeningId || '',
         tambahPembayaran: true,
       });
     } else {
@@ -135,9 +130,8 @@ const PembayaranSupplierPage = () => {
         tanggal: new Date().toISOString().split('T')[0],
         jatuhTempo: '',
         tanggalBayar: '',
-        tipeAkunKasBank: 'KAS',
-        akunKasBank: '',
         rekeningBankId: '',
+        tipeRekeningId: '',
         tambahPembayaran: true,
       });
     }
@@ -164,9 +158,9 @@ const PembayaranSupplierPage = () => {
       tanggal: formData.tanggal,
       jatuhTempo: formData.jatuhTempo ? formData.jatuhTempo : null,
       tanggalBayar: formData.tanggalBayar ? formData.tanggalBayar : null,
-      tipeAkunKasBank: formData.tipeAkunKasBank || 'KAS',
-      akunKasBank: formData.akunKasBank ? formData.akunKasBank.trim() : '',
+      tipeAkunKasBank: formData.rekeningBankId ? 'BANK' : 'KAS',
       rekeningBankId: formData.rekeningBankId || null,
+      tipeRekeningId: formData.tipeRekeningId || null,
       tambahPembayaran: Boolean(formData.tambahPembayaran),
     };
 
@@ -380,7 +374,15 @@ const PembayaranSupplierPage = () => {
                   <label className="block text-sm text-[#888] mb-1">Rekening Bank</label>
                   <select
                     value={formData.rekeningBankId}
-                    onChange={(e) => setFormData({ ...formData, rekeningBankId: e.target.value, tipeAkunKasBank: 'BANK' })}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      const selected = rekeningBanks.find((r) => r.id === nextId);
+                      setFormData({
+                        ...formData,
+                        rekeningBankId: nextId,
+                        tipeRekeningId: selected?.tipeRekeningId || formData.tipeRekeningId || '',
+                      });
+                    }}
                     className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
                   >
                     <option value="">-- Pilih Rekening Bank --</option>
@@ -388,6 +390,20 @@ const PembayaranSupplierPage = () => {
                       <option key={r.id} value={r.id}>
                         {`${r.namaRekening} - ${r.nomorRekening}${r.namaBank ? ` (${r.namaBank})` : ''}`}
                       </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-[#888] mb-1">Tipe Rekening</label>
+                  <select
+                    value={formData.tipeRekeningId}
+                    onChange={(e) => setFormData({ ...formData, tipeRekeningId: e.target.value })}
+                    className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
+                  >
+                    <option value="">-- Pilih Tipe Rekening --</option>
+                    {tipeRekeningList.map((t) => (
+                      <option key={t.id} value={t.id}>{t.namaTipe}</option>
                     ))}
                   </select>
                 </div>
@@ -406,38 +422,20 @@ const PembayaranSupplierPage = () => {
 
                 <div>
                   <label className="block text-sm text-[#888] mb-1">Jumlah Bayar (Rp)</label>
-                  <input type="number" min="0" value={formData.jumlah} onChange={(e) => setFormData({ ...formData, jumlah: e.target.value })} placeholder="0" className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none" />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.jumlah ? Number(formData.jumlah || 0).toLocaleString('id-ID') : ''}
+                    onChange={(e) => {
+                      const raw = String(e.target.value || '').replace(/\D/g, '');
+                      setFormData({ ...formData, jumlah: raw });
+                    }}
+                    placeholder="0"
+                    className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
+                  />
                   <p className="text-xs text-[#555] mt-1">* Isi jika sudah dibayar</p>
                 </div>
 
-                <div className="bg-[#22201c] border border-[#2a2a2a] rounded-lg p-3 space-y-3">
-                  <div className="text-xs text-[#d4af37] font-semibold uppercase tracking-wider">Akun Buku Besar</div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-[#888] mb-1">Tipe Akun</label>
-                      <select value={formData.tipeAkunKasBank} onChange={(e) => setFormData({ ...formData, tipeAkunKasBank: e.target.value, akunKasBank: '' })} className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2 text-white text-sm focus:border-[#d4af37] outline-none">
-                        <option value="KAS">KAS</option>
-                        <option value="BANK">BANK</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-[#888] mb-1">Nama Akun</label>
-                      <div className="relative">
-                        <input list="akun-list" type="text" value={formData.akunKasBank} onChange={(e) => setFormData({ ...formData, akunKasBank: e.target.value })} placeholder="Contoh: Kas Kecil / BCA 123456" className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2 text-white text-sm focus:border-[#d4af37] outline-none" />
-                        {formData.tipeAkunKasBank === 'KAS' ? <Wallet size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888]" /> : <Landmark size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888]" />}
-                      </div>
-                      <datalist id="akun-list">
-                        {masterAkunList
-                          .filter((a) => a.tipeAkun === formData.tipeAkunKasBank)
-                          .map((a) => <option key={a.id} value={a.namaAkun}>{a.namaAkun}</option>)}
-                        {akunList
-                          .filter((a) => a.tipeAkun === formData.tipeAkunKasBank)
-                          .map((a) => <option key={`${a.tipeAkun}-${a.namaAkun}`} value={a.namaAkun}>{a.namaAkun}</option>)}
-                      </datalist>
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-[#666]">Saat status Lunas, transaksi otomatis tercatat di Buku Besar Kas/Bank sebagai Keluar.</p>
-                </div>
 
                 <div>
                   <label className="block text-sm text-[#888] mb-1">Keterangan</label>

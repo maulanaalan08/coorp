@@ -2,7 +2,7 @@ import { fetchAPI } from "./api";
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
 
 const glBankService = {
@@ -76,6 +76,27 @@ const glBankService = {
     }),
   deleteRekeningBank: (id) =>
     fetchAPI(`/gl-bank/rekening-bank/${id}`, { method: "DELETE", headers: getAuthHeaders() }),
+  getTipeRekening: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") qs.append(k, v);
+    });
+    return fetchAPI(`/gl-bank/tipe-rekening?${qs.toString()}`, { headers: getAuthHeaders() });
+  },
+  createTipeRekening: (payload) =>
+    fetchAPI("/gl-bank/tipe-rekening", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }),
+  updateTipeRekening: (id, payload) =>
+    fetchAPI(`/gl-bank/tipe-rekening/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }),
+  deleteTipeRekening: (id) =>
+    fetchAPI(`/gl-bank/tipe-rekening/${id}`, { method: "DELETE", headers: getAuthHeaders() }),
   createTransaksi: (payload) =>
     fetchAPI("/gl-bank/transaksi", {
       method: "POST",

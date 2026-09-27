@@ -417,7 +417,7 @@ const [busyPoId, setBusyPoId] = useState(null);
                                           <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(it.total)}</td>
                                           <td className={styles.cellRight} style={{ fontSize: 11, color: '#ef4444' }}>
                                             {po.kategoriPO === 'HABIS_PAKAI'
-                                              ? '-'
+                                              ? (po.keteranganVolume || it.keteranganVolume || '-')
                                               : (() => {
                                                   const rap = it.materialRequest?.estimatedVolume || it.estimatedVolume || 0;
                                                   if (!rap) return <span style={{ color: '#444' }}>-</span>;
@@ -429,7 +429,7 @@ const [busyPoId, setBusyPoId] = useState(null);
                                           </td>
                                           <td className={styles.cellRight} style={{ fontSize: 11, color: '#f97316' }}>
                                             {po.kategoriPO === 'HABIS_PAKAI'
-                                              ? '-'
+                                              ? (po.keteranganHarga || it.keteranganHarga || '-')
                                               : (() => {
                                                   const rapP = it.materialRequest?.pricePerUnit || it.pricePerUnit || 0;
                                                   if (!rapP) return <span style={{ color: '#444' }}>-</span>;

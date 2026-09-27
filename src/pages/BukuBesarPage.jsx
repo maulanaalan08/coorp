@@ -1,10 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Landmark,
   Search,
   Calendar,
-  Wallet,
-  Banknote,
   ArrowDownLeft,
   ArrowUpRight,
   Trash2,
@@ -15,23 +13,58 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
+  FileSpreadsheet,
+  FileText,
 } from "lucide-react";
 import glBankService from "../services/glBankService";
 import toast from "react-hot-toast";
 import { projectService } from "../services/projectService";
+import * as XLSX from "xlsx";
 
 const fmtRp = (n) =>
   "Rp " + Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 });
 const fmtTanggal = (d) =>
   d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "-";
 
+const getTransaksiJenisLabel = (jenis) => {
+  if (jenis === "MASUK") return "DEBET";
+  if (jenis === "KELUAR") return "KREDIT";
+  return "-";
+};
+
+const formatDateForExport = (value) => {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" });
+};
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+const sanitizeFilePart = (value, fallback = "all") => {
+  const text = String(value || "").trim();
+  if (!text) return fallback;
+  const cleaned = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return cleaned || fallback;
+};
+
 export default function BukuBesarPage() {
   const [rows, setRows] = useState([]);
   const [saldo, setSaldo] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState({
-    tipeAkun: "",
-    namaAkun: "",
+    tipeRekeningId: "",
+    rekeningBankId: "",
     projectId: "",
     dari: "",
     sampai: "",
@@ -48,44 +81,55 @@ export default function BukuBesarPage() {
   const [editing, setEditing] = useState(null);
   const [transaksiMode, setTransaksiMode] = useState("MASUK");
   const [showRekeningModal, setShowRekeningModal] = useState(false);
+  const [showTipeRekeningModal, setShowTipeRekeningModal] = useState(false);
   const [rekeningBankList, setRekeningBankList] = useState([]);
+  const [tipeRekeningList, setTipeRekeningList] = useState([]);
   const [summary, setSummary] = useState({ rapTotal: 0, pengeluaranTotal: 0, selisih: 0 });
   const [projectSummaries, setProjectSummaries] = useState([]);
   const [overrunByBagian, setOverrunByBagian] = useState([]);
   const [showOverrun, setShowOverrun] = useState(false);
   const [projects, setProjects] = useState([]);
+  const [tipeRekeningForm, setTipeRekeningForm] = useState({
+    namaTipe: "",
+    isActive: true,
+  });
+  const [tipeRekeningEditing, setTipeRekeningEditing] = useState(null);
   const [rekeningForm, setRekeningForm] = useState({
     namaRekening: "",
-    tipeRekening: "SAVINGS",
+    tipeRekeningId: "",
     mataUang: "IDR",
-    kodeAkunGl: "",
     namaBank: "",
     nomorRekening: "",
-    alamatBank: "",
     isDefault: false,
     isActive: true,
   });
   const [rekeningEditing, setRekeningEditing] = useState(null);
   const [form, setForm] = useState({
     tanggal: new Date().toISOString().split("T")[0],
-    tipeAkun: "KAS",
+    tipeAkun: "BANK",
     jenis: "MASUK",
     projectId: "",
     rekeningBankId: "",
+    tipeRekeningId: "",
     nominal: "",
     noReferensi: "",
     pihak: "",
     keterangan: "",
   });
 
-  const tipeOptions = ["", "KAS", "BANK"];
+  const buildTransaksiQuery = (overrides = {}) => ({
+    ...filter,
+    tipeAkun: filter.rekeningBankId ? "BANK" : undefined,
+    namaAkun: undefined,
+    ...overrides,
+  });
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const [trxRes, saldoRes, summaryRes] = await Promise.all([
-        glBankService.getTransaksi(filter),
-        glBankService.getSaldo({ tipeAkun: filter.tipeAkun || undefined }),
+        glBankService.getTransaksi(buildTransaksiQuery()),
+        glBankService.getSaldo(),
         glBankService.getSummary({ projectId: filter.projectId || undefined }),
       ]);
       setRows(trxRes.data || []);
@@ -115,7 +159,7 @@ export default function BukuBesarPage() {
 
   const fetchRekeningBank = async () => {
     try {
-      const res = await glBankService.getRekeningBank({ activeOnly: 1 });
+      const res = await glBankService.getRekeningBank({ activeOnly: 1, tipeRekeningId: filter.tipeRekeningId || undefined });
       const list = Array.isArray(res?.data) ? res.data : [];
       setRekeningBankList(list);
     } catch (e) {
@@ -124,28 +168,44 @@ export default function BukuBesarPage() {
     }
   };
 
+  const fetchTipeRekening = async () => {
+    try {
+      const res = await glBankService.getTipeRekening({ isActive: 1 });
+      setTipeRekeningList(Array.isArray(res?.data) ? res.data : []);
+    } catch (e) {
+      console.error(e);
+      toast.error("Gagal memuat master tipe rekening");
+    }
+  };
+
   useEffect(() => {
     fetchData();
-  }, [filter.tipeAkun, filter.namaAkun, filter.projectId, filter.dari, filter.sampai, filter.search, filter.cursor, filter.limit]);
+  }, [filter.tipeRekeningId, filter.rekeningBankId, filter.projectId, filter.dari, filter.sampai, filter.search, filter.cursor, filter.limit]);
 
   useEffect(() => {
     fetchProjects();
-    fetchRekeningBank();
+    fetchTipeRekening();
   }, []);
 
   useEffect(() => {
-    if (showRekeningModal) {
+    fetchRekeningBank();
+  }, [filter.tipeRekeningId]);
+
+  useEffect(() => {
+    if (showRekeningModal || showTipeRekeningModal) {
+      fetchTipeRekening();
       fetchRekeningBank();
     }
-  }, [showRekeningModal]);
+  }, [showRekeningModal, showTipeRekeningModal, filter.tipeRekeningId]);
 
   const resetForm = (mode = "MASUK") => {
     setForm({
       tanggal: new Date().toISOString().split("T")[0],
-      tipeAkun: "KAS",
+      tipeAkun: "BANK",
       jenis: mode,
       projectId: "",
       rekeningBankId: "",
+      tipeRekeningId: "",
       nominal: "",
       noReferensi: "",
       pihak: "",
@@ -158,10 +218,11 @@ export default function BukuBesarPage() {
     setTransaksiMode(mode);
     setForm({
       tanggal: new Date().toISOString().split("T")[0],
-      tipeAkun: "KAS",
+      tipeAkun: "BANK",
       jenis: mode,
       projectId: "",
       rekeningBankId: "",
+      tipeRekeningId: "",
       nominal: "",
       noReferensi: "",
       pihak: "",
@@ -176,10 +237,11 @@ export default function BukuBesarPage() {
     setTransaksiMode(row.jenis || "MASUK");
     setForm({
       tanggal: row.tanggal ? new Date(row.tanggal).toISOString().split("T")[0] : "",
-      tipeAkun: row.tipeAkun,
+      tipeAkun: "BANK",
       jenis: row.jenis,
       projectId: row.projectId || row.purchaseOrder?.projectId || row.pembayaran?.purchaseOrder?.projectId || "",
       rekeningBankId: row.rekeningBankId || row.rekeningBank?.id || "",
+      tipeRekeningId: row.tipeRekeningId || row.rekeningBank?.tipeRekeningId || "",
       nominal: row.nominal,
       noReferensi: row.noReferensi || "",
       pihak: row.pihak || "",
@@ -193,15 +255,17 @@ export default function BukuBesarPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const rekeningTerpilih = rekeningBankList.find((r) => r.id === form.rekeningBankId);
+    const selectedTipeRekeningId = form.tipeRekeningId || rekeningTerpilih?.tipeRekeningId || null;
+
     const payload = {
       ...form,
       jenis: transaksiMode,
       nominal: Number(form.nominal),
-      tipeAkun: form.tipeAkun,
+      tipeAkun: "BANK",
+      tipeRekeningId: selectedTipeRekeningId,
       sumberTransaksi: "MANUAL",
     };
-
-    const rekeningTerpilih = rekeningBankList.find((r) => r.id === form.rekeningBankId);
 
     if (!form.tanggal || Number.isNaN(payload.nominal) || payload.nominal <= 0) {
       toast.error("Lengkapi tanggal dan nominal > 0");
@@ -213,18 +277,20 @@ export default function BukuBesarPage() {
       return;
     }
 
-    if (payload.tipeAkun === "BANK") {
-      if (!form.rekeningBankId) {
-        toast.error("Untuk akun BANK, rekening bank wajib dipilih");
-        return;
-      }
-      if (!rekeningTerpilih) {
-        toast.error("Rekening bank tidak valid");
-        return;
-      }
-    } else {
-      payload.rekeningBankId = null;
+    if (!form.rekeningBankId) {
+      toast.error("Rekening bank wajib dipilih");
+      return;
     }
+    if (!rekeningTerpilih) {
+      toast.error("Rekening bank tidak valid");
+      return;
+    }
+    if (!selectedTipeRekeningId) {
+      toast.error("Tipe rekening wajib dipilih");
+      return;
+    }
+
+    payload.rekeningBankId = form.rekeningBankId;
 
     try {
       if (editing) {
@@ -256,15 +322,57 @@ export default function BukuBesarPage() {
     }
   };
 
+  const resetTipeRekeningForm = () => {
+    setTipeRekeningForm({ namaTipe: "", isActive: true });
+    setTipeRekeningEditing(null);
+  };
+
+  const handleTipeRekeningSubmit = async (e) => {
+    e.preventDefault();
+    if (!tipeRekeningForm.namaTipe.trim()) {
+      toast.error("Nama tipe rekening wajib diisi");
+      return;
+    }
+
+    try {
+      if (tipeRekeningEditing) {
+        await glBankService.updateTipeRekening(tipeRekeningEditing.id, tipeRekeningForm);
+        toast.success("Tipe rekening diperbarui");
+      } else {
+        await glBankService.createTipeRekening(tipeRekeningForm);
+        toast.success("Tipe rekening ditambahkan");
+      }
+      resetTipeRekeningForm();
+      await fetchTipeRekening();
+      await fetchRekeningBank();
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message || "Gagal menyimpan tipe rekening");
+    }
+  };
+
+  const handleTipeRekeningDelete = async (id) => {
+    if (!window.confirm("Hapus tipe rekening ini?")) return;
+    try {
+      await glBankService.deleteTipeRekening(id);
+      toast.success("Tipe rekening dihapus");
+      await fetchTipeRekening();
+      await fetchRekeningBank();
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message || "Gagal menghapus tipe rekening");
+    }
+  };
+
   const resetRekeningForm = () => {
     setRekeningForm({
       namaRekening: "",
-      tipeRekening: "SAVINGS",
+      tipeRekeningId: "",
       mataUang: "IDR",
-      kodeAkunGl: "",
       namaBank: "",
       nomorRekening: "",
-      alamatBank: "",
       isDefault: false,
       isActive: true,
     });
@@ -287,9 +395,264 @@ export default function BukuBesarPage() {
       }
       resetRekeningForm();
       await fetchRekeningBank();
+      fetchData();
     } catch (err) {
       console.error(err);
       toast.error(err?.message || "Gagal menyimpan rekening bank");
+    }
+  };
+
+  const filteredRekeningForExport = useMemo(() => {
+    if (!filter.rekeningBankId) return null;
+    return rekeningBankList.find((r) => r.id === filter.rekeningBankId) || null;
+  }, [filter.rekeningBankId, rekeningBankList]);
+
+  const filteredTipeForExport = useMemo(() => {
+    if (!filter.tipeRekeningId) return null;
+    return tipeRekeningList.find((t) => t.id === filter.tipeRekeningId) || null;
+  }, [filter.tipeRekeningId, tipeRekeningList]);
+
+  const saldoMasterBank = useMemo(() => {
+    const saldoByRekening = new Map(
+      (Array.isArray(saldo) ? saldo : []).map((s) => [s.rekeningBankId || s.key, s]),
+    );
+
+    return rekeningBankList.map((rek) => {
+      const existing = saldoByRekening.get(rek.id);
+      const namaAkun =
+        existing?.namaAkun ||
+        [rek.namaRekening, rek.nomorRekening].filter(Boolean).join(" - ");
+
+      return {
+        key: rek.id,
+        tipeAkun: "BANK",
+        namaAkun,
+        saldo: Number(existing?.saldo || 0),
+      };
+    });
+  }, [saldo, rekeningBankList]);
+
+  const mapRowsForExport = (sourceRows = []) => sourceRows.map((r) => {
+    const tipeRek = r.tipeRekening?.namaTipe || r.rekeningBank?.tipeRekening?.namaTipe || "-";
+    const project = r.project?.name || r.purchaseOrder?.project?.name || r.pembayaran?.purchaseOrder?.project?.name || "Tanpa Project";
+    return {
+      "Tanggal": formatDateForExport(r.tanggal),
+      "No Referensi": r.noReferensi || "-",
+      "Pihak": r.pihak || "-",
+      "Project": project,
+      "Akun": r.namaAkun || "-",
+      "Bank": r.rekeningBank?.namaBank || "-",
+      "No Rekening": r.rekeningBank?.nomorRekening || "-",
+      "Tipe Rekening": tipeRek,
+      "Jenis": getTransaksiJenisLabel(r.jenis),
+      "Nominal": Number(r.nominal || 0),
+      "Masuk": r.jenis === "MASUK" ? Number(r.nominal || 0) : 0,
+      "Keluar": r.jenis === "KELUAR" ? Number(r.nominal || 0) : 0,
+      "Saldo Berjalan": Number(r.saldoBerjalan || 0),
+      "Keterangan": r.keterangan || "-",
+    };
+  });
+
+  const fetchAllRowsForExport = async () => {
+    const merged = [];
+    const seenIds = new Set();
+    let cursor = "";
+    let guard = 0;
+
+    while (guard < 200) {
+      const res = await glBankService.getTransaksi(buildTransaksiQuery({
+        cursor,
+        limit: 500,
+      }));
+
+      const batch = Array.isArray(res?.data) ? res.data : [];
+      for (const row of batch) {
+        if (row?.id && !seenIds.has(row.id)) {
+          seenIds.add(row.id);
+          merged.push(row);
+        }
+      }
+
+      if (!res?.hasNextPage || !res?.nextCursor || batch.length === 0) {
+        break;
+      }
+
+      if (res.nextCursor === cursor) {
+        break;
+      }
+
+      cursor = res.nextCursor;
+      guard += 1;
+    }
+
+    return merged;
+  };
+
+  const buildExportFilePrefix = () => {
+    const partTipe = sanitizeFilePart(filteredTipeForExport?.namaTipe, "all-tipe");
+    const partRek = sanitizeFilePart(filteredRekeningForExport?.namaRekening, "all-rekening");
+    const partDateFrom = sanitizeFilePart(filter.dari || "all");
+    const partDateTo = sanitizeFilePart(filter.sampai || "all");
+    return `rekening-koran-${partTipe}-${partRek}-${partDateFrom}-${partDateTo}`;
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const sourceRows = await fetchAllRowsForExport();
+      const exportRows = mapRowsForExport(sourceRows);
+
+      if (!exportRows.length) {
+        toast.error("Data transaksi kosong, tidak ada yang bisa diexport");
+        return;
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Rekening Koran");
+
+      const fileName = `${buildExportFilePrefix()}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      toast.success("Export Excel berhasil");
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal export Excel");
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      const sourceRows = await fetchAllRowsForExport();
+      if (!sourceRows.length) {
+        toast.error("Data transaksi kosong, tidak ada yang bisa dicetak");
+        return;
+      }
+
+      const totalMasuk = sourceRows.reduce((sum, r) => sum + (r.jenis === "MASUK" ? Number(r.nominal || 0) : 0), 0);
+      const totalKeluar = sourceRows.reduce((sum, r) => sum + (r.jenis === "KELUAR" ? Number(r.nominal || 0) : 0), 0);
+      const saldoAkhir = sourceRows.length ? Number(sourceRows[0]?.saldoBerjalan || 0) : 0;
+
+      const printedAt = new Date().toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      const filterLabel = {
+        tipe: filteredTipeForExport?.namaTipe || "Semua Tipe Rekening",
+        rekening: filteredRekeningForExport
+          ? `${filteredRekeningForExport.namaRekening} - ${filteredRekeningForExport.nomorRekening}`
+          : "Semua Rekening",
+        period: filter.dari || filter.sampai
+          ? `${filter.dari || "(awal)"} s/d ${filter.sampai || "(akhir)"}`
+          : "Semua Periode",
+      };
+
+      const tableRowsHtml = sourceRows
+        .map((r, idx) => {
+          const tipeRek = r.tipeRekening?.namaTipe || r.rekeningBank?.tipeRekening?.namaTipe || "-";
+          const project = r.project?.name || r.purchaseOrder?.project?.name || r.pembayaran?.purchaseOrder?.project?.name || "Tanpa Project";
+          return `
+            <tr>
+              <td class="center">${idx + 1}</td>
+              <td>${escapeHtml(formatDateForExport(r.tanggal))}</td>
+              <td>${escapeHtml(r.noReferensi || "-")}</td>
+              <td>${escapeHtml(r.pihak || "-")}</td>
+              <td>${escapeHtml(project)}</td>
+              <td>${escapeHtml(r.namaAkun || "-")}</td>
+              <td>${escapeHtml(tipeRek)}</td>
+              <td class="right">${escapeHtml(fmtRp(r.jenis === "MASUK" ? r.nominal : 0))}</td>
+              <td class="right">${escapeHtml(fmtRp(r.jenis === "KELUAR" ? r.nominal : 0))}</td>
+              <td class="right">${escapeHtml(fmtRp(r.saldoBerjalan || 0))}</td>
+              <td>${escapeHtml(r.keterangan || "-")}</td>
+            </tr>
+          `;
+        })
+        .join("");
+
+      const html = `
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rekening Koran - Buku Besar Kas/Bank</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 24px; color: #111; }
+    h1 { margin: 0 0 4px; font-size: 20px; }
+    .sub { color: #444; margin-bottom: 12px; font-size: 12px; }
+    .meta { width: 100%; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 10px; }
+    .meta td { border: 1px solid #ddd; padding: 6px 8px; font-size: 12px; }
+    .summary { margin: 10px 0 16px; display: flex; gap: 10px; }
+    .box { border: 1px solid #ddd; padding: 8px 10px; font-size: 12px; min-width: 180px; }
+    .box b { display: block; font-size: 14px; margin-top: 3px; }
+    table.data { width: 100%; border-collapse: collapse; }
+    table.data th, table.data td { border: 1px solid #d8d8d8; padding: 6px; font-size: 11px; vertical-align: top; }
+    table.data th { background: #f3f3f3; text-align: left; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+    @media print {
+      body { margin: 12px; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Rekening Koran • Buku Besar Kas / Bank</h1>
+  <div class="sub">Dicetak: ${escapeHtml(printedAt)}</div>
+
+  <table class="meta">
+    <tr>
+      <td><b>Filter Tipe Rekening</b><br/>${escapeHtml(filterLabel.tipe)}</td>
+      <td><b>Filter Rekening</b><br/>${escapeHtml(filterLabel.rekening)}</td>
+      <td><b>Periode</b><br/>${escapeHtml(filterLabel.period)}</td>
+    </tr>
+  </table>
+
+  <div class="summary">
+    <div class="box">Total Debet<b>${escapeHtml(fmtRp(totalMasuk))}</b></div>
+    <div class="box">Total Kredit<b>${escapeHtml(fmtRp(totalKeluar))}</b></div>
+    <div class="box">Saldo Akhir<b>${escapeHtml(fmtRp(saldoAkhir))}</b></div>
+  </div>
+
+  <table class="data">
+    <thead>
+      <tr>
+        <th>No</th>
+        <th>Tanggal</th>
+        <th>No Ref</th>
+        <th>Pihak</th>
+        <th>Project</th>
+        <th>Akun</th>
+        <th>Tipe Rekening</th>
+        <th class="right">Debet</th>
+        <th class="right">Kredit</th>
+        <th class="right">Saldo</th>
+        <th>Keterangan</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${tableRowsHtml}
+    </tbody>
+  </table>
+
+  <script>window.onload = () => window.print();</script>
+</body>
+</html>
+`;
+
+      const printWindow = window.open("", "_blank", "width=1280,height=720");
+      if (!printWindow) {
+        toast.error("Popup diblokir browser. Izinkan popup untuk cetak PDF.");
+        return;
+      }
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      toast.success("Tampilan cetak PDF rekening koran siap");
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal menyiapkan cetak PDF");
     }
   };
 
@@ -299,6 +662,7 @@ export default function BukuBesarPage() {
       await glBankService.deleteRekeningBank(id);
       toast.success("Rekening bank dihapus");
       await fetchRekeningBank();
+      fetchData();
     } catch (err) {
       console.error(err);
       toast.error(err?.message || "Gagal menghapus rekening bank");
@@ -316,14 +680,38 @@ export default function BukuBesarPage() {
           </h1>
           <p className="text-[#888] text-sm mt-1">Pencatatan transaksi kas & bank harian</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setShowTipeRekeningModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#22201c] border border-[#d4af37]/30 hover:bg-[#2a2824] text-[#d4af37] font-semibold rounded-lg transition-colors"
+          >
+            <Settings size={18} />
+            Master Tipe Rekening
+          </button>
           <button
             type="button"
             onClick={() => setShowRekeningModal(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-[#22201c] border border-[#d4af37]/30 hover:bg-[#2a2824] text-[#d4af37] font-semibold rounded-lg transition-colors"
           >
-            <Settings size={18} />
+            <Landmark size={18} />
             Master Rekening Bank
+          </button>
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#1f2a1f] border border-emerald-500/40 hover:bg-[#243124] text-emerald-300 font-semibold rounded-lg transition-colors"
+          >
+            <FileSpreadsheet size={18} />
+            Cetak Excel
+          </button>
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#2a1f1f] border border-rose-500/40 hover:bg-[#332525] text-rose-300 font-semibold rounded-lg transition-colors"
+          >
+            <FileText size={18} />
+            Cetak PDF
           </button>
           <button
             type="button"
@@ -346,13 +734,13 @@ export default function BukuBesarPage() {
 
       {/* Cards saldo */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        {saldo.map((s) => (
+        {saldoMasterBank.map((s) => (
           <div
-            key={`${s.tipeAkun}-${s.namaAkun}`}
+            key={s.key}
             className="bg-[#161513] border border-[#2a2a2a] rounded-xl p-5 flex items-center gap-4"
           >
             <div className="w-12 h-12 rounded-full bg-[#d4af37]/10 flex items-center justify-center text-[#d4af37]">
-              {s.tipeAkun === "KAS" ? <Wallet size={22} /> : <Banknote size={22} />}
+              <Landmark size={22} />
             </div>
             <div>
               <div className="text-[#888] text-xs uppercase tracking-wide">{s.tipeAkun}</div>
@@ -414,37 +802,41 @@ export default function BukuBesarPage() {
       </div>
 
       {/* Filter */}
-      <div className="bg-[#161513] border border-[#2a2a2a] rounded-xl p-4 mb-6">
+      <div className="bg-[#11100e] border border-[#2a2a2a] rounded-2xl p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-3 flex-wrap">
           <div className="flex items-center gap-2 bg-[#0c0b09] border border-[#333] rounded-lg px-3 py-2 min-w-[180px]">
             <Filter size={16} className="text-[#888]" />
             <select
-              value={filter.tipeAkun}
+              value={filter.tipeRekeningId}
               onChange={(e) => {
-                setFilter((f) => ({ ...f, tipeAkun: e.target.value, cursor: "" }));
+                setFilter((f) => ({ ...f, tipeRekeningId: e.target.value, rekeningBankId: "", cursor: "" }));
                 setCursorHistory([]);
                 setCursorPage(1);
               }}
               className="bg-transparent text-sm text-white outline-none w-full"
             >
-              <option value="">Semua Tipe</option>
-              <option value="KAS">KAS</option>
-              <option value="BANK">BANK</option>
+              <option value="">Semua Tipe Rekening</option>
+              {tipeRekeningList.map((t) => (
+                <option key={t.id} value={t.id}>{t.namaTipe}</option>
+              ))}
             </select>
           </div>
           <div className="flex items-center gap-2 bg-[#0c0b09] border border-[#333] rounded-lg px-3 py-2 min-w-[220px]">
             <Landmark size={16} className="text-[#888]" />
-            <input
-              type="text"
-              placeholder="Nama akun..."
-              value={filter.namaAkun}
+            <select
+              value={filter.rekeningBankId}
               onChange={(e) => {
-                setFilter((f) => ({ ...f, namaAkun: e.target.value, cursor: "" }));
+                setFilter((f) => ({ ...f, rekeningBankId: e.target.value, cursor: "" }));
                 setCursorHistory([]);
                 setCursorPage(1);
               }}
-              className="bg-transparent text-sm text-white outline-none w-full placeholder-[#555]"
-            />
+              className="bg-transparent text-sm text-white outline-none w-full"
+            >
+              <option value="">Semua Rekening</option>
+              {rekeningBankList.map((r) => (
+                <option key={r.id} value={r.id}>{`${r.namaRekening} - ${r.nomorRekening}`}</option>
+              ))}
+            </select>
           </div>
           <div className="flex items-center gap-2 bg-[#0c0b09] border border-[#333] rounded-lg px-3 py-2 min-w-[220px]">
             <Landmark size={16} className="text-[#888]" />
@@ -506,191 +898,205 @@ export default function BukuBesarPage() {
         </div>
       </div>
 
-      {/* Top Overrun (Bagian/Item) */}
-      <div className="mb-4">
-        <button
-          type="button"
-          onClick={() => setShowOverrun((v) => !v)}
-          className="px-4 py-2 rounded-lg bg-[#22201c] border border-[#d4af37]/30 hover:bg-[#2a2824] text-[#d4af37] text-sm font-semibold"
-        >
-          {showOverrun ? "Sembunyikan" : "Tampilkan"} Top Overrun (Bagian/Item)
-        </button>
-      </div>
-
-      {showOverrun && (
-        <div className="bg-[#161513] border border-[#2a2a2a] rounded-xl overflow-hidden mb-6">
-          <div className="px-4 py-3 border-b border-[#2a2a2a] text-[#d4af37] font-semibold">Top Overrun (Bagian/Item)</div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-[#1e1c19] text-[#d4af37]">
-                <tr>
-                  <th className="p-3 text-left">Project</th>
-                  <th className="p-3 text-left">Bagian</th>
-                  <th className="p-3 text-left">Item</th>
-                  <th className="p-3 text-right">RAP</th>
-                  <th className="p-3 text-right">Realisasi</th>
-                  <th className="p-3 text-right">Selisih</th>
-                </tr>
-              </thead>
-              <tbody>
-                {overrunByBagian.length === 0 ? (
-                  <tr><td colSpan={6} className="p-4 text-center text-[#888]">Belum ada data overrun.</td></tr>
-                ) : (
-                  overrunByBagian.map((o, idx) => (
-                    <tr key={`${o.projectId}-${o.itemName}-${idx}`} className="border-b border-white/5 hover:bg-white/[0.02]">
-                      <td className="p-3 text-white">{o.projectName || '-'}</td>
-                      <td className="p-3 text-[#bbb]">{o.bagian || '-'}</td>
-                      <td className="p-3 text-[#bbb]">{o.itemName || '-'}</td>
-                      <td className="p-3 text-right text-[#bbb]">{fmtRp(o.rap)}</td>
-                      <td className="p-3 text-right text-[#bbb]">{fmtRp(o.realisasi)}</td>
-                      <td className="p-3 text-right text-rose-400 font-semibold">{fmtRp(o.selisih)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+      <div className="bg-[#11100e] border border-[#2a2a2a] rounded-2xl p-4 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+          <div className="inline-flex bg-[#0f0e0c] border border-[#2f2f2f] rounded-2xl p-1 shadow-[0_10px_35px_rgba(0,0,0,0.28)]">
+            <button
+              type="button"
+              onClick={() => setShowOverrun(true)}
+              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-colors ${showOverrun ? "bg-[#d4af37] text-[#0c0b09]" : "text-[#b9b9b9] hover:text-white"}`}
+            >
+              Top Overrun
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowOverrun(false)}
+              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-colors ${!showOverrun ? "bg-[#d4af37] text-[#0c0b09]" : "text-[#b9b9b9] hover:text-white"}`}
+            >
+              Transaksi
+            </button>
           </div>
-        </div>
-      )}
 
-      {/* Transaksi */}
-      <div className="mb-2 text-[#d4af37] font-semibold">Transaksi</div>
-      <div className="bg-[#161513] border border-[#2a2a2a] rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-[#1e1c19] text-[#d4af37]">
-              <tr>
-                <th className="p-4 text-left font-semibold">Tanggal</th>
-                <th className="p-4 text-left font-semibold">Akun</th>
-                <th className="p-4 text-left font-semibold">Project / Ref / Pihak</th>
-                <th className="p-4 text-left font-semibold">Keterangan</th>
-                <th className="p-4 text-left font-semibold">Ket. Volume / Harga</th>
-                <th className="p-4 text-right font-semibold">Masuk</th>
-                <th className="p-4 text-right font-semibold">Keluar</th>
-                <th className="p-4 text-right font-semibold">Saldo</th>
-                <th className="p-4 text-center font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={10} className="p-8 text-center text-[#888]">
-                    Memuat...
-                  </td>
-                </tr>
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="p-8 text-center text-[#888]">
-                    Belum ada transaksi.
-                  </td>
-                </tr>
-              ) : (
-                rows.map((r) => (
-                  <tr key={r.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td className="p-4 text-white whitespace-nowrap">{fmtTanggal(r.tanggal)}</td>
-                    <td className="p-4">
-                      <div className="text-white font-medium">{r.namaAkun}</div>
-                      <div className="text-[#888] text-xs">{r.tipeAkun}</div>
-                      <div className="text-[#777] text-[11px]">
-                        {r.rekeningBank?.nomorRekening ? `${r.rekeningBank?.namaBank || "Bank"} • ${r.rekeningBank.nomorRekening}` : "-"}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="text-[#9aa] text-xs mb-1">
-                        {r.project?.name || r.purchaseOrder?.project?.name || r.pembayaran?.purchaseOrder?.project?.name || "Tanpa Project"}
-                      </div>
-                      <div className="text-white">{r.noReferensi || "-"}</div>
-                      <div className="text-[#888] text-xs">{r.pihak || "-"}</div>
-                    </td>
-                    <td className="p-4 text-[#aaa] max-w-xs truncate">{r.keterangan || "-"}</td>
-                    <td className="p-4 text-[#aaa] max-w-[140px] truncate text-xs">
-                      <div className="text-emerald-400">{r.keteranganVolume || "-"}</div>
-                      <div className="text-amber-400">{r.keteranganHarga || "-"}</div>
-                    </td>
-                    <td className="p-4 text-right text-emerald-400">
-                      {r.jenis === "MASUK" ? fmtRp(r.nominal) : "-"}
-                    </td>
-                    <td className="p-4 text-right text-rose-400">
-                      {r.jenis === "KELUAR" ? fmtRp(r.nominal) : "-"}
-                    </td>
-                    <td className="p-4 text-right font-semibold text-[#d4af37]">{fmtRp(r.saldoBerjalan)}</td>
-                    <td className="p-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(r)}
-                          className="p-2 rounded-lg bg-white/5 hover:bg-[#d4af37]/20 text-[#d4af37] transition-colors"
-                          title="Edit"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(r.id)}
-                          className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-rose-400 transition-colors"
-                          title="Hapus"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+        </div>
+
+        {showOverrun ? (
+          <div className="bg-[#161513] border border-[#2a2a2a] rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#2a2a2a] text-[#d4af37] font-semibold">Top Overrun (Bagian/Item)</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-[#1e1c19] text-[#d4af37]">
+                  <tr>
+                    <th className="p-3 text-left">Project</th>
+                    <th className="p-3 text-left">Bagian</th>
+                    <th className="p-3 text-left">Item</th>
+                    <th className="p-3 text-right">RAP</th>
+                    <th className="p-3 text-right">Realisasi</th>
+                    <th className="p-3 text-right">Selisih</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {overrunByBagian.length === 0 ? (
+                    <tr><td colSpan={6} className="p-4 text-center text-[#888]">Belum ada data overrun.</td></tr>
+                  ) : (
+                    overrunByBagian.map((o, idx) => (
+                      <tr key={`${o.projectId}-${o.itemName}-${idx}`} className="border-b border-white/5 hover:bg-white/[0.02]">
+                        <td className="p-3 text-white">{o.projectName || '-'}</td>
+                        <td className="p-3 text-[#bbb]">{o.bagian || '-'}</td>
+                        <td className="p-3 text-[#bbb]">{o.itemName || '-'}</td>
+                        <td className="p-3 text-right text-[#bbb]">{fmtRp(o.rap)}</td>
+                        <td className="p-3 text-right text-[#bbb]">{fmtRp(o.realisasi)}</td>
+                        <td className="p-3 text-right text-rose-400 font-semibold">{fmtRp(o.selisih)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="bg-[#161513] border border-[#2a2a2a] rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#2a2a2a] flex flex-wrap items-center justify-between gap-3">
+                <div className="text-[#d4af37] font-semibold">Transaksi</div>
+                <div className="flex items-center gap-2 text-xs text-[#9a9a9a]">
+                  <span className="font-semibold text-[#d4af37] uppercase tracking-wide">Limit per halaman</span>
+                  <select
+                    value={filter.limit}
+                    onChange={(e) => {
+                      const nextLimit = Number(e.target.value || 50);
+                      setFilter((f) => ({ ...f, limit: nextLimit, cursor: "" }));
+                      setCursorHistory([]);
+                      setCursorPage(1);
+                    }}
+                    className="bg-[#0c0b09] border border-[#333] rounded-lg px-2 py-1 text-xs text-white outline-none"
+                    title="Limit per halaman"
+                  >
+                    <option value={10}>10</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-[#1e1c19] text-[#d4af37]">
+                    <tr>
+                      <th className="p-4 text-left font-semibold">Tanggal</th>
+                      <th className="p-4 text-left font-semibold">Akun</th>
+                      <th className="p-4 text-left font-semibold">Project / Ref / Pihak</th>
+                      <th className="p-4 text-left font-semibold">Keterangan</th>
+                      <th className="p-4 text-left font-semibold">Tipe Rekening</th>
+                      <th className="p-4 text-right font-semibold">Masuk</th>
+                      <th className="p-4 text-right font-semibold">Keluar</th>
+                      <th className="p-4 text-right font-semibold">Saldo</th>
+                      <th className="p-4 text-center font-semibold">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={9} className="p-8 text-center text-[#888]">
+                          Memuat...
+                        </td>
+                      </tr>
+                    ) : rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="p-8 text-center text-[#888]">
+                          Belum ada transaksi.
+                        </td>
+                      </tr>
+                    ) : (
+                      rows.map((r) => (
+                        <tr key={r.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                          <td className="p-4 text-white whitespace-nowrap">{fmtTanggal(r.tanggal)}</td>
+                          <td className="p-4">
+                            <div className="text-white font-medium">{r.namaAkun}</div>
+                            <div className="text-[#888] text-xs">BANK</div>
+                            <div className="text-[#777] text-[11px]">
+                              {r.rekeningBank?.nomorRekening ? `${r.rekeningBank?.namaBank || "Bank"} • ${r.rekeningBank.nomorRekening}` : "-"}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="text-[#9aa] text-xs mb-1">
+                              {r.project?.name || r.purchaseOrder?.project?.name || r.pembayaran?.purchaseOrder?.project?.name || "Tanpa Project"}
+                            </div>
+                            <div className="text-white">{r.noReferensi || "-"}</div>
+                            <div className="text-[#888] text-xs">{r.pihak || "-"}</div>
+                          </td>
+                          <td className="p-4 text-[#aaa] max-w-xs truncate">{r.keterangan || "-"}</td>
+                          <td className="p-4 text-[#aaa] max-w-[160px]">
+                            <div className="text-white text-xs font-medium">{r.tipeRekening?.namaTipe || r.rekeningBank?.tipeRekening?.namaTipe || "-"}</div>
+                            <div className="text-[#777] text-[11px]">BANK</div>
+                          </td>
+                          <td className="p-4 text-right text-emerald-400">
+                            {r.jenis === "MASUK" ? fmtRp(r.nominal) : "-"}
+                          </td>
+                          <td className="p-4 text-right text-rose-400">
+                            {r.jenis === "KELUAR" ? fmtRp(r.nominal) : "-"}
+                          </td>
+                          <td className="p-4 text-right font-semibold text-[#d4af37]">{fmtRp(r.saldoBerjalan)}</td>
+                          <td className="p-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openEdit(r)}
+                                className="p-2 rounded-lg bg-white/5 hover:bg-[#d4af37]/20 text-[#d4af37] transition-colors"
+                                title="Edit"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(r.id)}
+                                className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-rose-400 transition-colors"
+                                title="Hapus"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between p-4 border-t border-[#2a2a2a]">
-          <div className="text-[#888] text-xs">
-            {total} transaksi • Halaman {cursorPage}
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={filter.limit}
-              onChange={(e) => {
-                const nextLimit = Number(e.target.value || 50);
-                setFilter((f) => ({ ...f, limit: nextLimit, cursor: "" }));
-                setCursorHistory([]);
-                setCursorPage(1);
-              }}
-              className="bg-[#0c0b09] border border-[#333] rounded-lg px-2 py-1 text-xs text-white outline-none"
-              title="Limit per halaman"
-            >
-              <option value={10}>10</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <button
-              type="button"
-              disabled={cursorHistory.length === 0}
-              onClick={() => {
-                if (cursorHistory.length === 0) return;
-                const prevCursor = cursorHistory[cursorHistory.length - 1] || "";
-                setCursorHistory((h) => h.slice(0, -1));
-                setCursorPage((p) => Math.max(1, p - 1));
-                setFilter((f) => ({ ...f, cursor: prevCursor }));
-              }}
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button
-              type="button"
-              disabled={!hasNextPage || !nextCursor}
-              onClick={() => {
-                if (!hasNextPage || !nextCursor) return;
-                setCursorHistory((h) => [...h, filter.cursor || ""]);
-                setCursorPage((p) => p + 1);
-                setFilter((f) => ({ ...f, cursor: nextCursor }));
-              }}
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
+              <div className="flex items-center justify-center gap-3 p-4 border-t border-[#2a2a2a]">
+                <button
+                  type="button"
+                  disabled={cursorHistory.length === 0}
+                  onClick={() => {
+                    if (cursorHistory.length === 0) return;
+                    const prevCursor = cursorHistory[cursorHistory.length - 1] || "";
+                    setCursorHistory((h) => h.slice(0, -1));
+                    setCursorPage((p) => Math.max(1, p - 1));
+                    setFilter((f) => ({ ...f, cursor: prevCursor }));
+                  }}
+                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <div className="text-[#888] text-xs min-w-[160px] text-center">
+                  {total} transaksi • Halaman {cursorPage}
+                </div>
+                <button
+                  type="button"
+                  disabled={!hasNextPage || !nextCursor}
+                  onClick={() => {
+                    if (!hasNextPage || !nextCursor) return;
+                    setCursorHistory((h) => [...h, filter.cursor || ""]);
+                    setCursorPage((p) => p + 1);
+                    setFilter((f) => ({ ...f, cursor: nextCursor }));
+                  }}
+                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Modal Form */}
@@ -742,35 +1148,19 @@ export default function BukuBesarPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-[#a8a8a8] mb-1">Tipe Akun</label>
-                  <select
-                    value={form.tipeAkun}
-                    onChange={(e) => setForm({ ...form, tipeAkun: e.target.value, rekeningBankId: "" })}
-                    className="w-full bg-[#0c0b09] border border-[#3a3a3a] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#d4af37]"
-                  >
-                    {tipeOptions.filter(Boolean).map((o) => (
-                      <option key={o} value={o}>{o}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-[#a8a8a8] mb-1">Jenis</label>
-                  <input
-                    type="text"
-                    value={transaksiMode === "MASUK" ? "Kas/Bank Masuk" : "Kas/Bank Keluar"}
-                    readOnly
-                    className="w-full bg-[#111] border border-[#3a3a3a] rounded-lg px-3 py-2 text-white text-sm"
-                  />
-                </div>
-              </div>
-
-              {form.tipeAkun === "BANK" && (
-                <div>
                   <label className="block text-xs text-[#a8a8a8] mb-1">Rekening Bank (Master)</label>
                   <select
                     required
                     value={form.rekeningBankId}
-                    onChange={(e) => setForm({ ...form, rekeningBankId: e.target.value })}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      const selected = rekeningBankList.find((r) => r.id === nextId);
+                      setForm({
+                        ...form,
+                        rekeningBankId: nextId,
+                        tipeRekeningId: selected?.tipeRekeningId || form.tipeRekeningId || "",
+                      });
+                    }}
                     className="w-full bg-[#0c0b09] border border-[#3a3a3a] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#d4af37]"
                   >
                     <option value="">Pilih Rekening Bank</option>
@@ -781,7 +1171,31 @@ export default function BukuBesarPage() {
                     ))}
                   </select>
                 </div>
-              )}
+                <div>
+                  <label className="block text-xs text-[#a8a8a8] mb-1">Tipe Rekening</label>
+                  <select
+                    required
+                    value={form.tipeRekeningId || ""}
+                    onChange={(e) => setForm({ ...form, tipeRekeningId: e.target.value })}
+                    className="w-full bg-[#0c0b09] border border-[#3a3a3a] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#d4af37]"
+                  >
+                    <option value="">Pilih Tipe Rekening</option>
+                    {tipeRekeningList.map((t) => (
+                      <option key={t.id} value={t.id}>{t.namaTipe}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-[#a8a8a8] mb-1">Jenis</label>
+                <input
+                  type="text"
+                  value={transaksiMode === "MASUK" ? "Kas/Bank Masuk" : "Kas/Bank Keluar"}
+                  readOnly
+                  className="w-full bg-[#111] border border-[#3a3a3a] rounded-lg px-3 py-2 text-white text-sm"
+                />
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -858,7 +1272,7 @@ export default function BukuBesarPage() {
           <div className="bg-[#161513] border border-[#2a2a2a] rounded-2xl w-full max-w-2xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-[#d4af37] flex items-center gap-2">
-                <Settings size={20} /> Master Rekening Bank
+                <Landmark size={20} /> Master Rekening Bank
               </h2>
               <button type="button" onClick={() => setShowRekeningModal(false)} className="p-2 rounded-lg hover:bg-white/5 text-[#888]">
                 <X size={20} />
@@ -890,20 +1304,16 @@ export default function BukuBesarPage() {
                   onChange={(e) => setRekeningForm({ ...rekeningForm, namaBank: e.target.value })}
                   className="bg-[#0c0b09] border border-[#333] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#d4af37]"
                 />
-                <input
-                  type="text"
-                  placeholder="Tipe rekening"
-                  value={rekeningForm.tipeRekening}
-                  onChange={(e) => setRekeningForm({ ...rekeningForm, tipeRekening: e.target.value })}
+                <select
+                  value={rekeningForm.tipeRekeningId}
+                  onChange={(e) => setRekeningForm({ ...rekeningForm, tipeRekeningId: e.target.value })}
                   className="bg-[#0c0b09] border border-[#333] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#d4af37]"
-                />
-                <input
-                  type="text"
-                  placeholder="Kode Akun GL"
-                  value={rekeningForm.kodeAkunGl}
-                  onChange={(e) => setRekeningForm({ ...rekeningForm, kodeAkunGl: e.target.value })}
-                  className="bg-[#0c0b09] border border-[#333] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#d4af37]"
-                />
+                >
+                  <option value="">-- Pilih Tipe Rekening --</option>
+                  {tipeRekeningList.map((t) => (
+                    <option key={t.id} value={t.id}>{t.namaTipe}</option>
+                  ))}
+                </select>
                 <label className="flex items-center gap-2 text-sm text-[#ccc]">
                   <input
                     type="checkbox"
@@ -912,13 +1322,6 @@ export default function BukuBesarPage() {
                   />
                   Default utama
                 </label>
-                <input
-                  type="text"
-                  placeholder="Alamat bank"
-                  value={rekeningForm.alamatBank}
-                  onChange={(e) => setRekeningForm({ ...rekeningForm, alamatBank: e.target.value })}
-                  className="md:col-span-2 bg-[#0c0b09] border border-[#333] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#d4af37]"
-                />
                 <button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 bg-[#d4af37] hover:bg-[#b8972e] text-[#0c0b09] font-bold rounded-lg text-sm">
                   <Save size={16} /> {rekeningEditing ? "Update Rekening" : "Simpan Rekening"}
                 </button>
@@ -930,7 +1333,7 @@ export default function BukuBesarPage() {
                     <th className="p-3 text-left">Nama Rekening</th>
                     <th className="p-3 text-left">Bank</th>
                     <th className="p-3 text-left">No Rekening</th>
-                    <th className="p-3 text-left">GL</th>
+                    <th className="p-3 text-left">Tipe Rekening</th>
                     <th className="p-3 text-center">Default</th>
                     <th className="p-3 text-center">Aksi</th>
                   </tr>
@@ -941,7 +1344,7 @@ export default function BukuBesarPage() {
                       <td className="p-3 text-white">{r.namaRekening}</td>
                       <td className="p-3 text-[#888]">{r.namaBank || '-'}</td>
                       <td className="p-3 text-[#888]">{r.nomorRekening}</td>
-                      <td className="p-3 text-[#888]">{r.kodeAkunGl || '-'}</td>
+                      <td className="p-3 text-[#888]">{r.tipeRekening?.namaTipe || '-'}</td>
                       <td className="p-3 text-center text-[#888]">{r.isDefault ? 'Ya' : 'Tidak'}</td>
                       <td className="p-3 text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -951,12 +1354,10 @@ export default function BukuBesarPage() {
                               setRekeningEditing(r);
                               setRekeningForm({
                                 namaRekening: r.namaRekening || "",
-                                tipeRekening: r.tipeRekening || "SAVINGS",
+                                tipeRekeningId: r.tipeRekeningId || "",
                                 mataUang: r.mataUang || "IDR",
-                                kodeAkunGl: r.kodeAkunGl || "",
                                 namaBank: r.namaBank || "",
                                 nomorRekening: r.nomorRekening || "",
-                                alamatBank: r.alamatBank || "",
                                 isDefault: Boolean(r.isDefault),
                                 isActive: Boolean(r.isActive),
                               });
@@ -984,6 +1385,99 @@ export default function BukuBesarPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Master Tipe Rekening */}
+      {showTipeRekeningModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#161513] border border-[#2a2a2a] rounded-2xl w-full max-w-xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-[#d4af37] flex items-center gap-2">
+                <Settings size={20} /> Master Tipe Rekening
+              </h2>
+              <button type="button" onClick={() => setShowTipeRekeningModal(false)} className="p-2 rounded-lg hover:bg-white/5 text-[#888]">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleTipeRekeningSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 border border-[#2a2a2a] rounded-lg p-3 bg-[#14120f]">
+              <input
+                type="text"
+                required
+                placeholder="Nama tipe rekening"
+                value={tipeRekeningForm.namaTipe}
+                onChange={(e) => setTipeRekeningForm({ ...tipeRekeningForm, namaTipe: e.target.value })}
+                className="bg-[#0c0b09] border border-[#333] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#d4af37]"
+              />
+              <label className="flex items-center gap-2 text-sm text-[#ccc]">
+                <input
+                  type="checkbox"
+                  checked={Boolean(tipeRekeningForm.isActive)}
+                  onChange={(e) => setTipeRekeningForm({ ...tipeRekeningForm, isActive: e.target.checked })}
+                />
+                Aktif
+              </label>
+              <div className="flex items-center gap-2 justify-end">
+                {tipeRekeningEditing && (
+                  <button
+                    type="button"
+                    onClick={resetTipeRekeningForm}
+                    className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-[#ccc] text-sm"
+                  >
+                    Batal Edit
+                  </button>
+                )}
+                <button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 bg-[#d4af37] hover:bg-[#b8972e] text-[#0c0b09] font-bold rounded-lg text-sm">
+                  <Save size={16} /> {tipeRekeningEditing ? "Update Tipe" : "Simpan Tipe"}
+                </button>
+              </div>
+            </form>
+
+            <table className="w-full text-sm">
+              <thead className="bg-[#1e1c19] text-[#d4af37]">
+                <tr>
+                  <th className="p-3 text-left">Tipe Rekening</th>
+                  <th className="p-3 text-center">Status</th>
+                  <th className="p-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tipeRekeningList.map((t) => (
+                  <tr key={t.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                    <td className="p-3 text-white">{t.namaTipe}</td>
+                    <td className="p-3 text-center text-[#888]">{t.isActive ? "Aktif" : "Nonaktif"}</td>
+                    <td className="p-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTipeRekeningEditing(t);
+                            setTipeRekeningForm({ namaTipe: t.namaTipe || "", isActive: Boolean(t.isActive) });
+                          }}
+                          className="p-2 rounded-lg bg-white/5 hover:bg-[#d4af37]/20 text-[#d4af37]"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleTipeRekeningDelete(t.id)}
+                          className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-rose-400"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {tipeRekeningList.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="p-4 text-center text-[#888]">Belum ada tipe rekening.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
