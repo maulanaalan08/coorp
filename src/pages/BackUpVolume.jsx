@@ -6,7 +6,8 @@ import { useProjects } from '../hooks/useProjects';
 import { useBvItems } from '../hooks/useBvItems';
 import { groupService } from '../services/groupService';
 import { hspkService } from '../services/hspkService';
-import { Pencil, Trash2, Plus, RefreshCw, Download, Eye, ChevronDown } from 'lucide-react';
+import { Pencil, Trash2, Plus, RefreshCw, Download, Eye, ChevronDown, History } from 'lucide-react';
+import BvRabHistoryPanel from '../components/BvRabHistoryPanel';
 import toast from 'react-hot-toast';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
@@ -741,6 +742,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [checkedIds, setCheckedIds] = useState([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [rabBusyMessage, setRabBusyMessage] = useState('');
 
   // Jalankan aksi ke RAB sambil menampilkan layar proses.
@@ -1177,7 +1179,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
 
           {!hasSingleBreakdown && it.breakdowns && it.breakdowns.length > 0 && (
             it.breakdowns.map((b, bi) => (
-              <tr key={bi} className={styles.subrow}>
+              <tr key={b.id || `${it.id}-breakdown-${bi}`} className={styles.subrow}>
                 <td></td>
                 <td></td>
                 <td className="left"></td>
@@ -1325,6 +1327,15 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
           <p>{selectedProject ? `${selectedProject.name} · ${selectedProject.discipline || 'General'} · Periode ${selectedProject.hspkPeriod}` : 'Kelola group pekerjaan, uraian, dan rincian volume proyek.'}</p>
         </div>
         <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.btnOutline}
+            disabled={!selectedProjectId}
+            onClick={() => setHistoryOpen(true)}
+            title="Lihat riwayat perubahan BV"
+          >
+            <History size={16} /> Riwayat
+          </button>
           <button className={styles.btnPrimary} onClick={() => handleOpenAddGroup(null)} disabled={!selectedProjectId}>
             <Plus size={16} /> Tambah Group
           </button>
@@ -1358,20 +1369,22 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             </summary>
             <div className={styles.exportMenu}>
               {[
-                { scope: 'GENERAL', code: 'GENERAL', label: 'BV General' },
+                { scope: 'GENERAL', code: 'GENERAL', label: 'BV General', key: 'scope:GENERAL' },
                 ...projectCategoryOptions.map((option) => ({
                   workCategoryId: option.workCategoryId,
                   code: option.code,
                   label: `BV ${option.name}`,
+                  key: `category:${option.workCategoryId || option.code}`,
                 })),
                 {
                   scope: 'ALL',
                   code: 'ALL',
                   label: `Semua — ${projectCategoryOptions.length + 1} Sheet`,
+                  key: 'scope:ALL',
                 },
               ].map((exportOption) => (
                 <button
-                  key={exportOption.workCategoryId || exportOption.scope}
+                  key={exportOption.key}
                   type="button"
                   className={styles.exportMenuItem}
                   disabled={!selectedProjectId}
@@ -1611,6 +1624,14 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
           )}
         </div>
       )}
+
+      <BvRabHistoryPanel
+        projectId={selectedProjectId}
+        module="BV"
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onUndone={() => refresh()}
+      />
 
       <GroupModal
         isOpen={isGroupModalOpen}

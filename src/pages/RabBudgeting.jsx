@@ -12,7 +12,9 @@ import {
   Trash2,
   Plus,
   Tag,
+  History,
 } from "lucide-react";
+import BvRabHistoryPanel from "../components/BvRabHistoryPanel";
 import ProjectSelector from "../components/ProjectSelector";
 import styles from "../styles/RabBudgeting.module.css";
 import Header from "../components/Header";
@@ -174,6 +176,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
 
   // State untuk modal RAB Selling override
   const [sellingModal, setSellingModal] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // ==========================================================
   // FLATTEN ITEM & SUBTOTAL
@@ -909,6 +912,14 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                 </>
               )}
 
+              <button
+                className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
+                onClick={() => setHistoryOpen(true)}
+                type="button"
+              >
+                <History size={14} /> Riwayat
+              </button>
+
               <span className="spacer" />
 
               <div className={styles["rab-modebar"]}>
@@ -1482,6 +1493,14 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
           </div>
         </div>
       )}
+
+      <BvRabHistoryPanel
+        projectId={projectId}
+        module="RAB"
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onUndone={() => refreshGroups()}
+      />
 
     </div>
   );
