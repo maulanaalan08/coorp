@@ -15,6 +15,7 @@ import {
   History,
 } from "lucide-react";
 import BvRabHistoryPanel from "../components/BvRabHistoryPanel";
+import BvRabApprovalBar from "../components/BvRabApprovalBar";
 import ProjectSelector from "../components/ProjectSelector";
 import styles from "../styles/RabBudgeting.module.css";
 import Header from "../components/Header";
@@ -66,9 +67,11 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     try { return JSON.parse(localStorage.getItem("user")); } catch { return null; }
   })();
   const [projectId, setProjectId] = useState(initialProjectId);
+  const [approvalLocked, setApprovalLocked] = useState(true);
   const [search, setSearch] = useState("");
   const [budgetMode, setBudgetMode] = useState("rap");
-  const canEditRap = ["PROJECT_MANAGER", "PERENCANA"].includes(user?.role);
+  const canEditRap = ["PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
+  const canExportRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role);
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef(null);
@@ -244,15 +247,47 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     }
   }, [loadingProjects, loadingGroups, loadingItems]);
 
+  // Tutup seluruh modal dan bersihkan pilihan saat proyek berganti.
+  useEffect(() => {
+    setGroupModal(null);
+    setEditModal(null);
+    setSelectedItemIds([]);
+    setBulkPriceModal(null);
+    setBulkSwitchModal(null);
+    setBulkNameModal(null);
+    setSellingModal(null);
+    setHistoryOpen(false);
+    setShowExportMenu(false);
+  }, [projectId]);
+
+  // Saat approval mengunci, tutup modal/pilihan agar tidak ada aksi terhadap
+  // data yang sedang menunggu review.
+  useEffect(() => {
+    if (!approvalLocked) return;
+    setGroupModal(null);
+    setEditModal(null);
+    setSelectedItemIds([]);
+    setBulkPriceModal(null);
+    setBulkSwitchModal(null);
+    setBulkNameModal(null);
+    setSellingModal(null);
+    setHistoryOpen(false);
+  }, [approvalLocked]);
+
   // ==========================================================
   // ADD GROUP & SUB-GROUP
   // ==========================================================
   const openGroupForm = (parentId = null) => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     setGroupModal({ parentId, name: "", reference: "" });
   };
 
   const handleSaveGroup = async () => {
-    if (!groupModal.name.trim()) return toast.error("Nama wajib diisi.");
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    if (!groupModal?.name?.trim()) return toast.error("Nama wajib diisi.");
     
     toast.promise(createGroup({
       name: groupModal.name.trim(),
@@ -271,6 +306,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // DELETE ACTIONS & SELECTION
   // ==========================================================
   const handleDeleteGroup = async (id) => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     if (!window.confirm("Hapus group ini? Semua sub-group dan baris pekerjaan di dalamnya akan ikut terhapus.")) return;
     toast.promise(deleteGroup(id), {
       loading: 'Menghapus group...',
@@ -280,6 +319,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const deleteItem = async (id) => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     if (!window.confirm("Hapus baris pekerjaan ini?")) return;
     toast.promise(deleteRabItem(id).then(() => refreshGroups()), {
       loading: 'Menghapus item...',
@@ -289,10 +332,12 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const toggleSelection = (id) => {
+    if (approvalLocked) return;
     setSelectedItemIds((prev) => prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]);
   };
 
   const toggleAllCheckboxes = () => {
+    if (approvalLocked) return;
     const visibleSelectable = visibleAllItems.filter((it) => !it.hasChildren);
     if (selectedItemIds.length > 0) {
       setSelectedItemIds([]);
@@ -302,6 +347,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const handleBulkDelete = async () => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     if (selectedItemIds.length === 0) return;
     if (!window.confirm(`Hapus ${selectedItemIds.length} item secara permanen?`)) return;
     
@@ -319,6 +368,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // EDIT ITEM INDIVIDUAL
   // ==========================================================
   const openEdit = (item, itemNumber = "") => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     if (budgetMode === "rab" && isSuperAdmin) {
       setSellingModal({
         item,
@@ -356,6 +409,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const handleUpdateOverhead = async (item, newValue) => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
     const overheadPercent = Number(newValue);
     if (!Number.isFinite(overheadPercent) || overheadPercent < 0) {
       return toast.error("Overhead tidak valid.");
@@ -371,6 +425,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const handleSaveSelling = async () => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
     if (!sellingModal) return;
     const raw = String(sellingModal.rabUnitPrice).replace(/[^0-9]/g, "");
     const rabUnitPrice = raw ? Number(raw) : 0;
@@ -507,6 +562,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     });
 
   const handleSaveEdit = async () => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    if (!editModal) return;
     const { item, pricingMode, isByOwner, isStip, overheadPercent, rapUnitPrice, sourceJobId } = editModal;
     if (pricingMode === "manual") {
       const updatePromise = updateRabItem(item.id, {
@@ -588,6 +645,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // BULK ACTIONS
   // ==========================================================
   const handleSaveBulkPrice = async () => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    if (!bulkPriceModal) return;
     if (!canEditRap && !isSuperAdmin) return toast.error("Akses edit tidak tersedia untuk role ini.");
     if (!bulkPriceModal.rapUnitPrice && !bulkPriceModal.overheadPercent) return toast.error("Isi salah satu nilai!");
     
@@ -634,6 +693,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const handleSaveBulkSwitch = async () => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    if (!bulkSwitchModal) return;
     if (!bulkSwitchModal.sourceJobId) return toast.error("ID Master Pekerjaan wajib dipilih!");
     
     const bulkSwitchPromise = bulkSwitchJob(
@@ -654,6 +715,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const handleSaveBulkName = async () => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    if (!bulkNameModal) return;
     if (!bulkNameModal.name || !bulkNameModal.rapUnitPrice) return toast.error("Nama item dan harga baru wajib diisi!");
     
     const sapuJagatPromise = fetch(`${API_BASE}/projects/${projectId}/rab-items/bulk-price-by-name`, {
@@ -677,7 +740,6 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // EXPORT & VIEW
   // ==========================================================
   const exportRabExcel = async (mode = "COMBINED") => {
-    const canExportRap = isSuperAdmin || canEditRap;
     if (mode === "RAP" && !canExportRap) {
       return toast.error("Export RAP hanya untuk SUPER_ADMIN, PROJECT_MANAGER, atau PERENCANA.");
     }
@@ -854,6 +916,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
             projectList={projectList}
             loading={loadingProjects}
             onChange={(e) => {
+              setApprovalLocked(true);
               setProjectId(e.target.value || null);
               onProjectChange?.(e.target.value || null);
             }}
@@ -870,6 +933,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
           </div>
         ) : (
           <>
+            <BvRabApprovalBar projectId={projectId} onLockedChange={setApprovalLocked} />
+
             {/* Toolbar utama */}
             <div className={styles["rab-toolbar"]}>
               {canEditRap && (
@@ -915,6 +980,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
               <button
                 className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
                 onClick={() => setHistoryOpen(true)}
+                disabled={approvalLocked}
                 type="button"
               >
                 <History size={14} /> Riwayat
@@ -1094,7 +1160,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                       key={group.id} group={group} depth={0}
                       sumGroupRecursive={sumGroupRecursive}
                       onDeleteGroup={canEditRap ? handleDeleteGroup : null}
-                      onEditItem={canEditRap || (isSuperAdmin && budgetMode === "rab") ? openEdit : null}
+                      onEditItem={canEditRap || (!approvalLocked && isSuperAdmin && budgetMode === "rab") ? openEdit : null}
                       onDeleteItem={canEditRap ? deleteItem : null}
                       onUpdateOverhead={canEditRap ? handleUpdateOverhead : null}
                       canEditRap={canEditRap}
@@ -1497,7 +1563,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       <BvRabHistoryPanel
         projectId={projectId}
         module="RAB"
-        open={historyOpen}
+        open={historyOpen && !approvalLocked}
         onClose={() => setHistoryOpen(false)}
         onUndone={() => refreshGroups()}
       />
