@@ -122,6 +122,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // Kategori proyek dinamis (sama pola dengan BV)
   const configuredProjectCategories = (project?.workCategories || [])
     .filter((entry) => entry.isActive && entry.workCategory?.isActive !== false)
+    .filter((entry) => String(entry.workCategory?.code || '').trim().toUpperCase() !== 'GENERAL')
     .sort((a, b) =>
       (a.workCategory?.sortOrder ?? 0) - (b.workCategory?.sortOrder ?? 0)
       || String(a.workCategory?.name || '').localeCompare(String(b.workCategory?.name || '')),
