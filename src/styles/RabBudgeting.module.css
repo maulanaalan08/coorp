@@ -456,7 +456,7 @@
 
 .rab-items-table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1200px;
   table-layout: fixed;
   border-collapse: collapse;
 }
@@ -1147,6 +1147,10 @@
   padding: 2px 6px;
   cursor: pointer;
   transition: 0.2s;
+}
+.rab-oh-cell {
+  background: rgba(201, 162, 75, 0.05);
+  text-align: center;
 }
 .rab-oh-edit:hover {
   border-color: var(--rab-gold);

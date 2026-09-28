@@ -1,12 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { groupService } from '../services/groupService';
 
 export const useRabGroups = (projectId, discipline = '', workCategoryId = null) => {
   const [rabGroups, setRabGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [errorGroups, setErrorGroups] = useState(null);
+  // Kunci respons ke kombinasi proyek+filter agar data proyek lama tidak bocor.
+  const scopeRef = useRef(projectId);
+  scopeRef.current = `${projectId}|${discipline}|${workCategoryId ?? ''}`;
+  const scope = `${projectId}|${discipline}|${workCategoryId ?? ''}`;
 
   const fetchGroups = useCallback(async () => {
+    const requestScope = scope;
     if (!projectId) {
       setRabGroups([]);
       return;
@@ -15,14 +20,16 @@ export const useRabGroups = (projectId, discipline = '', workCategoryId = null) 
     setErrorGroups(null);
     try {
       const data = await groupService.getByProjectId(projectId, discipline, workCategoryId);
+      if (scopeRef.current !== requestScope) return;
       setRabGroups(Array.isArray(data) ? data : []);
     } catch (err) {
+      if (scopeRef.current !== requestScope) return;
       setErrorGroups(err.message || 'Gagal memuat data grup RAB');
       setRabGroups([]);
     } finally {
-      setLoadingGroups(false);
+      if (scopeRef.current === requestScope) setLoadingGroups(false);
     }
-  }, [projectId, discipline, workCategoryId]);
+  }, [projectId, discipline, workCategoryId, scope]);
 
   const createGroup = useCallback(async (data) => {
     try {
@@ -54,8 +61,11 @@ export const useRabGroups = (projectId, discipline = '', workCategoryId = null) 
   }, [fetchGroups]);
 
   useEffect(() => {
-    fetchGroups();
-  }, [fetchGroups]);
+      setRabGroups([]);
+      setLoadingGroups(Boolean(projectId));
+      setErrorGroups(null);
+      fetchGroups();
+    }, [fetchGroups, projectId, discipline, workCategoryId]);
 
   return {
     rabGroups,

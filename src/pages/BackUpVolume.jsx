@@ -6,7 +6,9 @@ import { useProjects } from '../hooks/useProjects';
 import { useBvItems } from '../hooks/useBvItems';
 import { groupService } from '../services/groupService';
 import { hspkService } from '../services/hspkService';
-import { Pencil, Trash2, Plus, RefreshCw, Download, Eye, ChevronDown } from 'lucide-react';
+import { Pencil, Trash2, Plus, RefreshCw, Download, Eye, ChevronDown, History } from 'lucide-react';
+import BvRabHistoryPanel from '../components/BvRabHistoryPanel';
+import BvRabApprovalBar from '../components/BvRabApprovalBar';
 import toast from 'react-hot-toast';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
@@ -692,6 +694,8 @@ function filterBvByCategory(items, category) {
 export default function BackUpVolume({ initialProjectId = null, onProjectChange, onGoToRab }) {
   const { projects, loading: loadingProjects } = useProjects();
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
+  const projectRef = React.useRef(selectedProjectId);
+  projectRef.current = selectedProjectId;
   const [activeFilter, setActiveFilter] = useState(() => parseBvHash().filter);
   const [groupPage, setGroupPage] = useState(1);
   const [expandedGroupIds, setExpandedGroupIds] = useState(() => new Set());
@@ -741,6 +745,8 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [checkedIds, setCheckedIds] = useState([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [approvalLocked, setApprovalLocked] = useState(true);
   const [rabBusyMessage, setRabBusyMessage] = useState('');
 
   // Jalankan aksi ke RAB sambil menampilkan layar proses.
@@ -803,39 +809,87 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   }, [selectedProjectId, activeFilter, projectCategoryOptions.map((category) => category.code).join('|')]);
 
   const fetchGroups = async () => {
-    if (!selectedProjectId) {
-      setGroups([]);
-      return;
-    }
-    setLoadingGroups(true);
-    try {
-      const res = await groupService.getByProjectId(selectedProjectId);
-      setGroups(Array.isArray(res) ? res : []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingGroups(false);
-    }
-  };
+      if (!selectedProjectId) {
+        setGroups([]);
+        return;
+      }
+      const requestProjectId = selectedProjectId;
+      setLoadingGroups(true);
+      try {
+        const res = await groupService.getByProjectId(requestProjectId);
+        // Abaikan respons jika proyek sudah berganti saat request berjalan.
+        if (projectRef.current !== requestProjectId) return;
+        setGroups(Array.isArray(res) ? res : []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (projectRef.current === requestProjectId) setLoadingGroups(false);
+      }
+    };
 
   useEffect(() => {
+    setGroups([]);
+    setLoadingGroups(Boolean(selectedProjectId));
     fetchGroups();
   }, [selectedProjectId]);
 
+  // Tutup seluruh modal dan bersihkan pilihan saat proyek berganti.
+  // Tanpa ini, modal/pilihan lama bisa menunjuk record proyek sebelumnya.
+  useEffect(() => {
+    setCheckedIds([]);
+    setIsGroupModalOpen(false);
+    setEditGroup(null);
+    setGroupModalParentId(null);
+    setIsBvModalOpen(false);
+    setEditBvItem(null);
+    setBvModalGroupId(null);
+    setBvModalParentId(null);
+    setBvModalParentItem(null);
+    setHistoryOpen(false);
+  }, [selectedProjectId]);
+
+  // Saat approval mengunci, tutup juga modal/pilihan agar tidak ada aksi
+  // yang tertinggal terhadap data yang sedang menunggu review.
+  useEffect(() => {
+    if (!approvalLocked) return;
+    setCheckedIds([]);
+    setIsGroupModalOpen(false);
+    setEditGroup(null);
+    setGroupModalParentId(null);
+    setIsBvModalOpen(false);
+    setEditBvItem(null);
+    setBvModalGroupId(null);
+    setBvModalParentId(null);
+    setBvModalParentItem(null);
+    setHistoryOpen(false);
+  }, [approvalLocked]);
+
   const handleOpenAddGroup = (parentId = null) => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     setEditGroup(null);
     setGroupModalParentId(parentId);
     setIsGroupModalOpen(true);
   };
 
   const handleOpenEditGroup = (group) => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     setEditGroup(group);
     setGroupModalParentId(null);
     setIsGroupModalOpen(true);
   };
 
   const handleDeleteGroup = async (groupId) => {
-    try {
+      if (approvalLocked) {
+        toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+        return;
+      }
+      try {
       const preview = await groupService.deletePreview(groupId);
       const msg = `Group ini beserta ${preview.subGroupCount} sub-group, ${preview.bvCount} item BV, dan ${preview.rabCount} item RAB di dalamnya akan terhapus. Lanjutkan?`;
       if (!window.confirm(msg)) return;
@@ -856,6 +910,10 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   };
 
   const handleOpenAddBv = (groupId = null, parentBvItemId = null) => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     setEditBvItem(null);
     setBvModalGroupId(groupId);
     setBvModalParentId(parentBvItemId);
@@ -865,6 +923,10 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   };
 
   const handleOpenEditBv = (item) => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     setEditBvItem(item);
     setBvModalGroupId(item.groupId);
     setBvModalParentId(item.parentBvItemId);
@@ -874,6 +936,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   };
 
   const handleToggleCheck = (id) => {
+    if (approvalLocked) return;
     setCheckedIds(prev => {
       const isChecked = prev.includes(id);
       let newChecked = isChecked ? prev.filter(i => i !== id) : [...prev, id];
@@ -903,6 +966,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   };
 
   const handleToggleCheckAll = (itemsInTable) => {
+    if (approvalLocked) return;
     const tableItemIds = getAllIdsFromTable(itemsInTable);
     const isAllChecked = tableItemIds.length > 0 && tableItemIds.every(id => checkedIds.includes(id));
     
@@ -914,6 +978,10 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   };
 
   const handleBulkDelete = async () => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     if (checkedIds.length === 0) return;
     if (!window.confirm(`Yakin ingin menghapus ${checkedIds.length} item secara permanen?`)) return;
     
@@ -930,7 +998,11 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   };
 
   const handleBulkLink = async () => {
-    if (checkedIds.length === 0 || rabBusyMessage) return;
+      if (approvalLocked) {
+        toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+        return;
+      }
+      if (checkedIds.length === 0 || rabBusyMessage) return;
     if (!window.confirm(`Link ${checkedIds.length} item terpilih ke RAB?`)) return;
 
     const action = runRabAction(
@@ -950,7 +1022,11 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   };
 
   const handleBulkSync = async () => {
-    if (checkedIds.length === 0 || rabBusyMessage) return;
+      if (approvalLocked) {
+        toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+        return;
+      }
+      if (checkedIds.length === 0 || rabBusyMessage) return;
     if (!window.confirm(`Sync ${checkedIds.length} item terpilih ke RAB?`)) return;
 
     const action = runRabAction(
@@ -990,6 +1066,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             type="checkbox"
             onChange={() => handleToggleCheckAll(itemsInTable)}
             checked={isAllChecked}
+            disabled={approvalLocked}
             title="Pilih/batal semua"
           />
         </th>
@@ -1062,6 +1139,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
               <input
                 type="checkbox"
                 checked={isChecked}
+                disabled={approvalLocked}
                 onChange={() => handleToggleCheck(it.id)}
               />
             </td>
@@ -1108,19 +1186,19 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             </td>
 
             {/* KOLOM AKSI */}
-            <td>
-              <div className={styles.rowActions}>
-                <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditBv(it)} title="Edit">
-                  <Pencil size={14} />
-                </button>
+                        <td>
+                          <div className={styles.rowActions} aria-disabled={approvalLocked} style={approvalLocked ? { pointerEvents: 'none', opacity: 0.5 } : undefined}>
+                            <button type="button" className={styles.btnSmall} disabled={approvalLocked} onClick={() => handleOpenEditBv(it)} title="Edit">
+                              <Pencil size={14} />
+                            </button>
                 
-                {/* TAMPILKAN TOMBOL LINK JIKA BELUM PERNAH DILINK */}
-                {(!it.linkStatus || it.linkStatus === 'BELUM_DILINK') && (
-                  <button
-                    type="button"
-                    className={styles.btnGreen}
-                    disabled={Boolean(rabBusyMessage)}
-                    onClick={() => {
+                            {/* TAMPILKAN TOMBOL LINK JIKA BELUM PERNAH DILINK */}
+                            {(!it.linkStatus || it.linkStatus === 'BELUM_DILINK') && (
+                              <button
+                                type="button"
+                                className={styles.btnGreen}
+                                disabled={approvalLocked || Boolean(rabBusyMessage)}
+                                onClick={() => {
                       const action = runRabAction(
                         'Menghubungkan BV ke RAB...',
                         () => linkToRab(it.id, { includeChildren: true }),
@@ -1141,7 +1219,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                   <button 
                     type="button" 
                     className={`${styles.btnOutline} ${styles.btnSync}`}
-                    disabled={Boolean(rabBusyMessage)}
+                    disabled={approvalLocked || Boolean(rabBusyMessage)}
                     onClick={() => {
                       const treeIds = getAllIdsFromTable([it]);
                       const hasChildren = treeIds.length > 1;
@@ -1164,11 +1242,11 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                 )}
 
                 {!it.parentBvItemId && (
-                  <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(it.groupId, it.id)} title="Tambah Sub">
+                  <button type="button" className={styles.btnSmall} disabled={approvalLocked} onClick={() => handleOpenAddBv(it.groupId, it.id)} title="Tambah Sub">
                     <Plus size={14} /> Sub
                   </button>
                 )}
-                <button type="button" className={styles.btnDanger} onClick={() => deleteBvItem(it.id)} title="Hapus">
+                <button type="button" className={styles.btnDanger} disabled={approvalLocked} onClick={() => deleteBvItem(it.id)} title="Hapus">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -1177,7 +1255,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
 
           {!hasSingleBreakdown && it.breakdowns && it.breakdowns.length > 0 && (
             it.breakdowns.map((b, bi) => (
-              <tr key={bi} className={styles.subrow}>
+              <tr key={b.id || `${it.id}-breakdown-${bi}`} className={styles.subrow}>
                 <td></td>
                 <td></td>
                 <td className="left"></td>
@@ -1325,7 +1403,16 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
           <p>{selectedProject ? `${selectedProject.name} · ${selectedProject.discipline || 'General'} · Periode ${selectedProject.hspkPeriod}` : 'Kelola group pekerjaan, uraian, dan rincian volume proyek.'}</p>
         </div>
         <div className={styles.headerActions}>
-          <button className={styles.btnPrimary} onClick={() => handleOpenAddGroup(null)} disabled={!selectedProjectId}>
+          <button
+            type="button"
+            className={styles.btnOutline}
+            disabled={!selectedProjectId || approvalLocked}
+            onClick={() => setHistoryOpen(true)}
+            title="Lihat riwayat perubahan BV"
+          >
+            <History size={16} /> Riwayat
+          </button>
+          <button className={styles.btnPrimary} onClick={() => handleOpenAddGroup(null)} disabled={!selectedProjectId || approvalLocked}>
             <Plus size={16} /> Tambah Group
           </button>
           <button
@@ -1358,20 +1445,22 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             </summary>
             <div className={styles.exportMenu}>
               {[
-                { scope: 'GENERAL', code: 'GENERAL', label: 'BV General' },
+                { scope: 'GENERAL', code: 'GENERAL', label: 'BV General', key: 'scope:GENERAL' },
                 ...projectCategoryOptions.map((option) => ({
                   workCategoryId: option.workCategoryId,
                   code: option.code,
                   label: `BV ${option.name}`,
+                  key: `category:${option.workCategoryId || option.code}`,
                 })),
                 {
                   scope: 'ALL',
                   code: 'ALL',
                   label: `Semua — ${projectCategoryOptions.length + 1} Sheet`,
+                  key: 'scope:ALL',
                 },
               ].map((exportOption) => (
                 <button
-                  key={exportOption.workCategoryId || exportOption.scope}
+                  key={exportOption.key}
                   type="button"
                   className={styles.exportMenuItem}
                   disabled={!selectedProjectId}
@@ -1387,6 +1476,8 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
           </details>
         </div>
       </div>
+
+      <BvRabApprovalBar projectId={selectedProjectId} onLockedChange={setApprovalLocked} />
 
       <div className={styles.workspaceControls}>
         <div className={styles.projectSelectorShell}>
@@ -1405,6 +1496,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             onChange={(e) => {
               setExpandedGroupIds(new Set());
               setSelectedProjectId(e.target.value);
+              setApprovalLocked(true);
               onProjectChange?.(e.target.value || null);
             }}
           />
@@ -1433,6 +1525,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                 type="button"
                 className={styles.btnSubtle}
                 onClick={() => handleToggleCheckAll(filteredBvItems)}
+                disabled={approvalLocked}
               >
                 Pilih Semua
               </button>
@@ -1449,8 +1542,8 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
           <span className={styles.bulkSummary}>
             <strong>{checkedIds.length}</strong> item terpilih
           </span>
-          <div className={styles.bulkActions}>
-            <button type="button" className={styles.btnDanger} onClick={handleBulkDelete}>
+          <div className={styles.bulkActions} aria-disabled={approvalLocked} style={approvalLocked ? { pointerEvents: 'none', opacity: 0.5 } : undefined}>
+            <button type="button" className={styles.btnDanger} disabled={approvalLocked} onClick={handleBulkDelete}>
               <Trash2 size={15} /> Hapus
             </button>
             {(() => {
@@ -1459,14 +1552,14 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
 
                if (allBelumSinkron) {
                  return (
-                    <button type="button" className={styles.btnPrimary} onClick={handleBulkSync}>
+                    <button type="button" className={styles.btnPrimary} disabled={approvalLocked} onClick={handleBulkSync}>
                       <RefreshCw size={15} /> Sync ke RAB
                     </button>
                  );
                }
 
                return (
-                  <button type="button" className={styles.btnPrimary} onClick={handleBulkLink}>
+                  <button type="button" className={styles.btnPrimary} disabled={approvalLocked} onClick={handleBulkLink}>
                     Link ke RAB
                   </button>
                );
@@ -1515,14 +1608,14 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                       <span className={styles.groupIndex}>{ROMAN[groupOrdinal] || groupOrdinal + 1}</span>
                       <span>{g.name}</span>
                     </div>
-                    <div className={styles.groupActions} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                      <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(g.id, null)} title="Tambah Baris">
+                    <div className={styles.groupActions} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} aria-disabled={approvalLocked} style={approvalLocked ? { pointerEvents: 'none', opacity: 0.5 } : undefined}>
+                      <button type="button" className={styles.btnSmall} disabled={approvalLocked} onClick={() => handleOpenAddBv(g.id, null)} title="Tambah Baris">
                         <Plus size={14} /> Baris
                       </button>
-                      <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditGroup(g)} title="Edit">
+                      <button type="button" className={styles.btnSmall} disabled={approvalLocked} onClick={() => handleOpenEditGroup(g)} title="Edit">
                         <Pencil size={14} />
                       </button>
-                      <button type="button" className={[styles.btnSmall, styles.btnDanger].join(' ')} onClick={() => handleDeleteGroup(g.id)} title="Hapus">
+                      <button type="button" className={[styles.btnSmall, styles.btnDanger].join(' ')} disabled={approvalLocked} onClick={() => handleDeleteGroup(g.id)} title="Hapus">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -1537,14 +1630,14 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                       <React.Fragment key={sg.id}>
                         <div className={styles.subgroupHead}>
                           <span className={styles.subgroupTitle}>{sgIdx + 1}. {sg.name}</span>
-                          <div className={styles.groupActions}>
-                            <button type="button" className={styles.btnSmall} onClick={() => handleOpenAddBv(sg.id, null)} title="Tambah Baris">
+                          <div className={styles.groupActions} aria-disabled={approvalLocked} style={approvalLocked ? { pointerEvents: 'none', opacity: 0.5 } : undefined}>
+                            <button type="button" className={styles.btnSmall} disabled={approvalLocked} onClick={() => handleOpenAddBv(sg.id, null)} title="Tambah Baris">
                               <Plus size={14} /> Baris
                             </button>
-                            <button type="button" className={styles.btnSmall} onClick={() => handleOpenEditGroup(sg)} title="Edit">
+                            <button type="button" className={styles.btnSmall} disabled={approvalLocked} onClick={() => handleOpenEditGroup(sg)} title="Edit">
                               <Pencil size={14} />
                             </button>
-                            <button type="button" className={styles.btnDanger} onClick={() => handleDeleteGroup(sg.id)} title="Hapus">
+                            <button type="button" className={styles.btnDanger} disabled={approvalLocked} onClick={() => handleDeleteGroup(sg.id)} title="Hapus">
                               <Trash2 size={14} />
                             </button>
                           </div>
@@ -1611,6 +1704,14 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
           )}
         </div>
       )}
+
+      <BvRabHistoryPanel
+        projectId={selectedProjectId}
+        module="BV"
+        open={historyOpen && !approvalLocked}
+        onClose={() => setHistoryOpen(false)}
+        onUndone={() => refresh()}
+      />
 
       <GroupModal
         isOpen={isGroupModalOpen}

@@ -12,7 +12,10 @@ import {
   Trash2,
   Plus,
   Tag,
+  History,
 } from "lucide-react";
+import BvRabHistoryPanel from "../components/BvRabHistoryPanel";
+import BvRabApprovalBar from "../components/BvRabApprovalBar";
 import ProjectSelector from "../components/ProjectSelector";
 import styles from "../styles/RabBudgeting.module.css";
 import Header from "../components/Header";
@@ -64,9 +67,13 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     try { return JSON.parse(localStorage.getItem("user")); } catch { return null; }
   })();
   const [projectId, setProjectId] = useState(initialProjectId);
+  const [approvalLocked, setApprovalLocked] = useState(true);
   const [search, setSearch] = useState("");
   const [budgetMode, setBudgetMode] = useState("rap");
-  const canEditRap = ["PROJECT_MANAGER", "PERENCANA"].includes(user?.role);
+  const canEditRap = ["PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
+  // Overhead (%) adalah lever margin yang juga dipegang SUPER_ADMIN di view RAB Selling.
+  const canEditOverhead = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
+  const canExportRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role);
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef(null);
@@ -172,8 +179,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const [bulkSwitchModal, setBulkSwitchModal] = useState(null);
   const [bulkNameModal, setBulkNameModal] = useState(null);
 
-  // State untuk modal RAB Selling override
-  const [sellingModal, setSellingModal] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // ==========================================================
   // FLATTEN ITEM & SUBTOTAL
@@ -241,15 +247,45 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     }
   }, [loadingProjects, loadingGroups, loadingItems]);
 
+  // Tutup seluruh modal dan bersihkan pilihan saat proyek berganti.
+  useEffect(() => {
+    setGroupModal(null);
+    setEditModal(null);
+    setSelectedItemIds([]);
+    setBulkPriceModal(null);
+    setBulkSwitchModal(null);
+    setBulkNameModal(null);
+    setHistoryOpen(false);
+    setShowExportMenu(false);
+  }, [projectId]);
+
+  // Saat approval mengunci, tutup modal/pilihan agar tidak ada aksi terhadap
+  // data yang sedang menunggu review.
+  useEffect(() => {
+    if (!approvalLocked) return;
+    setGroupModal(null);
+    setEditModal(null);
+    setSelectedItemIds([]);
+    setBulkPriceModal(null);
+    setBulkSwitchModal(null);
+    setBulkNameModal(null);
+    setHistoryOpen(false);
+  }, [approvalLocked]);
+
   // ==========================================================
   // ADD GROUP & SUB-GROUP
   // ==========================================================
   const openGroupForm = (parentId = null) => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     setGroupModal({ parentId, name: "", reference: "" });
   };
 
   const handleSaveGroup = async () => {
-    if (!groupModal.name.trim()) return toast.error("Nama wajib diisi.");
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    if (!groupModal?.name?.trim()) return toast.error("Nama wajib diisi.");
     
     toast.promise(createGroup({
       name: groupModal.name.trim(),
@@ -268,6 +304,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // DELETE ACTIONS & SELECTION
   // ==========================================================
   const handleDeleteGroup = async (id) => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     if (!window.confirm("Hapus group ini? Semua sub-group dan baris pekerjaan di dalamnya akan ikut terhapus.")) return;
     toast.promise(deleteGroup(id), {
       loading: 'Menghapus group...',
@@ -277,6 +317,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const deleteItem = async (id) => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     if (!window.confirm("Hapus baris pekerjaan ini?")) return;
     toast.promise(deleteRabItem(id).then(() => refreshGroups()), {
       loading: 'Menghapus item...',
@@ -286,10 +330,12 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const toggleSelection = (id) => {
+    if (approvalLocked) return;
     setSelectedItemIds((prev) => prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]);
   };
 
   const toggleAllCheckboxes = () => {
+    if (approvalLocked) return;
     const visibleSelectable = visibleAllItems.filter((it) => !it.hasChildren);
     if (selectedItemIds.length > 0) {
       setSelectedItemIds([]);
@@ -299,6 +345,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const handleBulkDelete = async () => {
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
+      return;
+    }
     if (selectedItemIds.length === 0) return;
     if (!window.confirm(`Hapus ${selectedItemIds.length} item secara permanen?`)) return;
     
@@ -316,13 +366,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // EDIT ITEM INDIVIDUAL
   // ==========================================================
   const openEdit = (item, itemNumber = "") => {
-    if (budgetMode === "rab" && isSuperAdmin) {
-      setSellingModal({
-        item,
-        itemNumber,
-        rabUnitPrice: item.rabUnitPrice ?? "",
-        overheadPercent: item.overheadPercent ?? item.overhead ?? 0,
-      });
+    if (approvalLocked) {
+      toast.error('BV/RAB sedang menunggu review atau sudah disetujui. Buat revisi baru dulu.');
       return;
     }
 
@@ -353,6 +398,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const handleUpdateOverhead = async (item, newValue) => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
     const overheadPercent = Number(newValue);
     if (!Number.isFinite(overheadPercent) || overheadPercent < 0) {
       return toast.error("Overhead tidak valid.");
@@ -365,24 +411,6 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         error: "Gagal memperbarui overhead.",
       },
     ).catch((e) => console.error(e));
-  };
-
-  const handleSaveSelling = async () => {
-    if (!sellingModal) return;
-    const raw = String(sellingModal.rabUnitPrice).replace(/[^0-9]/g, "");
-    const rabUnitPrice = raw ? Number(raw) : 0;
-    if (!Number.isFinite(rabUnitPrice) || rabUnitPrice < 0) {
-      return toast.error("RAB Satuan tidak valid.");
-    }
-    const payload = { rabUnitPrice };
-    toast.promise(
-      updateRabItem(sellingModal.item.id, payload).then(() => refreshGroups()),
-      {
-        loading: "Menyimpan override RAB...",
-        success: "Override RAB berhasil disimpan.",
-        error: "Gagal menyimpan override RAB.",
-      },
-    ).then(() => setSellingModal(null)).catch((e) => console.error(e));
   };
 
   const toggleByOwner = () => {
@@ -504,6 +532,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     });
 
   const handleSaveEdit = async () => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    if (!editModal) return;
     const { item, pricingMode, isByOwner, isStip, overheadPercent, rapUnitPrice, sourceJobId } = editModal;
     if (pricingMode === "manual") {
       const updatePromise = updateRabItem(item.id, {
@@ -585,6 +615,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // BULK ACTIONS
   // ==========================================================
   const handleSaveBulkPrice = async () => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    if (!bulkPriceModal) return;
     if (!canEditRap && !isSuperAdmin) return toast.error("Akses edit tidak tersedia untuk role ini.");
     if (!bulkPriceModal.rapUnitPrice && !bulkPriceModal.overheadPercent) return toast.error("Isi salah satu nilai!");
     
@@ -631,6 +663,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const handleSaveBulkSwitch = async () => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    if (!bulkSwitchModal) return;
     if (!bulkSwitchModal.sourceJobId) return toast.error("ID Master Pekerjaan wajib dipilih!");
     
     const bulkSwitchPromise = bulkSwitchJob(
@@ -651,6 +685,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
 
   const handleSaveBulkName = async () => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    if (!bulkNameModal) return;
     if (!bulkNameModal.name || !bulkNameModal.rapUnitPrice) return toast.error("Nama item dan harga baru wajib diisi!");
     
     const sapuJagatPromise = fetch(`${API_BASE}/projects/${projectId}/rab-items/bulk-price-by-name`, {
@@ -674,7 +710,6 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // EXPORT & VIEW
   // ==========================================================
   const exportRabExcel = async (mode = "COMBINED") => {
-    const canExportRap = isSuperAdmin || canEditRap;
     if (mode === "RAP" && !canExportRap) {
       return toast.error("Export RAP hanya untuk SUPER_ADMIN, PROJECT_MANAGER, atau PERENCANA.");
     }
@@ -851,6 +886,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
             projectList={projectList}
             loading={loadingProjects}
             onChange={(e) => {
+              setApprovalLocked(true);
               setProjectId(e.target.value || null);
               onProjectChange?.(e.target.value || null);
             }}
@@ -867,6 +903,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
           </div>
         ) : (
           <>
+            <BvRabApprovalBar projectId={projectId} onLockedChange={setApprovalLocked} />
+
             {/* Toolbar utama */}
             <div className={styles["rab-toolbar"]}>
               {canEditRap && (
@@ -908,6 +946,15 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                   </button>
                 </>
               )}
+
+              <button
+                className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
+                onClick={() => setHistoryOpen(true)}
+                disabled={approvalLocked}
+                type="button"
+              >
+                <History size={14} /> Riwayat
+              </button>
 
               <span className="spacer" />
 
@@ -1083,10 +1130,11 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                       key={group.id} group={group} depth={0}
                       sumGroupRecursive={sumGroupRecursive}
                       onDeleteGroup={canEditRap ? handleDeleteGroup : null}
-                      onEditItem={canEditRap || (isSuperAdmin && budgetMode === "rab") ? openEdit : null}
+                      onEditItem={canEditRap ? openEdit : null}
                       onDeleteItem={canEditRap ? deleteItem : null}
-                      onUpdateOverhead={canEditRap ? handleUpdateOverhead : null}
+                      onUpdateOverhead={canEditOverhead ? handleUpdateOverhead : null}
                       canEditRap={canEditRap}
+                      canEditOverhead={canEditOverhead}
                       budgetMode={budgetMode}
                       isSuperAdmin={isSuperAdmin}
                       selectedItemIds={selectedItemIds}
@@ -1395,93 +1443,13 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         </div>
       )}
 
-      {/* ================= MODAL RAB SELLING OVERRIDE ================= */}
-      {sellingModal && (
-        <div className={styles["rab-modal-overlay"]}>
-          <div className={styles["rab-modal"]} style={{ maxWidth: 480 }}>
-            <h3>Override Harga Jual</h3>
-            <p className={styles["rab-edit-meta"]}>
-              {sellingModal.item.name} \u00b7 {sellingModal.itemNumber || renderNumber(sellingModal.item, 0, "", false)}
-              {sellingModal.item.sourceJobType?.reference ? ` \u00b7 AHSP ${sellingModal.item.sourceJobType.reference}` : ""}
-            </p>
-
-            <div className={styles["rab-selling-card"]}>
-              <div className={styles["rab-selling-row"]}>
-                <span className={styles["rab-selling-label"]}>RAP Satuan</span>
-                <span className={styles["rab-selling-value"]}>{fmtRp(sellingModal.item.rapUnitPrice)}</span>
-              </div>
-              <div className={styles["rab-selling-row"]}>
-                <span className={styles["rab-selling-label"]}>RAB Auto (RAP + OH)</span>
-                <span className={[styles["rab-selling-value"], styles.gold].join(" ")}>
-                  {fmtRp(
-                    (Number(sellingModal.item.rapUnitPrice) || 0) *
-                    (1 + (Number(sellingModal.overheadPercent) || 0) / 100)
-                  )}
-                </span>
-              </div>
-              <div className={styles["rab-selling-divider"]} />
-              <div className={styles["rab-selling-row"]}>
-                <span className={styles["rab-selling-label"]}>Margin Auto</span>
-                <span className={styles["rab-selling-value"]}>
-                  {fmtRp(
-                    ((Number(sellingModal.item.rapUnitPrice) || 0) *
-                    (Number(sellingModal.overheadPercent) || 0) / 100) *
-                    (Number(sellingModal.item.volume) || 0)
-                  )}
-                </span>
-              </div>
-            </div>
-
-            <div className={styles["rab-selling-input-grid"]}>
-              <div>
-                <span className={styles["rab-selling-input-label"]}>Overhead / Profit %</span>
-                <input
-                  type="text"
-                  className={styles["rab-selling-input"]}
-                  value={`${Number(sellingModal.overheadPercent) || 0}%`}
-                  aria-label="Overhead / Profit % (ditetapkan Perencana)"
-                  readOnly
-                />
-              </div>
-              <div>
-                <label className={styles["rab-selling-input-label"]}>Override RAB Satuan</label>
-                <input
-                  type="text"
-                  className={styles["rab-selling-input"]}
-                  value={formatInputNumber(sellingModal.rabUnitPrice)}
-                  onChange={(e) => setSellingModal({ ...sellingModal, rabUnitPrice: parseInputNumber(e.target.value) })}
-                  placeholder="Kosong = auto"
-                />
-              </div>
-            </div>
-            <p className={styles["rab-selling-hint"]}>
-              <strong>Overhead / Profit %</strong> ditetapkan oleh Perencana. Override hanya mengubah RAB Satuan, tanpa mengubah RAP atau overhead.
-            </p>
-
-            {sellingModal.rabUnitPrice !== "" && (
-              <div className={[styles["rab-selling-card"], styles["rab-selling-preview"]].join(" ")}>
-                <div className={styles["rab-selling-row"]}>
-                  <span className={styles["rab-selling-label"]}>RAB Total Override</span>
-                  <span className={[styles["rab-selling-value"], styles.gold].join(" ")}>
-                    {fmtRp((Number(String(sellingModal.rabUnitPrice).replace(/[^0-9]/g, "")) || 0) * (Number(sellingModal.item.volume) || 0))}
-                  </span>
-                </div>
-                <div className={styles["rab-selling-row"]}>
-                  <span className={styles["rab-selling-label"]}>Margin Override</span>
-                  <span className={styles["rab-selling-value"]}>
-                    {fmtRp(((Number(String(sellingModal.rabUnitPrice).replace(/[^0-9]/g, "")) || 0) - (Number(sellingModal.item.rapUnitPrice) || 0)) * (Number(sellingModal.item.volume) || 0))}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className={styles["rab-modal-actions"]} style={{ marginTop: '24px' }}>
-              <button className={styles["rab-btn"]} onClick={() => setSellingModal(null)} type="button">Batal</button>
-              <button className={[styles["rab-btn"], styles["rab-btn-primary"]].join(" ")} onClick={handleSaveSelling} type="button">Simpan Override</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <BvRabHistoryPanel
+        projectId={projectId}
+        module="RAB"
+        open={historyOpen && !approvalLocked}
+        onClose={() => setHistoryOpen(false)}
+        onUndone={() => refreshGroups()}
+      />
 
     </div>
   );
@@ -1528,6 +1496,7 @@ function RabGroupNode({
   onDeleteItem,
   onUpdateOverhead,
   canEditRap,
+  canEditOverhead,
   budgetMode,
   isSuperAdmin,
   selectedItemIds,
@@ -1567,6 +1536,7 @@ function RabGroupNode({
           onDelete={onDeleteItem}
           onUpdateOverhead={onUpdateOverhead}
           canEditRap={canEditRap}
+          canEditOverhead={canEditOverhead}
           budgetMode={budgetMode}
           isSuperAdmin={isSuperAdmin}
           selectedItemIds={selectedItemIds}
@@ -1586,6 +1556,7 @@ function RabGroupNode({
           onDeleteItem={onDeleteItem}
           onUpdateOverhead={onUpdateOverhead}
           canEditRap={canEditRap}
+          canEditOverhead={canEditOverhead}
           budgetMode={budgetMode}
           isSuperAdmin={isSuperAdmin}
           selectedItemIds={selectedItemIds}
@@ -1596,7 +1567,7 @@ function RabGroupNode({
   );
 }
 
-function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, canEditRap, budgetMode, isSuperAdmin, selectedItemIds, onToggleSelect, visibleAllItems, onToggleAll }) {
+function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, canEditRap, canEditOverhead, budgetMode, isSuperAdmin, selectedItemIds, onToggleSelect, visibleAllItems, onToggleAll }) {
   const parents = (items || []).filter((it) => !it.parentId);
   const childrenByParent = useMemo(() => {
     const map = new Map();
@@ -1610,18 +1581,25 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, c
   }, [items]);
 
   const renderRow = (item, idx, isParent = false, hasChildren = false) => {
-    const source = getItemSource(item);
-    const rowClass = [
-      selectedItemIds.includes(item.id) ? styles["rab-row-selected"] : "",
-      isParent ? styles["rab-parent-row"] : styles["rab-child-row"],
-      !item.isByOwner && !item.isStip && Number(item.rapUnitPrice || 0) <= 0 && !hasChildren ? styles["rab-unfilled"] : "",
-    ].filter(Boolean).join(" ");
+      const source = getItemSource(item);
+      const rowClass = [
+        selectedItemIds.includes(item.id) ? styles["rab-row-selected"] : "",
+        isParent ? styles["rab-parent-row"] : styles["rab-child-row"],
+        !item.isByOwner && !item.isStip && Number(item.rapUnitPrice || 0) <= 0 && !hasChildren ? styles["rab-unfilled"] : "",
+      ].filter(Boolean).join(" ");
 
-    const priceUnit = budgetMode === "rab" && isSuperAdmin ? item.rabUnitPrice : item.rapUnitPrice;
-    const priceTotal = budgetMode === "rab" && isSuperAdmin ? item.rabTotalPrice : item.rapTotalPrice;
-    const emptyPrice = Number(priceUnit || 0) <= 0 && !item.isByOwner && !item.isStip && !hasChildren;
-    const itemRef = !hasChildren ? getItemRef(item, source) : "Header / Sub-Group";
-    const itemNumber = renderNumber(item, idx, parentNum, isParent);
+      // Mode RAB Selling untuk SUPER_ADMIN: kolom RAP & RAB tampil berdampingan;
+      // lever edit utama adalah Overhead (%) yang sudah memperbarui RAB otomatis.
+      const isSellingMode = budgetMode === "rab" && isSuperAdmin;
+      const rapUnit = item.rapUnitPrice;
+      const rapTotal = item.rapTotalPrice;
+      const rabUnit = item.rabUnitPrice;
+      const rabTotal = item.rabTotalPrice;
+      const unitPriceDisplay = isSellingMode ? rabUnit : rapUnit;
+      const totalPriceDisplay = isSellingMode ? rabTotal : rapTotal;
+      const emptyPrice = Number(unitPriceDisplay || 0) <= 0 && !item.isByOwner && !item.isStip && !hasChildren;
+      const itemRef = !hasChildren ? getItemRef(item, source) : "Header / Sub-Group";
+      const itemNumber = renderNumber(item, idx, parentNum, isParent);
 
     return (
       <tr key={item.id} className={rowClass}>
@@ -1661,11 +1639,17 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, c
         </td>
         <td>{hasChildren ? "" : item.paymentUnit}</td>
         <td className={styles["rab-mono"]}>{item.volume != null && !hasChildren ? Number(item.volume).toFixed(2) : ""}</td>
-        {budgetMode === "rab" && isSuperAdmin && (
-          <td className={styles["rab-mono"]}>
-            {!hasChildren && canEditRap && onUpdateOverhead ? (
+        {isSellingMode && (
+          <>
+            <td className={styles["rab-mono"]}>{hasChildren ? "" : fmtRp(rapUnit)}</td>
+            <td className={styles["rab-mono"]}>{hasChildren ? "" : fmtRp(rapTotal)}</td>
+          </>
+        )}
+        {isSellingMode && (
+          <td className={[styles["rab-mono"], styles["rab-oh-cell"]].join(" ")}>
+            {!hasChildren && canEditOverhead && onUpdateOverhead ? (
               <button
-                className={styles["rab-oh-edit"]} title="Klik untuk edit overhead"
+                className={styles["rab-oh-edit"]} title="Klik untuk edit Overhead (%) — RAB dihitung otomatis"
                 onClick={() => {
                   const current = item.overheadPercent ?? item.overhead ?? 0;
                   const next = window.prompt("Overhead (%)", String(current));
@@ -1683,17 +1667,17 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, c
           </td>
         )}
         <td className={[styles["rab-mono"], emptyPrice ? styles["rab-empty-price"] : ""].join(" ")}>
-          {hasChildren ? "" : emptyPrice ? "-" : fmtRp(priceUnit)}
+          {hasChildren ? "" : emptyPrice ? "-" : fmtRp(unitPriceDisplay)}
         </td>
-        <td className={styles["rab-mono"]}>{hasChildren ? "" : fmtRp(priceTotal)}</td>
-        {budgetMode === "rab" && isSuperAdmin && (
+        <td className={styles["rab-mono"]}>{hasChildren ? "" : fmtRp(totalPriceDisplay)}</td>
+        {isSellingMode && (
           <td className={styles["rab-mono"]}>
             {hasChildren ? "" : fmtRp(Number(item.rabTotalPrice || 0) - Number(item.rapTotalPrice || 0))}
           </td>
         )}
         <td className={styles["rab-row-actions"]}>
           {onEdit && !hasChildren && (
-            <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onEdit(item, itemNumber)} type="button" title={budgetMode === "rab" && isSuperAdmin ? "Override RAB" : "Edit"}><Pencil size={14} /></button>
+            <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onEdit(item, itemNumber)} type="button" title={isSellingMode ? "Edit RAP (Perencana)" : "Edit"}><Pencil size={14} /></button>
           )}
           {onDelete && (
             <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} onClick={() => onDelete(item.id)} type="button" title="Hapus"><Trash2 size={14} /></button>
@@ -1714,7 +1698,13 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, c
           <th style={{ width: "8%" }}>Status</th>
           <th style={{ width: "7%" }}>Sat</th>
           <th style={{ width: "7%" }}>Vol</th>
-          {budgetMode === "rab" && isSuperAdmin && <th style={{ width: "7%" }}>OH %</th>}
+          {budgetMode === "rab" && isSuperAdmin && (
+            <>
+              <th style={{ width: "10%" }}>RAP Satuan</th>
+              <th style={{ width: "10%" }}>RAP Total</th>
+              <th style={{ width: "7%" }}>OH %</th>
+            </>
+          )}
           <th style={{ width: "10%" }}>{budgetMode === "rab" && isSuperAdmin ? "RAB Satuan" : "RAP Satuan"}</th>
           <th style={{ width: "10%" }}>{budgetMode === "rab" && isSuperAdmin ? "RAB Total" : "RAP Total"}</th>
           {budgetMode === "rab" && isSuperAdmin && <th style={{ width: "8%" }}>Margin</th>}

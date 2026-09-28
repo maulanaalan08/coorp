@@ -1,26 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { bvService } from '../services/bvService';
 
 export const useBvItems = (projectId) => {
   const [bvItems, setBvItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Menjaga agar respons dari project lama tidak menimpa data project aktif.
+  const projectIdRef = useRef(projectId);
+  projectIdRef.current = projectId;
 
   const fetchItems = useCallback(async () => {
-    if (!projectId) {
+    const requestProjectId = projectId;
+    if (!requestProjectId) {
       setBvItems([]);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const data = await bvService.getByProjectId(projectId);
+      const data = await bvService.getByProjectId(requestProjectId);
+      if (projectIdRef.current !== requestProjectId) return;
       setBvItems(Array.isArray(data) ? data : []);
     } catch (err) {
+      if (projectIdRef.current !== requestProjectId) return;
       setError(err.message || 'Gagal memuat data BackUp Volume');
       setBvItems([]);
     } finally {
-      setLoading(false);
+      if (projectIdRef.current === requestProjectId) setLoading(false);
     }
   }, [projectId]);
 
@@ -94,8 +100,11 @@ export const useBvItems = (projectId) => {
   }, [fetchItems]);
 
   useEffect(() => {
+    setBvItems([]);
+    setLoading(Boolean(projectId));
+    setError(null);
     fetchItems();
-  }, [fetchItems]);
+  }, [fetchItems, projectId]);
 
   const syncBulk = useCallback(async (ids) => {
     try {

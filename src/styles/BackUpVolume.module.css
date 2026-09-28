@@ -1126,6 +1126,274 @@
   margin-bottom: 20px;
 }
 
+.historyOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, 0.56);
+  backdrop-filter: blur(2px);
+}
+
+.historyDrawer {
+  width: min(520px, 94vw);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  color: #eee8dc;
+  background: #12110f;
+  border-left: 1px solid #383126;
+  box-shadow: -16px 0 44px rgba(0, 0, 0, 0.42);
+  animation: historySlideIn 180ms ease-out;
+}
+
+@keyframes historySlideIn {
+  from { transform: translateX(28px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.historyHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px 24px 19px;
+  border-bottom: 1px solid #2d2922;
+}
+
+.historyEyebrow {
+  display: block;
+  margin-bottom: 7px;
+  color: #c9a766;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.historyHeader h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.historyHeader p {
+  margin: 6px 0 0;
+  color: #918a7d;
+  font-size: 12px;
+}
+
+.historyClose {
+  width: 35px;
+  height: 35px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa296;
+  background: transparent;
+  border: 1px solid #373229;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.historyClose:hover {
+  color: #fff;
+  border-color: #706451;
+}
+
+.historyToolbar {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  color: #8f887c;
+  background: #171511;
+  border-bottom: 1px solid #29251f;
+  font-size: 12px;
+}
+
+.historyToolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  color: #c6beb1;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.historyToolbar button:hover:not(:disabled) { color: #f3eadb; }
+.historyToolbar button:disabled { opacity: 0.5; cursor: default; }
+
+.historyBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px 30px;
+}
+
+.historyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 180px;
+  color: #979084;
+  font-size: 13px;
+  text-align: center;
+}
+
+.historyEntry {
+  position: relative;
+  padding: 21px 0 22px 23px;
+  border-bottom: 1px solid #29251f;
+}
+
+.historyEntry::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 34px;
+  bottom: -12px;
+  width: 1px;
+  background: #332e26;
+}
+
+.historyEntry:last-child::before { display: none; }
+
+.historyEntryTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.historyEntryTitle {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.historyEntryTitle strong {
+  overflow: hidden;
+  color: #eee7da;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.historyDot {
+  position: absolute;
+  left: 0;
+  width: 11px;
+  height: 11px;
+  background: #d0a85c;
+  border: 3px solid #12110f;
+  outline: 1px solid #8e7548;
+  border-radius: 50%;
+}
+
+.historyDotUndone {
+  background: #68645c;
+  outline-color: #514d46;
+}
+
+.historyModuleTag {
+  flex: 0 0 auto;
+  color: #9d9589;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.historyMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 13px;
+  color: #777167;
+  font-size: 11px;
+}
+
+.historyChanges {
+  display: grid;
+  gap: 7px;
+}
+
+.historyChange {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.75fr) minmax(0, 1.8fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 10px;
+  background: #191713;
+  border-left: 2px solid #40382b;
+}
+
+.historyChange > span {
+  color: #8f887d;
+  font-size: 11px;
+}
+
+.historyChange > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.historyChange del {
+  overflow: hidden;
+  color: #aa746b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.historyChange b { color: #615b52; font-weight: 400; }
+.historyChange strong {
+  overflow: hidden;
+  color: #9fc28e;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.historyUndo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 13px;
+  padding: 7px 10px;
+  color: #d6b572;
+  background: transparent;
+  border: 1px solid #665431;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.historyUndo:hover {
+  color: #f0d79e;
+  background: #211c13;
+  border-color: #967940;
+}
+
+.historyUndoneLabel {
+  display: block;
+  margin-top: 12px;
+  color: #777168;
+  font-size: 10px;
+  font-style: italic;
+}
+
 @media (max-width: 900px) {
   .bvWrapper {
     padding: 16px;

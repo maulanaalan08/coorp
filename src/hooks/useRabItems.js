@@ -1,12 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { rabService } from '../services/rabService';
 
 export const useRabItems = (projectId, discipline = '', workCategoryId = null) => {
   const [rabItems, setRabItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Kunci respons ke proyek+filter agar data proyek lama tidak bocor.
+  const scopeRef = useRef(projectId);
+  scopeRef.current = `${projectId}|${discipline}|${workCategoryId ?? ''}`;
+  const scope = `${projectId}|${discipline}|${workCategoryId ?? ''}`;
 
   const fetchItems = useCallback(async () => {
+    const requestScope = scope;
     if (!projectId) {
       setRabItems([]);
       return;
@@ -15,14 +20,16 @@ export const useRabItems = (projectId, discipline = '', workCategoryId = null) =
     setError(null);
     try {
       const data = await rabService.getByProjectId(projectId, discipline, workCategoryId);
+      if (scopeRef.current !== requestScope) return;
       setRabItems(Array.isArray(data) ? data : []);
     } catch (err) {
+      if (scopeRef.current !== requestScope) return;
       setError(err.message || 'Gagal memuat data RAB');
       setRabItems([]);
     } finally {
-      setLoading(false);
+      if (scopeRef.current === requestScope) setLoading(false);
     }
-  }, [projectId, discipline, workCategoryId]);
+  }, [projectId, discipline, workCategoryId, scope]);
 
   const updateRabItem = useCallback(async (id, data) => {
     try {
@@ -83,8 +90,11 @@ export const useRabItems = (projectId, discipline = '', workCategoryId = null) =
   }, [fetchItems]);
 
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+      setRabItems([]);
+      setLoading(Boolean(projectId));
+      setError(null);
+      fetchItems();
+    }, [fetchItems, projectId, discipline, workCategoryId]);
 
   return {
     rabItems,
