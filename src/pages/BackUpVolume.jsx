@@ -97,28 +97,31 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
       (a.workCategory?.sortOrder ?? 0) - (b.workCategory?.sortOrder ?? 0)
       || String(a.workCategory?.name || '').localeCompare(String(b.workCategory?.name || '')),
     );
-  const categoryFromFilter = projectCategories.find(
-    (entry) => String(entry.workCategory?.code || '').toUpperCase() === activeFilter,
+  const selectableProjectCategories = projectCategories.filter(
+    (entry) => String(entry.workCategory?.code || '').trim().toUpperCase() !== 'GENERAL',
   );
   const inheritedWorkCategoryId = parentItem?.workCategoryId || null;
   const initialWorkCategoryId = editItem
     ? (editItem.workCategoryId || inheritedWorkCategoryId || '')
-    : (inheritedWorkCategoryId
-      || categoryFromFilter?.workCategoryId
-      || projectCategories[0]?.workCategoryId
-      || '');
+    : (inheritedWorkCategoryId || '');
   const [mode, setMode] = useState('custom');
   const [sourceJobTypeId, setSourceJobTypeId] = useState('');
   const [name, setName] = useState('');
   const [keterangan, setKeterangan] = useState('');
   const [paymentUnit, setPaymentUnit] = useState('');
   const [ecommerceLink, setEcommerceLink] = useState('');
-  const inheritedLabel = parentItem?.disciplineLabel || 'GENERAL';
+  const inheritedLabel = parentItem?.disciplineLabel || '';
   const isRootItem = !parentBvItemId;
   const canChooseCategory = isRootItem && !editItem?.parentBvItemId;
   const [workCategoryId, setWorkCategoryId] = useState(initialWorkCategoryId);
   const selectedProjectCategory = projectCategories.find(
     (entry) => entry.workCategoryId === workCategoryId,
+  );
+  const isLegacyGeneralEdit = Boolean(
+    editItem
+      && editItem.workCategoryId
+      && editItem.workCategoryId === workCategoryId
+      && String(selectedProjectCategory?.workCategory?.code || '').trim().toUpperCase() === 'GENERAL',
   );
   const [disciplineLabel, setDisciplineLabel] = useState(() => {
     if (editItem) return editItem.disciplineLabel || 'GENERAL';
@@ -133,12 +136,9 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
     if (!isOpen) return;
     const nextCategoryId = editItem
       ? (editItem.workCategoryId || parentItem?.workCategoryId || '')
-      : (parentItem?.workCategoryId
-        || categoryFromFilter?.workCategoryId
-        || projectCategories[0]?.workCategoryId
-        || '');
+      : (parentItem?.workCategoryId || '');
     setWorkCategoryId(nextCategoryId);
-    setDisciplineLabel(editItem?.disciplineLabel || parentItem?.disciplineLabel || 'GENERAL');
+    setDisciplineLabel(editItem?.disciplineLabel || parentItem?.disciplineLabel || '');
   }, [
     isOpen,
     editItem?.workCategoryId,
@@ -349,6 +349,16 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
           ? 'Kategori item induk belum ditetapkan. Edit item induk terlebih dahulu.'
           : 'Pilih kategori pekerjaan.');
       }
+      if (projectCategories.length === 0 && !parentBvItemId && !editItem
+        && !['SIPIL', 'INTERIOR'].includes(String(disciplineLabel || '').toUpperCase())) {
+        throw new Error('Pilih kategori pekerjaan: Sipil atau Interior.');
+      }
+      if (canChooseCategory && workCategoryId && !isLegacyGeneralEdit) {
+        const chosenCode = String(selectedProjectCategory?.workCategory?.code || '').toUpperCase();
+        if (chosenCode === 'GENERAL' || !chosenCode) {
+          throw new Error('Kategori General tidak dapat dipilih. Pilih kategori pekerjaan.');
+        }
+      }
       if (mode === 'hspk' && selectedProjectCategory?.pricingMode === 'CUSTOM') {
         throw new Error('Kategori ini memakai mode CUSTOM dan tidak memiliki master AHSP.');
       }
@@ -363,10 +373,14 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
         paymentUnit: isHeaderOnly ? null : paymentUnit.trim(),
         ecommerceLink: isHeaderOnly ? null : (ecommerceLink.trim() || null),
         disciplineLabel: canChooseCategory
-          ? (['SIPIL', 'INTERIOR'].includes(selectedCategoryCode) ? selectedCategoryCode : disciplineLabel || 'GENERAL')
+          ? (['SIPIL', 'INTERIOR'].includes(selectedCategoryCode)
+            ? selectedCategoryCode
+            : disciplineLabel || (editItem?.disciplineLabel ?? null))
           : undefined,
-        workCategoryId: canChooseCategory ? workCategoryId || null : undefined,
-        ahspDiscipline: (!workCategoryId && disciplineLabel === 'GENERAL' && mode === 'hspk')
+        workCategoryId: canChooseCategory
+          ? workCategoryId || (editItem?.workCategoryId ?? null)
+          : undefined,
+        ahspDiscipline: (!workCategoryId && mode === 'hspk')
           ? (sourceJobTypeId ? undefined : null)
           : undefined,
         breakdowns: isHeaderOnly ? [] : breakdowns.map(getBreakdownPayload),
@@ -415,7 +429,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
 
           <div className={styles.bvInputSection}>
             <div className={styles.bvSectionTitle}>2. Kategori pekerjaan</div>
-            {projectCategories.length > 0 ? (
+            {selectableProjectCategories.length > 0 ? (
               <div className={styles.formGroup}>
                 <label>{canChooseCategory ? 'Kategori proyek' : 'Kategori induk (diwariskan)'}</label>
                 <select
@@ -425,9 +439,9 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                     const nextId = event.target.value;
                     setWorkCategoryId(nextId);
                     const nextCode = String(
-                      projectCategories.find((entry) => entry.workCategoryId === nextId)?.workCategory?.code || '',
+                      selectableProjectCategories.find((entry) => entry.workCategoryId === nextId)?.workCategory?.code || '',
                     ).toUpperCase();
-                    setDisciplineLabel(['SIPIL', 'INTERIOR'].includes(nextCode) ? nextCode : 'GENERAL');
+                    setDisciplineLabel(['SIPIL', 'INTERIOR'].includes(nextCode) ? nextCode : '');
                   }}
                   disabled={!canChooseCategory}
                   required
@@ -435,7 +449,12 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                   {canChooseCategory && !workCategoryId && (
                     <option value="">Pilih kategori pekerjaan</option>
                   )}
-                  {projectCategories.map((entry) => (
+                  {isLegacyGeneralEdit && (
+                    <option value={workCategoryId}>
+                      {String(selectedProjectCategory?.workCategory?.code || 'GENERAL').toUpperCase()} (kategori lama)
+                    </option>
+                  )}
+                  {selectableProjectCategories.map((entry) => (
                     <option key={entry.workCategoryId} value={entry.workCategoryId}>
                       {String(entry.workCategory?.code || '').toUpperCase()}
                     </option>
@@ -445,12 +464,11 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                   <small className={styles.inheritedHint}>Kategori ini memakai sumber harga CUSTOM.</small>
                 )}
               </div>
-            ) : (
+            ) : projectCategories.length === 0 ? (
               <div className={styles.disciplineChoices}>
                 {[
                   { value: 'SIPIL', label: 'Sipil' },
                   { value: 'INTERIOR', label: 'Interior' },
-                  { value: 'GENERAL', label: 'General' },
                 ].map((option) => (
                   <button
                     key={option.value}
@@ -464,6 +482,10 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                   </button>
                 ))}
               </div>
+            ) : (
+              <small className={styles.inheritedHint}>
+                Kategori General tidak dapat dipilih. Aktifkan minimal satu kategori pekerjaan pada proyek terlebih dahulu.
+              </small>
             )}
           </div>
 
@@ -663,14 +685,16 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
 // ================================================================
 // KOMPONEN UTAMA BACKUP VOLUME
 // ================================================================
-const ALL_CATEGORY_FILTER = 'GENERAL';
+const ALL_CATEGORY_FILTER = 'SEMUA';
+const LEGACY_BV_ALL_FILTER = 'GENERAL';
 
 function parseBvHash() {
   const raw = window.location.hash.replace('#', '');
   if (!raw.startsWith('bv')) return { tab: 'bv', filter: ALL_CATEGORY_FILTER };
   const filter = raw.split('/')[1]?.trim().toUpperCase();
-  // Accept dynamic category codes plus legacy SIPIL/INTERIOR/GENERAL hashes.
-  return { tab: 'bv', filter: filter || ALL_CATEGORY_FILTER };
+  // Hash lawas #bv/GENERAL tetap dialihkan ke #bv/SEMUA.
+  if (!filter || filter === LEGACY_BV_ALL_FILTER) return { tab: 'bv', filter: ALL_CATEGORY_FILTER };
+  return { tab: 'bv', filter };
 }
 
 function filterBvByCategory(items, category) {
@@ -722,11 +746,13 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  // Saat tab BV aktif tapi hash belum ada, default ke #bv/GENERAL
+  // Saat tab BV aktif tapi hash belum ada, default ke #bv/SEMUA.
   useEffect(() => {
     const raw = window.location.hash.replace('#', '');
     if (!raw.startsWith('bv')) {
-      window.location.hash = 'bv/GENERAL';
+      window.location.hash = `bv/${ALL_CATEGORY_FILTER}`;
+    } else if (raw.startsWith(`bv/${LEGACY_BV_ALL_FILTER}`)) {
+      window.location.hash = `bv/${ALL_CATEGORY_FILTER}`;
     }
   }, []);
 
@@ -773,6 +799,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const configuredProjectCategories = (selectedProject?.workCategories || [])
     .filter((entry) => entry.isActive && entry.workCategory?.isActive !== false)
+    .filter((entry) => String(entry.workCategory?.code || '').trim().toUpperCase() !== 'GENERAL')
     .sort((a, b) =>
       (a.workCategory?.sortOrder ?? 0) - (b.workCategory?.sortOrder ?? 0)
       || String(a.workCategory?.name || '').localeCompare(String(b.workCategory?.name || '')),
@@ -1312,7 +1339,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
       if (selectedFilterCategory?.workCategoryId) {
         query.set('workCategoryId', selectedFilterCategory.workCategoryId);
       } else {
-        query.set('discipline', activeFilter);
+        query.set('discipline', activeFilter === ALL_CATEGORY_FILTER ? 'SEMUA' : activeFilter);
       }
       const viewUrl = `${apiBase}/api/projects/${selectedProjectId}/bv-items/view?${query.toString()}`;
       const res = await fetch(viewUrl, {
@@ -1445,7 +1472,6 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             </summary>
             <div className={styles.exportMenu}>
               {[
-                { scope: 'GENERAL', code: 'GENERAL', label: 'BV General', key: 'scope:GENERAL' },
                 ...projectCategoryOptions.map((option) => ({
                   workCategoryId: option.workCategoryId,
                   code: option.code,
@@ -1455,7 +1481,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                 {
                   scope: 'ALL',
                   code: 'ALL',
-                  label: `Semua — ${projectCategoryOptions.length + 1} Sheet`,
+                  label: `BV Semua Kategori — ${projectCategoryOptions.length + 1} Sheet`,
                   key: 'scope:ALL',
                 },
               ].map((exportOption) => (
