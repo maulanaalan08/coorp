@@ -47,6 +47,7 @@ const parseInputNumber = (val) => {
 };
 
 const ALL_CATEGORY_FILTER = 'SEMUA';
+const BV_RAB_APPROVAL_UI_ENABLED = false;
 const DISCIPLINE_BADGE = { INTERIOR: '#a0522d', SIPIL: '#4682b4', GENERAL: '#666', MEP: '#2e8b57', SEMUA: '#666' };
 
 // Baris kosong untuk rincian bahan/alat manual (item custom yang tidak ada di AHSP)
@@ -67,7 +68,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     try { return JSON.parse(localStorage.getItem("user")); } catch { return null; }
   })();
   const [projectId, setProjectId] = useState(initialProjectId);
-  const [approvalLocked, setApprovalLocked] = useState(true);
+  const [approvalLocked, setApprovalLocked] = useState(false);
   const [search, setSearch] = useState("");
   const [budgetMode, setBudgetMode] = useState("rap");
   const canEditRap = ["PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
@@ -904,7 +905,9 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
           </div>
         ) : (
           <>
-            <BvRabApprovalBar projectId={projectId} onLockedChange={setApprovalLocked} />
+            {BV_RAB_APPROVAL_UI_ENABLED && (
+              <BvRabApprovalBar projectId={projectId} onLockedChange={setApprovalLocked} />
+            )}
 
             {/* Toolbar utama */}
             <div className={styles["rab-toolbar"]}>
