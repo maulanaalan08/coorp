@@ -772,10 +772,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     const url = URL.createObjectURL(await response.blob());
     const link = document.createElement("a"); link.href = url; link.download = `TimeSchedule_${project?.name || projectId}.xlsx`; link.click(); URL.revokeObjectURL(url);
   };
-  const openRabDocument = async ({ mode = "RAP", format = "" } = {}) => {
+  const openRabDocument = async ({ mode = "RAP" } = {}) => {
     if (!projectId) return;
-    if ((mode === "RAB" || format === "invoice") && !isSuperAdmin) {
-      return toast.error("Hanya SUPER_ADMIN yang dapat membuka RAB Selling atau invoice.");
+    if (mode === "RAB" && !isSuperAdmin) {
+      return toast.error("Hanya SUPER_ADMIN yang dapat membuka RAB Selling.");
     }
 
     const previewWindow = window.open("", "_blank");
@@ -786,7 +786,6 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
 
     try {
       const params = new URLSearchParams({ mode });
-      if (format) params.set("format", format);
       if (activeWorkCategoryId) params.set("workCategoryId", activeWorkCategoryId);
       else if (activeDiscipline && activeDiscipline !== ALL_CATEGORY_FILTER) params.set("discipline", activeDiscipline);
       const response = await fetch(`${API_BASE}/projects/${projectId}/rab-items/view?${params.toString()}`, {
@@ -807,7 +806,6 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   };
   const viewRap = () => openRabDocument({ mode: "RAP" });
   const viewRab = () => openRabDocument({ mode: "RAB" });
-  const viewInvoice = () => openRabDocument({ mode: "RAB", format: "invoice" });
 
   // ==========================================================
   // SYNC FINANCE
@@ -1041,10 +1039,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                 <button className={styles["rab-btn"]} onClick={viewRap} type="button">View RAP</button>
               )}
               {isSuperAdmin && (
-                <>
-                  <button className={styles["rab-btn"]} onClick={viewRab} type="button">View RAB</button>
-                  <button className={styles["rab-btn"]} onClick={viewInvoice} type="button">Invoice Client</button>
-                </>
+                <button className={styles["rab-btn"]} onClick={viewRab} type="button">View RAB</button>
               )}
 
               {isSuperAdmin && (project?.rabStatus === "LOCKED" ? (
