@@ -13,6 +13,11 @@ import toast from 'react-hot-toast';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
 
+// Fitur approval/baseline BV/RAB dinonaktifkan sementara. Komponen dan logika
+// tetap ada agar mudah diaktifkan kembali; saat false, tidak ada bar approval,
+// tidak ada kunci edit, dan Riwayat/Undo tetap berjalan seperti biasa.
+const BV_RAB_APPROVAL_UI_ENABLED = false;
+
 
 // ================================================================
 // MODAL GROUP / SUB-GROUP
@@ -772,7 +777,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [checkedIds, setCheckedIds] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [approvalLocked, setApprovalLocked] = useState(true);
+  const [approvalLocked, setApprovalLocked] = useState(false);
   const [rabBusyMessage, setRabBusyMessage] = useState('');
 
   // Jalankan aksi ke RAB sambil menampilkan layar proses.
@@ -1503,7 +1508,9 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
         </div>
       </div>
 
-      <BvRabApprovalBar projectId={selectedProjectId} onLockedChange={setApprovalLocked} />
+      {BV_RAB_APPROVAL_UI_ENABLED && (
+        <BvRabApprovalBar projectId={selectedProjectId} onLockedChange={setApprovalLocked} />
+      )}
 
       <div className={styles.workspaceControls}>
         <div className={styles.projectSelectorShell}>
