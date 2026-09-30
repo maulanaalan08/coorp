@@ -52,7 +52,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
 
   useEffect(() => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
-    if (["time-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
+    if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
     if (["finance", "pembelian-siap-pakai", "pengajuan-bayar", "pembayaran-supplier", "laporan-harian", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
     if (["purchase-orders", "po-jasa", "retur-pembelian", "invoice-penagihan", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
     if (["upload-hspk", "work-categories"].includes(activeTab)) setIsHspkOpen(true);
@@ -201,6 +201,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               </button>
               {isPelaksanaanOpen && (
                 <ul className="mt-1 flex flex-col gap-1 list-none p-0">
+                  <SubNavItem icon={CalendarDays} label="Global Schedule" tab="global-schedule" />
                   <SubNavItem icon={History} label="Time Schedule" tab="time-schedule" />
                   <SubNavItem icon={ClipboardCheck} label="Join Opname" tab="join-opname" />
                   <SubNavItem icon={FileText} label="Berita Acara (BAST)" tab="bast" />

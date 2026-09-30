@@ -107,8 +107,8 @@ export function useJoinOpname(initialProjectId) {
   };
 
   const handleProgressChange = (rabItemId, value) => {
-    let numericValue = value.replace(/[^0-9.]/g, "");
-    if (numericValue !== "" && Number(numericValue) > 100) numericValue = "100";
+    let numericValue = value.replace(/[^0-9.-]/g, "");
+    if (numericValue !== "" && numericValue !== "-" && Number(numericValue) > 100) numericValue = "100";
     setProgressInputs((prev) => ({
       ...prev,
       [rabItemId]: { ...prev[rabItemId], percent: numericValue }
@@ -131,8 +131,8 @@ export function useJoinOpname(initialProjectId) {
     const inputData = progressInputs[item.rabItemId];
     const progress = Number(inputData?.percent || 0);
 
-    if (!Number.isFinite(progress) || progress < 0 || progress > 100) {
-      return showNotice("error", "Progress harus berada di antara 0 sampai 100.");
+    if (!Number.isFinite(progress) || progress > 100) {
+      return showNotice("error", "Progress maksimal 100%.");
     }
 
     setBusyItems((prev) => ({ ...prev, [item.rabItemId]: true }));
@@ -248,10 +248,12 @@ export function useJoinOpname(initialProjectId) {
         
         items.forEach(item => {
           if (item.hasChildren) return;
+          if (item.rekapProgress >= 100) return; // Ignore jika sudah 100%
+          
           const breakdown = item.dailyBreakdown?.find(r => r.dayNumber === day.dayNumber);
           if (breakdown?.inSchedule) {
             hasExpected = true;
-            if (!breakdown.progress || breakdown.progress <= 0) {
+            if (!breakdown.hasProgress) {
               missed = true;
             }
           }

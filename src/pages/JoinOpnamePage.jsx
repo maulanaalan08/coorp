@@ -232,7 +232,7 @@ function JoinOpnamePage({ initialProjectId = null }) {
                         {days.map((day) => {
                           const breakdown = item.dailyBreakdown?.find((r) => r.dayNumber === day.dayNumber);
                           const isOob = breakdown && !breakdown.inSchedule && !breakdown.hasProgress;
-                          const isMissed = breakdown?.inSchedule && (!breakdown.progress || breakdown.progress <= 0) && (new Date(day.date).setHours(0,0,0,0) <= new Date().setHours(0,0,0,0));
+                          const isMissed = breakdown?.inSchedule && !breakdown.hasProgress && (new Date(day.date).setHours(0,0,0,0) <= new Date().setHours(0,0,0,0)) && item.rekapProgress < 100;
                           
                           return (
                             <td key={day.dayNumber} className={selectedDate === toInputDate(day.date) ? "jo-current-day-cell" : ""}>

@@ -1,0 +1,159 @@
+.container {
+  padding: 24px;
+  max-width: 100%;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.header {
+  margin-bottom: 24px;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.subtitle {
+  color: #888;
+  font-size: 14px;
+}
+
+.loading, .error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #888;
+  font-size: 16px;
+}
+
+.error {
+  color: #ef4444;
+}
+
+.ganttContainer {
+  flex: 1;
+  background: #161513;
+  border: 1px solid #333;
+  border-radius: 12px;
+  overflow: auto;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.ganttTable {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 800px;
+  table-layout: fixed;
+}
+
+.ganttTable th, .ganttTable td {
+  border: 1px solid #2a2a2a;
+  padding: 0;
+}
+
+.monthHeader {
+  background: #1a1814;
+  color: #d4af37;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+  padding: 12px 8px;
+  border-bottom: 1px solid #333;
+}
+
+.weekHeader {
+  background: #161513;
+  color: #888;
+  font-size: 12px;
+  text-align: center;
+  padding: 8px 4px;
+  white-space: nowrap;
+  width: 60px; /* Fixed width for weeks */
+}
+
+.projectColHeader {
+  background: #1a1814;
+  color: #fff;
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 16px !important;
+  width: 250px;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  border-right: 2px solid #333;
+}
+
+.projectCell {
+  padding: 16px !important;
+  background: #161513;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  border-right: 2px solid #333;
+}
+
+.projectName {
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clientName {
+  color: #888;
+  font-size: 12px;
+}
+
+.weekCell {
+  position: relative;
+  height: 60px;
+}
+
+.weekCell.active {
+  background-color: rgba(212, 175, 55, 0.05); /* Subtle highlight for week */
+}
+
+.barWrapper {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 24px;
+  width: 100%;
+  z-index: 2;
+}
+
+.ganttBar {
+  height: 100%;
+  background: linear-gradient(90deg, #d4af37, #b89326);
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.ganttBar:hover {
+  filter: brightness(1.1);
+  transform: scaleY(1.1);
+}
+
+.noScheduleText {
+  color: #666;
+  font-size: 12px;
+  font-style: italic;
+  padding-left: 12px;
+}

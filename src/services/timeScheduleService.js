@@ -12,6 +12,11 @@ export const timeScheduleService = {
     return handleResponse(res);
   },
 
+  getGlobalSchedule: async () => {
+    const res = await fetch(`${API_BASE_URL}/global-schedule`);
+    return handleResponse(res);
+  },
+
   getSchedule: async (projectId, filterValue) => {
     const url = new URL(`${API_BASE_URL}/projects/${projectId}/rap-time-schedule`);
     if (filterValue && filterValue !== 'General') {

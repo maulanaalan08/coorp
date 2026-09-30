@@ -68,7 +68,7 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           <div className="jo-progress-input-wrapper">
                             <input
-                              type="number" min="0" max="100" step="0.01"
+                              type="number" max="100" step="0.01"
                               value={inputData.percent}
                               onChange={(e) => handleProgressChange(item.rabItemId, e.target.value)}
                               disabled={busy}
