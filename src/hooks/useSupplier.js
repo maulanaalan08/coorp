@@ -36,9 +36,10 @@ export const useSupplier = () => {
 
   const createSupplier = async (supplierData) => {
     try {
-      await poService.createSupplier(supplierData);
+      const created = await poService.createSupplier(supplierData);
       toast.success('Supplier berhasil ditambahkan');
       fetchSuppliers();
+      return created;
     } catch (error) {
       console.error(error);
       toast.error('Gagal menambahkan supplier');
@@ -48,9 +49,10 @@ export const useSupplier = () => {
 
   const createSupplierItem = async (itemData) => {
     try {
-      await poService.createSupplierItem(itemData);
+      const created = await poService.createSupplierItem(itemData);
       toast.success('Item supplier berhasil ditambahkan');
       fetchSupplierItems();
+      return created;
     } catch (error) {
       console.error(error);
       toast.error('Gagal menambahkan item supplier');

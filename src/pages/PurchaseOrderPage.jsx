@@ -839,6 +839,7 @@ const PurchaseOrderPage = () => {
           editingPo={editingPo}
           initialSupplierId={initialSupplierId}
           kategoriPO={hpContext ? 'HABIS_PAKAI' : 'MATERIAL'}
+          masterMode="supplier"
           sumberPo={hpContext?.sumberPo || null}
           alasanHabisPakai={hpContext?.alasanHabisPakai || null}
           permintaanHabisPakaiId={hpContext?.permintaanHabisPakaiId || null}

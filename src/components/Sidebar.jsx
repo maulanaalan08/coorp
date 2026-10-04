@@ -53,7 +53,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   useEffect(() => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
     if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
-    if (["finance", "pembelian-siap-pakai", "pengajuan-bayar", "pembayaran-supplier", "laporan-harian", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
+    if (["finance", "pembelian-siap-pakai", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-material", "laporan-harian", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
     if (["purchase-orders", "po-jasa", "retur-pembelian", "invoice-penagihan", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
     if (["upload-hspk", "work-categories"].includes(activeTab)) setIsHspkOpen(true);
   }, [activeTab]);
@@ -226,10 +226,11 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               </button>
               {isFinanceOpen && (
                 <ul className="mt-1 flex flex-col gap-1 list-none p-0">
-                  <SubNavItem icon={Wallet} label="Kebutuhan Material" tab="finance" />
+                  <SubNavItem icon={Wallet} label="Kebutuhan Material & Jasa" tab="finance" />
                   <SubNavItem icon={Package} label="Pembelian Siap Pakai" tab="pembelian-siap-pakai" />
                   <SubNavItem icon={FileInput} label="Pengajuan Bayar" tab="pengajuan-bayar" />
-                  <SubNavItem icon={Banknote} label="Pembayaran Supplier" tab="pembayaran-supplier" />
+                  <SubNavItem icon={Banknote} label="Pembayaran Supplier" tab="pembayaran-material" />
+                  <SubNavItem icon={Banknote} label="Pembayaran Jasa" tab="pembayaran-supplier" />
                   <SubNavItem icon={CalendarDays} label="Laporan" tab="laporan-harian" />
                   <SubNavItem icon={Landmark} label="Buku Besar Kas/Bank" tab="buku-besar" />
                 </ul>

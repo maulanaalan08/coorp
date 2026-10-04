@@ -29,6 +29,7 @@ const PurchaseOrderJasaPage = lazy(() => import("./pages/PurchaseOrderJasaPage")
 const ReturPembelianPage = lazy(() => import("./pages/ReturPembelianPage"));
 const PengajuanBayarPage = lazy(() => import("./pages/PengajuanBayarPage"));
 const PembayaranSupplierPage = lazy(() => import("./pages/PembayaranSupplierPage"));
+const PembayaranMaterialPage = lazy(() => import("./pages/PembayaranMaterialPage"));
 const InvoicePenagihanPage = lazy(() => import("./pages/InvoicePenagihanPage"));
 const LaporanHarianPage = lazy(() => import("./pages/LaporanHarianPage"));
 const ComplaintPage = lazy(() => import("./pages/ComplaintPage"));
@@ -60,7 +61,7 @@ function App() {
     const validTabs = [
       'dashboard', 'project-board', 'project-detail', 'upload-hspk', 'data-survey',
       'bv', 'backup-volume', 'rab', 'finance', 'pembelian-siap-pakai', 'purchase-orders',
-      'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'invoice-penagihan',
+      'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'pembayaran-material', 'invoice-penagihan',
       'laporan-harian', 'global-schedule', 'time-schedule', 'join-opname', 'bast', 'complain',
       'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories'
     ];
@@ -209,6 +210,7 @@ function App() {
           {activeTab === "retur-pembelian" && <ReturPembelianPage />}
           {activeTab === "pengajuan-bayar" && <PengajuanBayarPage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
           {activeTab === "pembayaran-supplier" && <PembayaranSupplierPage />}
+          {activeTab === "pembayaran-material" && <PembayaranMaterialPage />}
           {activeTab === "invoice-penagihan" && <InvoicePenagihanPage />}
           {activeTab === "laporan-harian" && <LaporanHarianPage />}
           {activeTab === "global-schedule" && <GlobalSchedulePage />}

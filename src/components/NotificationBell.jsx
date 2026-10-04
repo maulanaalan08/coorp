@@ -23,7 +23,7 @@ const fmtRp = (n) =>
 const NotificationBell = ({ onNavigate }) => {
   const { user, token, isLoading: authLoading } = useAuth();
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState({ poFinance: [], poAtasan: [], pjFinance: [], pjAtasan: [] });
+  const [data, setData] = useState({ poFinance: [], poAtasan: [], pjFinance: [], pjAtasan: [], pbWarning: [] });
   const wrapRef = useRef(null);
 
   const role = user?.role || '';
@@ -38,18 +38,31 @@ const NotificationBell = ({ onNavigate }) => {
     try {
       // Penting: tanpa projectId. Ini inbox lintas proyek — jumlahnya
       // dipakai badge, dan tiap item bawa proyeknya sendiri.
-      const [poF, poA, pjF, pjA] = await Promise.all([
+      const [poF, poA, pjF, pjA, pbSup] = await Promise.all([
         isFinance ? poService.getInboxFinance().catch(() => []) : Promise.resolve([]),
         isAtasan ? poService.getInboxAtasan().catch(() => []) : Promise.resolve([]),
         isFinance ? purchasingService.getInboxFinancePengajuan().catch(() => []) : Promise.resolve([]),
         isAtasan ? purchasingService.getInboxAtasanPengajuan().catch(() => []) : Promise.resolve([]),
+        isFinance ? purchasingService.getPembayaranSupplier().catch(() => []) : Promise.resolve([]),
       ]);
       const arr = (d) => (Array.isArray(d) ? d : []);
+      
+      const pbArr = arr(pbSup);
+      const today = new Date();
+      const pbWarning = pbArr.filter(p => {
+        if (!p.jatuhTempo) return false;
+        if (p.status === 'PAID' || p.status === 'LUNAS') return false;
+        const jt = new Date(p.jatuhTempo);
+        const diffDays = Math.ceil((jt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      });
+
       setData({
         poFinance: arr(poF),
         poAtasan: arr(poA),
         pjFinance: arr(pjF),
         pjAtasan: arr(pjA),
+        pbWarning,
       });
     } catch {
       /* diam — notifikasi tidak boleh bikin halaman error */
@@ -70,7 +83,7 @@ const NotificationBell = ({ onNavigate }) => {
     return () => document.removeEventListener('mousedown', luar);
   }, []);
 
-  const totalFinance = data.poFinance.length + data.pjFinance.length;
+  const totalFinance = data.poFinance.length + data.pjFinance.length + (data.pbWarning?.length || 0);
   const totalAtasan = data.poAtasan.length + data.pjAtasan.length;
   const total = totalFinance + totalAtasan;
 
@@ -167,6 +180,16 @@ const NotificationBell = ({ onNavigate }) => {
                         judul="pengajuan bayar perlu verifikasi"
                         sub={`Terbaru: ${data.pjFinance[0]?.noPengajuan || '-'} — ${fmtRp(data.pjFinance[0]?.totalTagihan)}`}
                         onClick={() => buka('pengajuan-bayar', data.pjFinance[0]?.projectId)}
+                      />
+                    )}
+                    {data.pbWarning?.length > 0 && (
+                      <Baris
+                        icon={Wallet}
+                        warna="text-red-400"
+                        jumlah={data.pbWarning.length}
+                        judul="pembayaran jatuh tempo (H-7)"
+                        sub={`Segera bayar: ${data.pbWarning[0]?.noPembayaran || '-'}`}
+                        onClick={() => buka('pembayaran-supplier')}
                       />
                     )}
                   </>

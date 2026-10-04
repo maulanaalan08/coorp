@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Wallet,
   ClipboardList,
@@ -44,6 +44,7 @@ const FILTER_TABS = [
 const PO_TYPE_TABS = [
   { key: "ALL", label: "Semua" },
   { key: "MATERIAL", label: "PO Material" },
+  { key: "JASA", label: "PO Jasa" },
   { key: "HABIS_PAKAI", label: "PO Habis Pakai" },
 ];
 
@@ -62,6 +63,24 @@ const [busyPoId, setBusyPoId] = useState(null);
   const project = useMemo(() => projectList.find((p) => p.id === projectId), [projectList, projectId]);
 
   const { rabGroups: groups = [], loadingGroups: loadingRab, errorGroups: rabError } = useRabGroups(projectId);
+
+  const allRabItems = useMemo(() => {
+    const list = [];
+    groups.forEach((g) => {
+      list.push(...(g.items || []));
+      (g.children || []).forEach((c) => {
+        list.push(...(c.items || []));
+      });
+    });
+    return list;
+  }, [groups]);
+
+  const getRapForJasa = useCallback((it) => {
+    return allRabItems.find(r => 
+      r.id === it.rabItemId || 
+      String(r.itemName || '').trim().toLowerCase() === String(it.description || '').trim().toLowerCase()
+    ) || null;
+  }, [allRabItems]);
   const { mrItems, loadingMr, mrError, updateBulkMaterialRequests, refreshMaterialRequests } = useMaterialRequests(projectId);
   const { refreshPOs } = usePO();
 
@@ -265,9 +284,9 @@ const [busyPoId, setBusyPoId] = useState(null);
           <p className={styles.eyebrow}>
             {project?.name ? `Project: ${project.name}` : "Financial Overview"}
           </p>
-          <h2 className={styles.title}>Kebutuhan Material</h2>
+          <h2 className={styles.title}>Kebutuhan Material & Jasa</h2>
           <p className={styles.subtitle}>
-            Kelola pengadaan dan kebutuhan material (Purchasing).
+            Kelola pengadaan dan kebutuhan material serta jasa (Purchasing).
           </p>
         </div>
         <div style={{ minWidth: '300px' }}>
@@ -354,7 +373,10 @@ const [busyPoId, setBusyPoId] = useState(null);
                           po.status === "BELUM_APPROVE" ? styles.statusPending :
                           po.status === "MENUNGGU_ATASAN" ? styles.statusPartial :
                           styles.statusNone;
-                        const typeClass = po.kategoriPO === "HABIS_PAKAI" ? styles.statusHabisPakai : styles.statusMaterial;
+                        const typeClass =
+                          po.kategoriPO === "HABIS_PAKAI" ? styles.statusHabisPakai :
+                          po.kategoriPO === "JASA" ? styles.statusJasa || styles.statusMaterial :
+                          styles.statusMaterial;
                         return (
                           <React.Fragment key={po.id}>
                             <tr className={styles.itemRow} onClick={() => setExpandedPo((prev) => ({ ...prev, [po.id]: !prev[po.id] }))}>
@@ -370,10 +392,11 @@ const [busyPoId, setBusyPoId] = useState(null);
                               <td className={styles.itemCell}>{po.poNumber}</td>
                               <td style={{ textAlign: 'center' }}>
                                 <span className={`${styles.statusBadge} ${typeClass}`}>
-                                  {po.kategoriPO === "HABIS_PAKAI" ? "Habis Pakai" : "Material"}
+                                  {po.kategoriPO === "HABIS_PAKAI" ? "HABIS PAKAI" :
+                                   po.kategoriPO === "JASA" ? "JASA" : "MATERIAL"}
                                 </span>
                               </td>
-                              <td className={styles.groupCell}>{po.supplier?.name || "-"}</td>
+                              <td className={styles.groupCell}>{po.supplier?.name || po.jasa?.nama || "-"}</td>
                               <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(po.grandTotal)}</td>
                               <td style={{ textAlign: 'center' }}>
                                 <span className={`${styles.statusBadge} ${statusClass}`}>{po.status || "-"}</span>
@@ -419,7 +442,8 @@ const [busyPoId, setBusyPoId] = useState(null);
                                             {po.kategoriPO === 'HABIS_PAKAI'
                                               ? (po.keteranganVolume || it.keteranganVolume || '-')
                                               : (() => {
-                                                  const rap = it.materialRequest?.estimatedVolume || it.estimatedVolume || 0;
+                                                  const rapData = getRapForJasa(it);
+                                                  const rap = it.materialRequest?.estimatedVolume || it.estimatedVolume || rapData?.rapQty || 0;
                                                   if (!rap) return <span style={{ color: '#444' }}>-</span>;
                                                   const diff = Number(it.qty || 0) - Number(rap);
                                                   if (diff > 0) return <span>Over +{fmtVol(diff)}</span>;
@@ -431,7 +455,8 @@ const [busyPoId, setBusyPoId] = useState(null);
                                             {po.kategoriPO === 'HABIS_PAKAI'
                                               ? (po.keteranganHarga || it.keteranganHarga || '-')
                                               : (() => {
-                                                  const rapP = it.materialRequest?.pricePerUnit || it.pricePerUnit || 0;
+                                                  const rapData = getRapForJasa(it);
+                                                  const rapP = it.materialRequest?.pricePerUnit || it.pricePerUnit || rapData?.rapPrice || 0;
                                                   if (!rapP) return <span style={{ color: '#444' }}>-</span>;
                                                   const diff = Number(it.unitPrice || 0) - Number(rapP);
                                                   if (diff > 0) return <span>Over +{fmtRp(diff)}</span>;
@@ -477,7 +502,7 @@ const [busyPoId, setBusyPoId] = useState(null);
               <div className={`${styles.statCard} ${styles.revenue}`}>
                 <div className={styles.statHeader}>
                   <Wallet size={16} className={styles.statIcon} />
-                  <span>Total Budget (RAP Material)</span>
+                  <span>Total Budget (RAP Material & Jasa)</span>
                 </div>
                 <div className={styles.statValue}>{fmtRp(totalRap)}</div>
                 <div className={styles.statDesc}>Alokasi budget dari perencanaan</div>

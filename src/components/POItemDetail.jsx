@@ -58,7 +58,7 @@ const POItemDetail = ({ po, compact = false, showHeader = true }) => {
                 {!compact && <th className="px-3 py-2 font-semibold text-right">Qty</th>}
                 <th className="px-3 py-2 font-semibold text-right">Harga</th>
                 {!compact && <th className="px-3 py-2 font-semibold text-right">Jumlah</th>}
-                <th className="px-3 py-2 font-semibold text-center">Diterima</th>
+                {po?.kategoriPO !== 'JASA' && <th className="px-3 py-2 font-semibold text-center">Diterima</th>}
               </tr>
             </thead>
             <tbody>
@@ -121,26 +121,28 @@ const POItemDetail = ({ po, compact = false, showHeader = true }) => {
                         {fmtRp(it.total)}
                       </td>
                     )}
-                    <td className="px-3 py-2 text-center whitespace-nowrap">
-                      {terima <= 0 ? (
-                        <span className="text-[10px] text-[#666]">belum</span>
-                      ) : lebih ? (
-                        <span
-                          className="text-[10px] font-bold text-red-400"
-                          title={`Kelebihan ${fmtNum(terima - qty)} ${it.unit} dari jumlah PO`}
-                        >
-                          {fmtNum(terima)} {it.unit} · LEBIH {fmtNum(terima - qty)}
-                        </span>
-                      ) : kurang ? (
-                        <span className="text-[10px] text-[#d4af37]">
-                          {fmtNum(terima)} {it.unit} · sisa {fmtNum(sisa)}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-[#4caf50] font-bold">
-                          {fmtNum(terima)} {it.unit} · lengkap
-                        </span>
-                      )}
-                    </td>
+                    {po?.kategoriPO !== 'JASA' && (
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
+                        {terima <= 0 ? (
+                          <span className="text-[10px] text-[#666]">belum</span>
+                        ) : lebih ? (
+                          <span
+                            className="text-[10px] font-bold text-red-400"
+                            title={`Kelebihan ${fmtNum(terima - qty)} ${it.unit} dari jumlah PO`}
+                          >
+                            {fmtNum(terima)} {it.unit} · LEBIH {fmtNum(terima - qty)}
+                          </span>
+                        ) : kurang ? (
+                          <span className="text-[10px] text-[#d4af37]">
+                            {fmtNum(terima)} {it.unit} · sisa {fmtNum(sisa)}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-[#4caf50] font-bold">
+                            {fmtNum(terima)} {it.unit} · lengkap
+                          </span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}

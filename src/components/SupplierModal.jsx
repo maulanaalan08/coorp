@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../styles/PurchaseOrderModal.module.css';
-import { X, Save, Building, Plus, Package, Eye } from 'lucide-react';
+import { X, Save, Building, Plus, Package, Eye, Wrench, Trash2, Pencil } from 'lucide-react';
 import { useSupplier } from '../hooks/useSupplier';
+import { poService } from '../services/poService';
 import toast from 'react-hot-toast';
 
 const fmtRp = (n) =>
-  "Rp " + Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 });
+  'Rp ' + Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
 
-const SupplierModal = ({ onClose, onSuccess, isInline }) => {
+const SupplierModal = ({ onClose, onSuccess, isInline, masterMode = 'supplier' }) => {
+  const isJasaMode = masterMode === 'jasa';
+
   const {
     suppliers,
     supplierItems,
@@ -15,14 +18,13 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
     loadingItems,
     fetchSupplierItems,
     createSupplier,
-    createSupplierItem
+    createSupplierItem,
   } = useSupplier();
 
   const [activeTab, setActiveTab] = useState('suppliers');
   const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [selectedDetailSupplier, setSelectedDetailSupplier] = useState(null);
 
-  // Form states
   const [supplierForm, setSupplierForm] = useState({
     code: '',
     name: '',
@@ -37,7 +39,7 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
     contactName: '',
     creditLimit: '',
     bankAccount: '',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
   });
 
   const [itemForm, setItemForm] = useState({
@@ -45,16 +47,46 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
     itemName: '',
     unit: '',
     currentPrice: '',
-    kategori: ''
+    kategori: '',
   });
 
   const [loading, setLoading] = useState(false);
 
+  // ===== MODE MASTER JASA =====
+  const [jasaList, setJasaList] = useState([]);
+  const [loadingJasa, setLoadingJasa] = useState(false);
+  const [editingJasaId, setEditingJasaId] = useState(null);
+  const [jasaForm, setJasaForm] = useState({
+    nama: '',
+    bank: '',
+    noRekening: '',
+    atasNama: '',
+    kontakPerson: '',
+    isActive: true,
+  });
+
+  const fetchJasa = useCallback(async () => {
+    if (!isJasaMode) return;
+    setLoadingJasa(true);
+    try {
+      const data = await poService.getJasa();
+      setJasaList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      toast.error('Gagal mengambil data master jasa');
+    } finally {
+      setLoadingJasa(false);
+    }
+  }, [isJasaMode]);
+
   useEffect(() => {
+    if (isJasaMode) {
+      fetchJasa();
+      return;
+    }
     if (activeTab === 'items') {
       fetchSupplierItems(selectedSupplierId);
     }
-  }, [activeTab, selectedSupplierId, fetchSupplierItems]);
+  }, [isJasaMode, fetchJasa, activeTab, selectedSupplierId, fetchSupplierItems]);
 
   const handleSupplierChange = (e) => {
     setSupplierForm({ ...supplierForm, [e.target.name]: e.target.value });
@@ -72,9 +104,9 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
     }
     setLoading(true);
     try {
-      await createSupplier(supplierForm);
+      const created = await createSupplier(supplierForm);
       setSupplierForm({ ...supplierForm, code: '', name: '', phone: '', email: '' });
-      if (onSuccess && !isInline) onSuccess();
+      if (onSuccess && !isInline) onSuccess(created);
     } catch (err) {
       // handled in hook
     } finally {
@@ -95,7 +127,7 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
         itemName: itemForm.itemName,
         unit: itemForm.unit,
         price: parseFloat(itemForm.currentPrice),
-        kategori: itemForm.kategori || undefined
+        kategori: itemForm.kategori || undefined,
       });
       setItemForm({ ...itemForm, itemName: '', unit: '', currentPrice: '', kategori: '' });
       fetchSupplierItems(selectedSupplierId);
@@ -105,6 +137,258 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
       setLoading(false);
     }
   };
+
+  const resetJasaForm = () => {
+    setEditingJasaId(null);
+    setJasaForm({
+      nama: '',
+      bank: '',
+      noRekening: '',
+      atasNama: '',
+      kontakPerson: '',
+      isActive: true,
+    });
+  };
+
+  const handleSubmitJasa = async (e) => {
+    e.preventDefault();
+    if (!jasaForm.nama || !String(jasaForm.nama).trim()) {
+      toast.error('Nama jasa wajib diisi');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        nama: jasaForm.nama,
+        bank: jasaForm.bank || null,
+        noRekening: jasaForm.noRekening || null,
+        atasNama: jasaForm.atasNama || null,
+        kontakPerson: jasaForm.kontakPerson || null,
+        isActive: Boolean(jasaForm.isActive),
+      };
+
+      let saved;
+      if (editingJasaId) {
+        saved = await poService.updateJasa(editingJasaId, payload);
+        toast.success('Data jasa berhasil diupdate');
+      } else {
+        saved = await poService.createJasa(payload);
+        toast.success('Master jasa berhasil ditambahkan');
+      }
+
+      resetJasaForm();
+      await fetchJasa();
+      if (onSuccess && !isInline) onSuccess(saved);
+    } catch (error) {
+      toast.error(error?.message || 'Gagal menyimpan data jasa');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditJasa = (row) => {
+    setEditingJasaId(row.id);
+    setJasaForm({
+      nama: row.nama || '',
+      bank: row.bank || '',
+      noRekening: row.noRekening || '',
+      atasNama: row.atasNama || '',
+      kontakPerson: row.kontakPerson || '',
+      isActive: Boolean(row.isActive),
+    });
+  };
+
+  const handleDeleteJasa = async (row) => {
+    const ok = window.confirm(`Hapus jasa "${row.nama}"?`);
+    if (!ok) return;
+
+    try {
+      await poService.deleteJasa(row.id);
+      toast.success('Jasa berhasil dihapus');
+      if (editingJasaId === row.id) resetJasaForm();
+      fetchJasa();
+    } catch (error) {
+      toast.error(error?.message || 'Gagal menghapus jasa');
+    }
+  };
+
+  if (isJasaMode) {
+    return (
+      <div className={isInline ? '' : styles.modalOverlay}>
+        <div className={isInline ? styles.inlineContainer : styles.modalContent}>
+          <div className={isInline ? styles.inlineHeader : styles.modalHeader}>
+            <h2 className={isInline ? styles.inlineTitle : styles.modalTitle}>
+              <Wrench size={isInline ? 24 : 18} style={{ color: '#d4af37' }} /> Master Jasa
+            </h2>
+            {!isInline && <button className={styles.closeBtn} onClick={onClose}><X size={20} /></button>}
+          </div>
+
+          <div className={styles.modalBody}>
+            <div className={styles.supplierContentGrid}>
+              <div className={styles.supplierCard}>
+                <h3 className={styles.supplierSectionTitle}>
+                  <Plus size={18} /> {editingJasaId ? 'Edit Jasa' : 'Tambah Jasa Baru'}
+                </h3>
+
+                <form onSubmit={handleSubmitJasa}>
+                  <div className={styles.formGrid}>
+                    <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                      <label className={styles.formLabel}>Nama Jasa *</label>
+                      <input
+                        type="text"
+                        className={styles.formInput}
+                        value={jasaForm.nama}
+                        onChange={(e) => setJasaForm((p) => ({ ...p, nama: e.target.value }))}
+                        placeholder="Contoh: Tukang Pasang Keramik"
+                        required
+                      />
+                    </div>
+
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Kontak Person</label>
+                      <input
+                        type="text"
+                        className={styles.formInput}
+                        value={jasaForm.kontakPerson}
+                        onChange={(e) => setJasaForm((p) => ({ ...p, kontakPerson: e.target.value }))}
+                        placeholder="Contoh: Bpk. Andi"
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Bank</label>
+                      <input
+                        type="text"
+                        className={styles.formInput}
+                        value={jasaForm.bank}
+                        onChange={(e) => setJasaForm((p) => ({ ...p, bank: e.target.value }))}
+                        placeholder="Contoh: BCA"
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>No. Rekening</label>
+                      <input
+                        type="text"
+                        className={styles.formInput}
+                        value={jasaForm.noRekening}
+                        onChange={(e) => setJasaForm((p) => ({ ...p, noRekening: e.target.value }))}
+                        placeholder="Contoh: 1234567890"
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Atas Nama</label>
+                      <input
+                        type="text"
+                        className={styles.formInput}
+                        value={jasaForm.atasNama}
+                        onChange={(e) => setJasaForm((p) => ({ ...p, atasNama: e.target.value }))}
+                        placeholder="Contoh: Andi Prasetyo"
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Status</label>
+                      <select
+                        className={styles.formSelect}
+                        value={jasaForm.isActive ? 'ACTIVE' : 'INACTIVE'}
+                        onChange={(e) => setJasaForm((p) => ({ ...p, isActive: e.target.value === 'ACTIVE' }))}
+                      >
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="INACTIVE">INACTIVE</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className={styles.modalFooter} style={{ marginTop: '20px', display: 'flex', gap: 10 }}>
+                    {editingJasaId && (
+                      <button
+                        type="button"
+                        className={styles.addSupplierBtn}
+                        onClick={resetJasaForm}
+                        style={{ minWidth: 100 }}
+                      >
+                        Reset
+                      </button>
+                    )}
+                    <button type="submit" className={styles.saveBtn} disabled={loading}>
+                      <Save size={16} /> {loading ? 'Menyimpan...' : editingJasaId ? 'Update Jasa' : 'Simpan Jasa'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div className={styles.supplierTableSection}>
+                <h3 className={styles.supplierSectionTitle}>Daftar Master Jasa</h3>
+                {loadingJasa ? (
+                  <p style={{ color: '#a3a3a3' }}>Memuat data jasa...</p>
+                ) : (
+                  <div className={styles.supplierTableWrapper}>
+                    <table className={styles.supplierTable}>
+                      <thead>
+                        <tr>
+                          <th>Kode</th>
+                          <th>Nama Jasa</th>
+                          <th>Kontak</th>
+                          <th>Status</th>
+                          <th style={{ textAlign: 'center' }}>Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {jasaList.map((row) => (
+                          <tr key={row.id}>
+                            <td>{row.code || '-'}</td>
+                            <td style={{ fontWeight: 600, color: '#f1f1f1' }}>{row.nama}</td>
+                            <td>{row.kontakPerson || '-'}</td>
+
+                            <td>
+                              <span className={row.isActive ? styles.badgeBahan : styles.badgeJasa}>
+                                {row.isActive ? 'ACTIVE' : 'INACTIVE'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'inline-flex', gap: 8 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditJasa(row)}
+                                  style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer', padding: 4 }}
+                                  title="Edit Jasa"
+                                >
+                                  <Pencil size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteJasa(row)}
+                                  style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
+                                  title="Hapus Jasa"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {jasaList.length === 0 && (
+                          <tr>
+                            <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#737373' }}>
+                              Belum ada data jasa
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={isInline ? '' : styles.modalOverlay}>
@@ -222,7 +506,7 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
                         </tr>
                       </thead>
                       <tbody>
-                        {suppliers.map(sup => (
+                        {suppliers.map((sup) => (
                           <tr key={sup.id}>
                             <td>{sup.code || '-'}</td>
                             <td style={{ fontWeight: '500', color: '#e5e5e5' }}>{sup.name}</td>
@@ -268,7 +552,7 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
                       <label className={styles.formLabel}>Pilih Supplier *</label>
                       <select name="supplierId" value={itemForm.supplierId} onChange={handleItemChange} className={styles.formSelect} required>
                         <option value="">- Pilih Supplier -</option>
-                        {suppliers.map(sup => (
+                        {suppliers.map((sup) => (
                           <option key={sup.id} value={sup.id}>{sup.name}</option>
                         ))}
                       </select>
@@ -317,7 +601,7 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
                     style={{ width: '200px' }}
                   >
                     <option value="">Semua Supplier</option>
-                    {suppliers.map(sup => (
+                    {suppliers.map((sup) => (
                       <option key={sup.id} value={sup.id}>{sup.name}</option>
                     ))}
                   </select>
@@ -338,7 +622,7 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
                         </tr>
                       </thead>
                       <tbody>
-                        {supplierItems.map(item => (
+                        {supplierItems.map((item) => (
                           <tr key={item.id}>
                             <td style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building size={14} style={{ color: '#737373' }} /> {item.supplier?.name}</td>
                             <td style={{ fontWeight: '500', color: '#f60d0dff' }}>{item.itemName}</td>
@@ -366,7 +650,6 @@ const SupplierModal = ({ onClose, onSuccess, isInline }) => {
         </div>
       </div>
 
-      {/* Detail Modal Overlay */}
       {selectedDetailSupplier && (
         <div className={styles.modalOverlay} style={{ zIndex: 1000, background: 'rgba(0,0,0,0.8)' }}>
           <div className={styles.modalContent} style={{ maxWidth: '600px', width: '90%' }}>

@@ -32,6 +32,61 @@ export const poService = {
     });
   },
 
+  // Ambil daftar master jasa
+  getJasa: (params = {}) => {
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    ).toString();
+    return fetchAPI(`/jasa${qs ? `?${qs}` : ''}`, {
+      headers: getAuthHeaders()
+    });
+  },
+
+  createJasa: (payload) => {
+    return fetchAPI('/jasa', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateJasa: (id, payload) => {
+    return fetchAPI(`/jasa/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteJasa: (id) => {
+    return fetchAPI(`/jasa/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+  },
+
+  // Histori Nilai Kontrak Jasa
+  getNilaiKontrakHistory: (jasaId) => {
+    return fetchAPI(`/jasa/${jasaId}/nilai-kontrak`, {
+      headers: getAuthHeaders(),
+    });
+  },
+
+  addNilaiKontrak: (jasaId, payload) => {
+    return fetchAPI(`/jasa/${jasaId}/nilai-kontrak`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteNilaiKontrak: (entryId) => {
+    return fetchAPI(`/jasa/nilai-kontrak/${entryId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+  },
+
   // Tambah supplier baru
   createSupplier: (supplierData) => {
     return fetchAPI('/suppliers', {
@@ -165,6 +220,14 @@ export const poService = {
   // Fungsi khusus buka PDF/Print page di window baru
   printPO: (id) => {
     window.open(`/?print-po=${id}`, '_blank');
+  },
+
+  getPOJasaRapPlan: (projectId) => {
+    return fetchAPI('/finance/po-jasa/rap-plan', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ projectId }),
+    });
   }
 };
 
