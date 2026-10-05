@@ -69,16 +69,9 @@ export const joinOpnameService = {
     window.open(url.toString(), "_blank");
   },
 
-  exportExcel: (projectId, filterValue, date) => {
+  exportExcel: (projectId, monthStr) => {
     const url = new URL(`${API_BASE_URL}/projects/${projectId}/join-opname/export/excel`);
-    if (filterValue && filterValue !== "General") {
-      if (filterValue.length > 20) {
-        url.searchParams.append("workCategoryId", filterValue);
-      } else {
-        url.searchParams.append("discipline", filterValue);
-      }
-    }
-    if (date) url.searchParams.append("date", date);
+    if (monthStr) url.searchParams.append("month", monthStr);
     window.location.href = url.toString();
   }
 };

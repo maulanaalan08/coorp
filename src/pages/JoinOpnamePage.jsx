@@ -22,6 +22,9 @@ function JoinOpnamePage({ initialProjectId = null }) {
     unsavedChanges, savingBatch, handleSaveAllProgress
   } = useJoinOpname(initialProjectId);
 
+  const [showMonthModal, setShowMonthModal] = React.useState(false);
+  const [exportMonth, setExportMonth] = React.useState("");
+
   React.useEffect(() => {
     if (loadingProjects || loading) {
       toast.loading('Memuat data Join Opname...', { id: 'loading-jo' });
@@ -163,7 +166,7 @@ function JoinOpnamePage({ initialProjectId = null }) {
                       </button>
                     )}
                     <div className="jo-selected-date">{formatDate(selectedDate)}</div>
-                    <button className="jo-btn jo-btn-primary" onClick={() => joinOpnameService.exportExcel(projectId, discipline, selectedDate)}>
+                    <button className="jo-btn jo-btn-primary" onClick={() => setShowMonthModal(true)}>
                       ⬇ Excel
                     </button>
                     <select 
@@ -281,6 +284,38 @@ function JoinOpnamePage({ initialProjectId = null }) {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {showMonthModal && (
+            <div className="modal-overlay" onClick={() => setShowMonthModal(false)} style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }}>
+              <div className="modal-content" onClick={e => e.stopPropagation()} style={{
+                background: '#161513', padding: '24px', borderRadius: '12px', border: '1px solid #333', width: '300px'
+              }}>
+                <h3 style={{ marginTop: 0, marginBottom: '16px', color: '#fff' }}>Pilih Bulan Export</h3>
+                <input 
+                  type="month" 
+                  value={exportMonth}
+                  onChange={(e) => setExportMonth(e.target.value)}
+                  style={{ width: '100%', padding: '8px', marginBottom: '20px', borderRadius: '4px', border: '1px solid #555', background: '#222', color: '#fff' }}
+                />
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <button className="jo-btn" onClick={() => setShowMonthModal(false)} style={{ background: 'transparent', color: '#888' }}>Batal</button>
+                  <button 
+                    className="jo-btn jo-btn-primary" 
+                    disabled={!exportMonth}
+                    onClick={() => {
+                      joinOpnameService.exportExcel(projectId, exportMonth);
+                      setShowMonthModal(false);
+                    }}
+                  >
+                    Export
+                  </button>
+                </div>
               </div>
             </div>
           )}

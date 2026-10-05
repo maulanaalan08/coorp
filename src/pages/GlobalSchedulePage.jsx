@@ -1,17 +1,34 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { timeScheduleService } from "../services/timeScheduleService";
-import { CalendarDays } from "lucide-react";
+import { joinOpnameService } from "../services/joinOpnameService";
+import { CalendarDays, X } from "lucide-react";
 import styles from "../styles/GlobalSchedulePage.module.css";
 import toast from "react-hot-toast";
 
 const GlobalSchedulePage = () => {
+  const [allProjects, setAllProjects] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Filters
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [showUnscheduled, setShowUnscheduled] = useState(false);
+
   // Timeline data
   const [months, setMonths] = useState([]);
   const [allWeeks, setAllWeeks] = useState([]);
+
+  // Drag to scroll
+  const scrollRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  // Modal Detail State
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [modalJoSummary, setModalJoSummary] = useState(null);
+  const [loadingJoModal, setLoadingJoModal] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -21,14 +38,81 @@ const GlobalSchedulePage = () => {
     setLoading(true);
     try {
       const data = await timeScheduleService.getGlobalSchedule();
-      setProjects(data || []);
-      generateTimeline(data || []);
+      setAllProjects(data || []);
     } catch (err) {
       console.error(err);
       setError(err.message || "Gagal memuat jadwal global");
       toast.error("Gagal memuat jadwal global");
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const filtered = allProjects.filter((p) => {
+      const hasSchedule = p.scheduleStartDate && p.scheduleEndDate;
+      if (!hasSchedule) {
+        return showUnscheduled;
+      }
+      
+      const endDate = new Date(p.scheduleEndDate);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Start of today
+      
+      if (endDate < now) {
+        return showCompleted;
+      }
+      
+      return true; // Scheduled and not completed
+    });
+
+    setProjects(filtered);
+    generateTimeline(filtered);
+  }, [allProjects, showCompleted, showUnscheduled]);
+
+  const handleMouseDown = (e) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5; // Scroll speed multiplier
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleBarClick = async (project) => {
+    setSelectedProject(project);
+    setLoadingJoModal(true);
+    setModalJoSummary(null);
+    try {
+      const json = await joinOpnameService.getJoinOpname(project.id, "");
+      const items = json?.items || [];
+      let accumulatedWeight = 0;
+      items.forEach(item => {
+        const progress = Number(item.rekapProgress) || 0;
+        if (!item.hasChildren) {
+          accumulatedWeight += (Number(item.weight) * progress) / 100;
+        }
+      });
+      setModalJoSummary(accumulatedWeight);
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal memuat data bobot JO");
+    } finally {
+      setLoadingJoModal(false);
     }
   };
 
@@ -80,13 +164,15 @@ const GlobalSchedulePage = () => {
       wEnd.setDate(wEnd.getDate() + 6);
       wEnd.setHours(23, 59, 59, 999);
 
+      const now = new Date();
       weeks.push({
         id: weekIndex,
         start: wStart,
         end: wEnd,
         month: wStart.getMonth(),
         year: wStart.getFullYear(),
-        label: `${wStart.getDate()}/${wStart.getMonth() + 1} - ${wEnd.getDate()}/${wEnd.getMonth() + 1}`
+        label: `${wStart.getDate()}/${wStart.getMonth() + 1} - ${wEnd.getDate()}/${wEnd.getMonth() + 1}`,
+        isCurrentWeek: now >= wStart && now <= wEnd
       });
 
       curr.setDate(curr.getDate() + 7);
@@ -140,6 +226,21 @@ const GlobalSchedulePage = () => {
         <p className={styles.subtitle}>Pantau timeline seluruh project secara bersamaan.</p>
       </div>
 
+      <div className={styles.filterContainer}>
+        <button
+          className={`${styles.filterChip} ${showCompleted ? styles.activeChip : ''}`}
+          onClick={() => setShowCompleted(!showCompleted)}
+        >
+          {showCompleted ? 'Menampilkan' : 'Sembunyikan'} Project Selesai (Lewat Tanggal)
+        </button>
+        <button
+          className={`${styles.filterChip} ${showUnscheduled ? styles.activeChip : ''}`}
+          onClick={() => setShowUnscheduled(!showUnscheduled)}
+        >
+          {showUnscheduled ? 'Menampilkan' : 'Sembunyikan'} Project Belum Terjadwal
+        </button>
+      </div>
+
       {loading ? (
         <div className={styles.loading}>Memuat data global schedule...</div>
       ) : error ? (
@@ -147,7 +248,15 @@ const GlobalSchedulePage = () => {
       ) : projects.length === 0 ? (
         <div className={styles.loading}>Belum ada project.</div>
       ) : (
-        <div className={styles.ganttContainer}>
+        <div 
+          className={styles.ganttContainer}
+          ref={scrollRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+        >
           <table className={styles.ganttTable}>
             <thead>
               {/* Row 1: Month Headers */}
@@ -164,9 +273,9 @@ const GlobalSchedulePage = () => {
               {/* Row 2: Week Headers */}
               <tr>
                 {allWeeks.map((w) => (
-                  <th key={w.id} className={styles.weekHeader}>
+                  <th key={w.id} className={`${styles.weekHeader} ${w.isCurrentWeek ? styles.currentWeekHeader : ''}`}>
                     Mg {w.id}<br/>
-                    <span style={{ fontSize: '10px', color: '#666' }}>{w.label}</span>
+                    <span style={{ fontSize: '10px', color: w.isCurrentWeek ? '#222' : '#666' }}>{w.label}</span>
                   </th>
                 ))}
               </tr>
@@ -190,11 +299,12 @@ const GlobalSchedulePage = () => {
                       const isActive = state?.active;
                       
                       return (
-                        <td key={w.id} className={`${styles.weekCell} ${isActive ? styles.active : ''}`}>
+                        <td key={w.id} className={`${styles.weekCell} ${isActive ? styles.active : ''} ${w.isCurrentWeek ? styles.currentWeekCell : ''}`}>
                           {isActive && (
                             <div className={styles.barWrapper}>
                               <div 
                                 className={styles.ganttBar}
+                                onClick={() => handleBarClick(p)}
                                 style={{
                                   borderTopLeftRadius: state.isStart ? '12px' : '0',
                                   borderBottomLeftRadius: state.isStart ? '12px' : '0',
@@ -214,6 +324,43 @@ const GlobalSchedulePage = () => {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {selectedProject && (
+        <div className={styles.modalOverlay} onClick={() => setSelectedProject(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>{selectedProject.name}</h2>
+              <button className={styles.closeButton} onClick={() => setSelectedProject(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.detailRow}>
+                <span>Klien</span>
+                <strong>{selectedProject.clientName || "-"}</strong>
+              </div>
+              <div className={styles.detailRow}>
+                <span>Jadwal Pekerjaan</span>
+                <strong>
+                  {new Date(selectedProject.scheduleStartDate).toLocaleDateString('id-ID')} - {new Date(selectedProject.scheduleEndDate).toLocaleDateString('id-ID')}
+                </strong>
+              </div>
+              <div className={styles.detailRow} style={{ marginTop: '16px', borderTop: '1px solid #333', paddingTop: '16px' }}>
+                <span>Akumulasi Bobot (JO)</span>
+                <strong>
+                  {loadingJoModal ? (
+                    <span style={{ color: '#888' }}>Memuat...</span>
+                  ) : (
+                    <span style={{ color: '#d4af37', fontSize: '18px' }}>
+                      {modalJoSummary !== null ? `${modalJoSummary.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '-'}
+                    </span>
+                  )}
+                </strong>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
