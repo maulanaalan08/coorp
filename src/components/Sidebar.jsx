@@ -53,8 +53,8 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   useEffect(() => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
     if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
-    if (["finance", "pembelian-siap-pakai", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-material", "laporan-harian", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
-    if (["purchase-orders", "po-jasa", "retur-pembelian", "invoice-penagihan", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
+    if (["finance", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-material", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
+    if (["purchase-orders", "po-jasa", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
     if (["upload-hspk", "work-categories"].includes(activeTab)) setIsHspkOpen(true);
   }, [activeTab]);
 
@@ -211,32 +211,6 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               )}
             </li>
 
-            {/* DROPDOWN: FINANCE */}
-            <li>
-              <button
-                type="button"
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all text-[#888] hover:bg-white/5 hover:text-white ${isFinanceOpen ? "bg-white/5 text-white" : ""}`}
-                onClick={() => setIsFinanceOpen(!isFinanceOpen)}
-              >
-                <div className="flex items-center gap-3">
-                  <FileText size={18} className={isFinanceOpen ? "text-white" : "text-[#888]"} />
-                  <span>Finance</span>
-                </div>
-                {isFinanceOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              </button>
-              {isFinanceOpen && (
-                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
-                  <SubNavItem icon={Wallet} label="Kebutuhan Material & Jasa" tab="finance" />
-                  <SubNavItem icon={Package} label="Pembelian Siap Pakai" tab="pembelian-siap-pakai" />
-                  <SubNavItem icon={FileInput} label="Pengajuan Bayar" tab="pengajuan-bayar" />
-                  <SubNavItem icon={Banknote} label="Pembayaran Supplier" tab="pembayaran-material" />
-                  <SubNavItem icon={Banknote} label="Pembayaran Jasa" tab="pembayaran-supplier" />
-                  <SubNavItem icon={CalendarDays} label="Laporan" tab="laporan-harian" />
-                  <SubNavItem icon={Landmark} label="Buku Besar Kas/Bank" tab="buku-besar" />
-                </ul>
-              )}
-            </li>
-
             {/* DROPDOWN: PURCHASING */}
             <li>
               <button
@@ -254,9 +228,31 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                 <ul className="mt-1 flex flex-col gap-1 list-none p-0">
                   <SubNavItem icon={ClipboardList} label="Purchase Orders" tab="purchase-orders" />
                   <SubNavItem icon={ClipboardList} label="PO Jasa" tab="po-jasa" />
-                  <SubNavItem icon={RotateCcw} label="Retur Pembelian" tab="retur-pembelian" />
                   <SubNavItem icon={PackagePlus} label="Pembelian Habis Pakai" tab="habis-pakai" />
-                  <SubNavItem icon={ReceiptText} label="Invoice Penagihan" tab="invoice-penagihan" />
+                </ul>
+              )}
+            </li>
+
+            {/* DROPDOWN: FINANCE */}
+            <li>
+              <button
+                type="button"
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all text-[#888] hover:bg-white/5 hover:text-white ${isFinanceOpen ? "bg-white/5 text-white" : ""}`}
+                onClick={() => setIsFinanceOpen(!isFinanceOpen)}
+              >
+                <div className="flex items-center gap-3">
+                  <FileText size={18} className={isFinanceOpen ? "text-white" : "text-[#888]"} />
+                  <span>Finance</span>
+                </div>
+                {isFinanceOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+              {isFinanceOpen && (
+                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
+                  <SubNavItem icon={Wallet} label="Kebutuhan Material & Jasa" tab="finance" />
+                  <SubNavItem icon={FileInput} label="Pengajuan Bayar" tab="pengajuan-bayar" />
+                  <SubNavItem icon={Banknote} label="Pembayaran Supplier" tab="pembayaran-material" />
+                  <SubNavItem icon={Banknote} label="Pembayaran Jasa" tab="pembayaran-supplier" />
+                  <SubNavItem icon={Landmark} label="Buku Besar Kas/Bank" tab="buku-besar" />
                 </ul>
               )}
             </li>
