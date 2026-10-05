@@ -533,7 +533,7 @@ const PurchaseOrderPage = () => {
                                                   const firstItem = matItems[0];
 
                                                   // Hitung total dari seluruh split item
-                                                  const totalEstVol = matItems.reduce((sum, curr) => sum + (curr.estimatedVolume || 0), 0);
+                                                  const totalEstVol = firstItem.estimatedVolume || 0;
                                                   const totalOrdered = matItems.reduce((sum, curr) => sum + (curr.orderedVolume || 0), 0);
                                                   const totalReceivedVol = matItems.reduce((sum, curr) => sum + (curr.receivedVolume || 0), 0);
                                                   const pct = totalEstVol > 0 ? Math.min((totalOrdered / totalEstVol) * 100, 100) : 0;

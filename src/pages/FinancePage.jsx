@@ -443,7 +443,7 @@ const [busyPoId, setBusyPoId] = useState(null);
                                               ? (po.keteranganVolume || it.keteranganVolume || '-')
                                               : (() => {
                                                   const rapData = getRapForJasa(it);
-                                                  const rap = it.materialRequest?.estimatedVolume || it.estimatedVolume || rapData?.rapQty || 0;
+                                                  const rap = it.materialRequest?.estimatedVolume || it.estimatedVolume || rapData?.volume || 0;
                                                   if (!rap) return <span style={{ color: '#444' }}>-</span>;
                                                   const diff = Number(it.qty || 0) - Number(rap);
                                                   if (diff > 0) return <span>Over +{fmtVol(diff)}</span>;
@@ -456,7 +456,7 @@ const [busyPoId, setBusyPoId] = useState(null);
                                               ? (po.keteranganHarga || it.keteranganHarga || '-')
                                               : (() => {
                                                   const rapData = getRapForJasa(it);
-                                                  const rapP = it.materialRequest?.pricePerUnit || it.pricePerUnit || rapData?.rapPrice || 0;
+                                                  const rapP = it.materialRequest?.pricePerUnit || it.pricePerUnit || rapData?.rapUnitPrice || 0;
                                                   if (!rapP) return <span style={{ color: '#444' }}>-</span>;
                                                   const diff = Number(it.unitPrice || 0) - Number(rapP);
                                                   if (diff > 0) return <span>Over +{fmtRp(diff)}</span>;

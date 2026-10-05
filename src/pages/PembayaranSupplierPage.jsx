@@ -85,6 +85,7 @@ const PembayaranSupplierPage = () => {
   const [pembayarans, setPembayarans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filterProject, setFilterProject] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [suppliers, setSuppliers] = useState([]);
@@ -164,19 +165,36 @@ const PembayaranSupplierPage = () => {
     [pembayarans],
   );
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return jasaRows;
-    const q = search.toLowerCase();
-    return jasaRows.filter((p) => {
-      const jasaName = p.jasa?.nama || p.purchaseOrder?.jasa?.nama || '';
-      return (
-        p.noPembayaran?.toLowerCase().includes(q) ||
-        p.keterangan?.toLowerCase().includes(q) ||
-        jasaName.toLowerCase().includes(q) ||
-        p.purchaseOrder?.poNumber?.toLowerCase().includes(q)
-      );
+  const projectOptions = useMemo(() => {
+    const projs = new Map();
+    jasaRows.forEach(p => {
+      const proj = p.purchaseOrder?.project;
+      if (proj && proj.id) {
+        projs.set(proj.id, proj.name);
+      }
     });
-  }, [search, jasaRows]);
+    return Array.from(projs.entries()).map(([id, name]) => ({ id, name }));
+  }, [jasaRows]);
+
+  const filtered = useMemo(() => {
+    let result = jasaRows;
+    if (filterProject) {
+      result = result.filter(p => p.purchaseOrder?.project?.id === filterProject);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((p) => {
+        const jasaName = p.jasa?.nama || p.purchaseOrder?.jasa?.nama || '';
+        return (
+          p.noPembayaran?.toLowerCase().includes(q) ||
+          p.keterangan?.toLowerCase().includes(q) ||
+          jasaName.toLowerCase().includes(q) ||
+          p.purchaseOrder?.poNumber?.toLowerCase().includes(q)
+        );
+      });
+    }
+    return result;
+  }, [search, jasaRows, filterProject]);
 
 
   const poOptions = useMemo(
@@ -351,15 +369,27 @@ const PembayaranSupplierPage = () => {
           </button>
         </div>
 
-        <div className="mb-4 relative w-full md:w-96">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888]" />
-          <input
-            type="text"
-            placeholder="Cari no pembayaran / jasa / proyek..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[#1a1814] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#666] focus:border-[#d4af37] outline-none"
-          />
+        <div className="mb-4 flex flex-col md:flex-row gap-3 items-center">
+          <div className="relative w-full md:w-96">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888]" />
+            <input
+              type="text"
+              placeholder="Cari no pembayaran / jasa / proyek..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-[#1a1814] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#666] focus:border-[#d4af37] outline-none"
+            />
+          </div>
+          <select
+            value={filterProject}
+            onChange={(e) => setFilterProject(e.target.value)}
+            className="w-full md:w-64 bg-[#1a1814] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-sm text-white focus:border-[#d4af37] outline-none"
+          >
+            <option value="">Semua Proyek</option>
+            {projectOptions.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
         </div>
 
         <div className="bg-[#1a1814] border border-[#2a2a2a] rounded-xl overflow-hidden">
@@ -567,13 +597,12 @@ const PembayaranSupplierPage = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-[#888] mb-1">Tgl Buat Form</label>
+                    <label className="block text-sm text-[#888] mb-1">Item Pekerjaan</label>
                     <input
-                      type="date"
-                      value={formData.tanggal}
-                      onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })}
-                      required
-                      className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
+                      type="text"
+                      value={selectedPo?.items?.map(it => it.description || it.rabItem?.name).join(', ') || ''}
+                      readOnly
+                      className="w-full bg-[#1a1814] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-[#888] text-sm outline-none"
                     />
                   </div>
                   <div>
@@ -674,7 +703,10 @@ const PembayaranSupplierPage = () => {
                       Tidak bisa melakukan pembayaran lagi. Harap tunggu progress Joint Opname meningkat.
                     </p>
                   ) : (
-                    <p className="text-xs text-[#666] mt-1">Hard block by JO progress: maks {fmtRp(maxByProgress)}</p>
+                    <p className="text-xs text-[#666] mt-1">
+                      Batas total JO: {fmtRp(progressRecap.progressCap)}
+                      {totalSudahDibayar > 0 ? ` (Sudah terbayar: ${fmtRp(totalSudahDibayar)}, Maks bayar: ${fmtRp(maxByProgress)})` : ''}
+                    </p>
                   )}
                 </div>
 

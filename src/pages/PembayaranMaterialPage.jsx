@@ -45,6 +45,8 @@ const PembayaranMaterialPage = () => {
   const [pembayarans, setPembayarans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filterProject, setFilterProject] = useState('');
+  const [filterSupplier, setFilterSupplier] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isJatuhTempoModalOpen, setIsJatuhTempoModalOpen] = useState(false);
   const [jatuhTempoData, setJatuhTempoData] = useState({ id: null, jatuhTempo: '' });
@@ -116,16 +118,50 @@ const PembayaranMaterialPage = () => {
     fetchMasters();
   }, [fetchPembayarans, fetchMasters]);
 
+  const projectOptions = useMemo(() => {
+    const projs = new Map();
+    pembayarans.forEach(p => {
+      const proj = p.purchaseOrder?.project;
+      if (proj && proj.id) {
+        projs.set(proj.id, proj.name);
+      }
+    });
+    return Array.from(projs.entries()).map(([id, name]) => ({ id, name }));
+  }, [pembayarans]);
+
+  const supplierOptions = useMemo(() => {
+    const sups = new Map();
+    pembayarans.forEach(p => {
+      const sup = p.supplier || p.purchaseOrder?.supplier;
+      if (sup && sup.id) {
+        sups.set(sup.id, sup.name);
+      }
+    });
+    return Array.from(sups.entries()).map(([id, name]) => ({ id, name }));
+  }, [pembayarans]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return pembayarans;
-    const q = search.toLowerCase();
-    return pembayarans.filter((p) =>
-      p.noPembayaran?.toLowerCase().includes(q) ||
-      p.keterangan?.toLowerCase().includes(q) ||
-      p.supplier?.name?.toLowerCase().includes(q) ||
-      p.purchaseOrder?.poNumber?.toLowerCase().includes(q)
-    );
-  }, [search, pembayarans]);
+    let result = pembayarans;
+    if (filterProject) {
+      result = result.filter(p => p.purchaseOrder?.project?.id === filterProject);
+    }
+    if (filterSupplier) {
+      result = result.filter(p => {
+        const supId = p.supplier?.id || p.purchaseOrder?.supplier?.id;
+        return supId === filterSupplier;
+      });
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((p) =>
+        p.noPembayaran?.toLowerCase().includes(q) ||
+        p.keterangan?.toLowerCase().includes(q) ||
+        p.supplier?.name?.toLowerCase().includes(q) ||
+        p.purchaseOrder?.poNumber?.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [search, pembayarans, filterProject, filterSupplier]);
 
   const openModal = (pembayaran = null) => {
     if (pembayaran) {
@@ -249,15 +285,37 @@ const PembayaranMaterialPage = () => {
           </button>
         </div>
 
-        <div className="mb-4 relative w-full md:w-96">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888]" />
-          <input
-            type="text"
-            placeholder="Cari no pembayaran / supplier / PO..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[#1a1814] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#666] focus:border-[#d4af37] outline-none"
-          />
+        <div className="mb-4 flex flex-col md:flex-row gap-3 items-center">
+          <div className="relative w-full md:w-80">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888]" />
+            <input
+              type="text"
+              placeholder="Cari no pembayaran / supplier / PO..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-[#1a1814] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#666] focus:border-[#d4af37] outline-none"
+            />
+          </div>
+          <select
+            value={filterProject}
+            onChange={(e) => setFilterProject(e.target.value)}
+            className="w-full md:w-56 bg-[#1a1814] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-sm text-white focus:border-[#d4af37] outline-none"
+          >
+            <option value="">Semua Proyek</option>
+            {projectOptions.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <select
+            value={filterSupplier}
+            onChange={(e) => setFilterSupplier(e.target.value)}
+            className="w-full md:w-56 bg-[#1a1814] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-sm text-white focus:border-[#d4af37] outline-none"
+          >
+            <option value="">Semua Supplier</option>
+            {supplierOptions.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
         </div>
 
         <div className="bg-[#1a1814] border border-[#2a2a2a] rounded-xl overflow-hidden">

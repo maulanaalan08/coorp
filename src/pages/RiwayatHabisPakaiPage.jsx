@@ -70,6 +70,7 @@ const RiwayatHabisPakaiPage = () => {
   const [expandedPO, setExpandedPO] = useState({});
   const [previewSJ, setPreviewSJ] = useState(null);
   const [poModalOpen, setPoModalOpen] = useState(false);
+  const [editingPo, setEditingPo] = useState(null);
   const [selectedPermintaan, setSelectedPermintaan] = useState(null);
 
   const fetchProjects = useCallback(async () => {
@@ -491,6 +492,20 @@ const RiwayatHabisPakaiPage = () => {
                                 </tbody>
                               </table>
                             </div>
+                            {(po.status === 'REJECTED' || po.status === 'BELUM_APPROVE' || po.status === 'PENDING' || po.status === 'PO_DIBUAT') && (
+                              <div className="mt-3 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingPo(po);
+                                  }}
+                                  className="px-4 py-2 bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/30 rounded-lg text-xs font-bold hover:bg-[#d4af37]/20 transition-colors"
+                                >
+                                  Edit PO
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -652,31 +667,36 @@ const RiwayatHabisPakaiPage = () => {
       )}
 
       {/* Modal Buat PO Habis Pakai */}
-      {poModalOpen && selectedPermintaan && (
+      {(poModalOpen || editingPo) && (
         <PurchaseOrderModal
-          projectId={selectedPermintaan.projectId}
+          projectId={selectedPermintaan ? selectedPermintaan.projectId : (editingPo ? editingPo.projectId : projectId)}
           kategoriPO="HABIS_PAKAI"
-          sumberPo={selectedPermintaan.poId || null}
-          alasanHabisPakai={selectedPermintaan.alasan || null}
-          permintaanHabisPakaiId={selectedPermintaan.id}
-          selectedItems={[
-            {
-              id: `php_${selectedPermintaan.id}`,
-              mrItemId: selectedPermintaan.mrItemId || null,
-              itemName: selectedPermintaan.itemName,
-              description: selectedPermintaan.itemName,
-              unit: selectedPermintaan.unit,
-              estimatedVolume: Number(selectedPermintaan.qty || 0),
-              orderedQty: 0,
-              pricePerUnit: 0,
-            }
-          ]}
+          editingPo={editingPo}
+          sumberPo={selectedPermintaan ? selectedPermintaan.poId : null}
+          alasanHabisPakai={selectedPermintaan ? selectedPermintaan.alasan : null}
+          permintaanHabisPakaiId={selectedPermintaan ? selectedPermintaan.id : null}
+          selectedItems={
+            selectedPermintaan ? [
+              {
+                id: `php_${selectedPermintaan.id}`,
+                mrItemId: selectedPermintaan.mrItemId || null,
+                itemName: selectedPermintaan.itemName,
+                description: selectedPermintaan.itemName,
+                unit: selectedPermintaan.unit,
+                estimatedVolume: Number(selectedPermintaan.qty || 0),
+                orderedQty: 0,
+                pricePerUnit: 0,
+              }
+            ] : []
+          }
           onClose={() => {
             setPoModalOpen(false);
+            setEditingPo(null);
             setSelectedPermintaan(null);
           }}
           onSuccess={() => {
             setPoModalOpen(false);
+            setEditingPo(null);
             setSelectedPermintaan(null);
             fetchData();
           }}

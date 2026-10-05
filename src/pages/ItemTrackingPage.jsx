@@ -189,8 +189,16 @@ const ItemTrackingPage = ({ onNavigate }) => {
       (mr.items || []).forEach((item) => {
         // Filter: Hanya ambil data dari PO yang sudah APPROVED
         if (item.poNumber && item.poNumber !== '-' && item.poStatus === 'APPROVED') {
-          // Hitung status secara lokal di frontend agar tidak perlu merubah backend
-          let localStatus = item.procurementStatus || item.status;
+          // Hitung status secara lokal di frontend per poItem
+          let localStatus = 'PENDING';
+          const rVol = Number((item.receivedVolume || 0).toFixed(4));
+          const oVol = Number((item.orderedVolume || 0).toFixed(4));
+          
+          if (rVol >= oVol && oVol > 0) {
+            localStatus = 'COMPLETED';
+          } else if (rVol > 0) {
+            localStatus = 'PARTIAL';
+          }
 
           if (item.isForceClosed) {
             localStatus = 'COMPLETED';
