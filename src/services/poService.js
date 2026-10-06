@@ -96,6 +96,21 @@ export const poService = {
     });
   },
 
+  updateSupplier: (id, supplierData) => {
+    return fetchAPI(`/suppliers/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(supplierData),
+    });
+  },
+
+  deleteSupplier: (id) => {
+    return fetchAPI(`/suppliers/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+  },
+
   // Ambil daftar item supplier
   getSupplierItems: (supplierId) => {
     const url = supplierId ? `/supplier-items?supplierId=${supplierId}` : '/supplier-items';
@@ -110,6 +125,21 @@ export const poService = {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(itemData),
+    });
+  },
+
+  updateSupplierItem: (id, itemData) => {
+    return fetchAPI(`/supplier-items/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(itemData),
+    });
+  },
+
+  deleteSupplierItem: (id) => {
+    return fetchAPI(`/supplier-items/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
     });
   },
 

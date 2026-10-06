@@ -332,25 +332,12 @@ const PurchaseOrderPage = () => {
           </button>
 
           <button
-            className={`${styles.tabBtn} ${activeTab === 'dari-rab' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('dari-rab')}
-          >
-            <ShoppingCart size={16} /> Dari RAB
-          </button>
-
-          <button
             className={`${styles.tabBtn} ${activeTab === 'manage-supplier' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('manage-supplier')}
           >
             <Building size={16} /> Supplier
           </button>
         </div>
-
-        {activeTab === 'dari-rab' && (
-          <div className={styles.tabContent}>
-            <POFromRabPanel projectId={projectId} onCreatePO={handleCreateFromPlan} />
-          </div>
-        )}
 
         {activeTab === 'buat-po' && (
           <div className={styles.tabContent}>

@@ -54,7 +54,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
     if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
     if (["finance", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-jasa", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
-    if (["purchase-orders", "po-jasa", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
+    if (["po-material", "po-jasa", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
     if (["upload-hspk", "work-categories"].includes(activeTab)) setIsHspkOpen(true);
   }, [activeTab]);
 
@@ -70,11 +70,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
       <a
         href={`#${tab}`}
         onClick={(e) => handleNavigation(e, tab)}
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all group ${
-          activeTab === tab
+        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all group ${activeTab === tab
             ? "bg-[#d4af37]/10 text-[#d4af37]"
             : "text-[#888] hover:bg-white/5 hover:text-white"
-        }`}
+          }`}
       >
         <Icon size={18} className={activeTab === tab ? "text-[#d4af37]" : "text-[#888] group-hover:text-white"} />
         <span>{label}</span>
@@ -87,11 +86,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
       <a
         href={`#${tab}`}
         onClick={(e) => handleNavigation(e, tab)}
-        className={`flex items-center gap-3 pl-11 pr-4 py-2.5 rounded-lg text-sm font-medium transition-all group ${
-          activeTab === tab
+        className={`flex items-center gap-3 pl-11 pr-4 py-2.5 rounded-lg text-sm font-medium transition-all group ${activeTab === tab
             ? "bg-[#d4af37]/10 text-[#d4af37]"
             : "text-[#888] hover:bg-white/5 hover:text-white"
-        }`}
+          }`}
       >
         <Icon size={16} className={activeTab === tab ? "text-[#d4af37]" : "text-[#888] group-hover:text-white"} />
         <span>{label}</span>
@@ -102,7 +100,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   return (
     <>
       {/* MOBILE TOGGLE BUTTON */}
-      <button 
+      <button
         className="md:hidden fixed top-5 left-5 z-50 bg-[#161513] text-white p-2 rounded-md border border-[#333] shadow-lg"
         onClick={() => setIsMobileOpen(true)}
       >
@@ -111,17 +109,16 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
 
       {/* OVERLAY FOR MOBILE */}
       {isMobileOpen && (
-        <div 
+        <div
           className="md:hidden fixed inset-0 bg-black/60 z-[90] backdrop-blur-sm"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       {/* SIDEBAR CONTAINER */}
-      <aside 
-        className={`fixed md:relative top-0 left-0 h-full w-[280px] bg-[#0c0b09] border-r border-[#222] flex flex-col z-[100] transition-transform duration-300 ease-in-out shrink-0 overflow-y-auto overflow-x-hidden ${
-          isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
+      <aside
+        className={`fixed md:relative top-0 left-0 h-full w-[280px] bg-[#0c0b09] border-r border-[#222] flex flex-col z-[100] transition-transform duration-300 ease-in-out shrink-0 overflow-y-auto overflow-x-hidden ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          }`}
       >
         {/* HEADER / BRAND */}
         <div className="p-6 bg-[#0c0b09] flex justify-between items-start shrink-0">
@@ -227,7 +224,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               </button>
               {isPurchasingOpen && (
                 <ul className="mt-1 flex flex-col gap-1 list-none p-0">
-                  <SubNavItem icon={ClipboardList} label="Purchase Orders" tab="purchase-orders" />
+                  <SubNavItem icon={ClipboardList} label="PO Material" tab="po-material" />
                   <SubNavItem icon={ClipboardList} label="PO Jasa" tab="po-jasa" />
                   <SubNavItem icon={PackagePlus} label="Pembelian Habis Pakai" tab="habis-pakai" />
                 </ul>
@@ -260,8 +257,8 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
           </ul>
 
           {/* CREATE PROJECT BUTTON */}
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="mt-6 mx-2 py-3 px-4 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-lg border border-dashed border-[#555] hover:border-[#d4af37] transition-all"
             onClick={() => setIsModalOpen(true)}
           >
