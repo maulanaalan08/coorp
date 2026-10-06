@@ -880,9 +880,101 @@ select.select3d option {
   font-size: 0.85rem;
 }
 
-/* ========================
-   MISC
-======================== */
+.quotationLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+}
+
+.quotationForm {
+  background: #17140f;
+  border: 1px solid #322b1e;
+  border-radius: 6px;
+  padding: 22px;
+}
+
+.quotationHint {
+  color: #a89c85;
+  font-size: 0.8rem;
+  margin: 4px 0 0;
+}
+
+.quotationFieldGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.quotationField {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #a89c85;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.quotationField input,
+.quotationField select {
+  width: 100%;
+  box-sizing: border-box;
+  background: #1d1810;
+  color: #f2ead9;
+  border: 1px solid #322b1e;
+  border-radius: 4px;
+  padding: 11px 12px;
+  outline: none;
+  font-size: 0.88rem;
+  text-transform: none;
+}
+
+.quotationField input:focus,
+.quotationField select:focus { border-color: #c9a24b; }
+.quotationField small { color: #7d6733; text-transform: none; font-weight: 400; }
+
+.quotationPreview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 12px 0 16px;
+}
+
+.quotationPreview > div {
+  border: 1px solid #322b1e;
+  border-radius: 4px;
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.quotationPreview span { color: #a89c85; font-size: 0.74rem; text-transform: uppercase; }
+.quotationPreview strong { color: #f2ead9; font-size: 1rem; }
+.quotationPreview .quotationGrandTotal { border-color: #7d6733; }
+.quotationPreview .quotationGrandTotal strong { color: #e8c874; }
+
+.quotationOutputNote {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #a89c85;
+  background: #1d1810;
+  border-left: 3px solid #c9a24b;
+  padding: 11px 13px;
+  margin-bottom: 18px;
+  font-size: 0.82rem;
+}
+.quotationOutputNote strong { color: #e8c874; }
+.quotationError { color: #ef4444; font-size: 0.84rem; }
+
+@media (max-width: 800px) {
+  .quotationFieldGrid, .quotationPreview { grid-template-columns: 1fr; }
+}
+
+
 .textGray { color: #a89c85; }
 .textGold { color: #e8c874; }
 .textDanger { color: #ef4444; }

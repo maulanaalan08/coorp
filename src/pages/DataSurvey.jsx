@@ -3,6 +3,7 @@ import ProjectSelector from '../components/ProjectSelector';
 import styles from '../styles/DataSurvey.module.css';
 import Header from '../components/Header';
 import Survey3DTab from './Survey3DTab';
+import DesignQuotationTab from './DesignQuotationTab';
 import {
   Plus, FileDown, Eye, Trash2, ChevronDown, ChevronUp,
   X, Map, RefreshCw, Camera, Edit
@@ -748,11 +749,23 @@ const DataSurvey = ({ initialProjectId = null }) => {
           >
             Hasil Desain 3D
           </button>
+          <button
+            className={`${styles.tabBtn} ${activeTab === 'design-quotation' ? styles.tabBtnActive : ''}`}
+            onClick={() => setActiveTab('design-quotation')}
+          >
+            Penawaran Desain
+          </button>
         </div>
       )}
 
       {activeTab === 'survey-3d' ? (
         <Survey3DTab projectId={selectedProjectId} />
+      ) : activeTab === 'design-quotation' ? (
+        <DesignQuotationTab
+          projectId={selectedProjectId}
+          surveys={surveys}
+          projectName={selectedProject?.name}
+        />
       ) : (
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
