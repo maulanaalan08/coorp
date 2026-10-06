@@ -415,7 +415,7 @@ const RiwayatHabisPakaiPage = () => {
                               </div>
                             )}
 
-                            <div className="border border-[#2a2a2a] rounded-lg overflow-hidden">
+                            <div className="border border-[#2a2a2a] rounded-lg overflow-x-auto">
                               <table className="w-full text-xs">
                                 <thead>
                                   <tr className="bg-white/[0.03] text-[#888] text-left">

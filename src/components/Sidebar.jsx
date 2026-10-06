@@ -53,7 +53,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   useEffect(() => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
     if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
-    if (["finance", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-material", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
+    if (["finance", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-jasa", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
     if (["purchase-orders", "po-jasa", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
     if (["upload-hspk", "work-categories"].includes(activeTab)) setIsHspkOpen(true);
   }, [activeTab]);
@@ -61,6 +61,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   const handleNavigation = (e, tab) => {
     e.preventDefault();
     setActiveTab(tab);
+    window.history.pushState(null, '', '/' + tab);
     setIsMobileOpen(false); // Close on mobile after navigation
   };
 
@@ -250,8 +251,8 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                 <ul className="mt-1 flex flex-col gap-1 list-none p-0">
                   <SubNavItem icon={Wallet} label="Kebutuhan Material & Jasa" tab="finance" />
                   <SubNavItem icon={FileInput} label="Pengajuan Bayar" tab="pengajuan-bayar" />
-                  <SubNavItem icon={Banknote} label="Pembayaran Supplier" tab="pembayaran-material" />
-                  <SubNavItem icon={Banknote} label="Pembayaran Jasa" tab="pembayaran-supplier" />
+                  <SubNavItem icon={Banknote} label="Pembayaran Supplier" tab="pembayaran-supplier" />
+                  <SubNavItem icon={Banknote} label="Pembayaran Jasa" tab="pembayaran-jasa" />
                   <SubNavItem icon={Landmark} label="Buku Besar Kas/Bank" tab="buku-besar" />
                 </ul>
               )}

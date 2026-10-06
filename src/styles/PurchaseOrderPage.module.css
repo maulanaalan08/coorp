@@ -513,6 +513,7 @@
 .subTableWrapper {
   padding: 0 0 8px 36px;
   border-bottom: 2px solid rgba(212, 175, 55, 0.15);
+  overflow-x: auto;
 }
 
 .subTable {
@@ -582,5 +583,6 @@
   padding: 0 0 8px 56px;
   border-bottom: 2px solid rgba(96, 165, 250, 0.1);
   background: rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
 }
 

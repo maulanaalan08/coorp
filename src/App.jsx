@@ -60,8 +60,8 @@ function App() {
     const tabFromPath = path.split('/')[0];
     const validTabs = [
       'dashboard', 'project-board', 'project-detail', 'upload-hspk', 'data-survey',
-      'bv', 'backup-volume', 'rab', 'finance', 'pembelian-siap-pakai', 'purchase-orders',
-      'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'pembayaran-material', 'invoice-penagihan',
+      'bv', 'backup-volume', 'rab', 'finance', 'pembelian-siap-pakai', 'purchase-orders', 'po-jasa',
+      'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'pembayaran-jasa', 'invoice-penagihan',
       'laporan-harian', 'global-schedule', 'time-schedule', 'join-opname', 'bast', 'complain',
       'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories'
     ];
@@ -209,8 +209,8 @@ function App() {
           {activeTab === "po-jasa" && <PurchaseOrderJasaPage />}
           {activeTab === "retur-pembelian" && <ReturPembelianPage />}
           {activeTab === "pengajuan-bayar" && <PengajuanBayarPage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
-          {activeTab === "pembayaran-supplier" && <PembayaranSupplierPage />}
-          {activeTab === "pembayaran-material" && <PembayaranMaterialPage />}
+          {activeTab === "pembayaran-supplier" && <PembayaranMaterialPage />}
+          {activeTab === "pembayaran-jasa" && <PembayaranSupplierPage />}
           {activeTab === "invoice-penagihan" && <InvoicePenagihanPage />}
           {activeTab === "laporan-harian" && <LaporanHarianPage />}
           {activeTab === "global-schedule" && <GlobalSchedulePage />}

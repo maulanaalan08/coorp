@@ -416,7 +416,7 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                               {po.items?.length === 0 ? (
                                 <p className="text-xs text-[#666] italic py-2">PO ini belum punya item.</p>
                               ) : (
-                                <div className="border border-white/10 rounded-lg overflow-hidden">
+                                <div className="border border-white/10 rounded-lg overflow-x-auto">
                                   <table className="w-full text-xs">
                                     <thead>
                                       <tr className="bg-white/[0.03] text-[#888] text-left">

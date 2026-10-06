@@ -455,43 +455,47 @@ const PembayaranMaterialPage = () => {
 
             <form onSubmit={handleSubmit} className="max-h-[75vh] overflow-y-auto">
               <div className="px-6 py-4 space-y-4">
-                <div>
-                  <label className="block text-sm text-[#888] mb-1">Supplier</label>
-                  <select
-                    value={formData.supplierId}
-                    onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
-                    className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
-                  >
-                    <option value="">-- Pilih Supplier --</option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
+                {!editId && (
+                  <>
+                    <div>
+                      <label className="block text-sm text-[#888] mb-1">Supplier</label>
+                      <select
+                        value={formData.supplierId}
+                        onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+                        className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
+                      >
+                        <option value="">-- Pilih Supplier --</option>
+                        {suppliers.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div>
-                  <label className="block text-sm text-[#888] mb-1">Purchase Order (opsional)</label>
-                  <select
-                    value={formData.poId}
-                    onChange={(e) => {
-                      const poId = e.target.value;
-                      const selectedPo = pos.find((p) => p.id === poId);
-                      setFormData({
-                        ...formData,
-                        poId,
-                        supplierId: selectedPo?.supplierId || formData.supplierId,
-                      });
-                    }}
-                    className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
-                  >
-                    <option value="">-- Pilih PO --</option>
-                    {pos.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.poNumber || `PO-${p.id.slice(0, 8)}`}{p.supplier?.name ? ` - ${p.supplier.name}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <div>
+                      <label className="block text-sm text-[#888] mb-1">Purchase Order (opsional)</label>
+                      <select
+                        value={formData.poId}
+                        onChange={(e) => {
+                          const poId = e.target.value;
+                          const selectedPo = pos.find((p) => p.id === poId);
+                          setFormData({
+                            ...formData,
+                            poId,
+                            supplierId: selectedPo?.supplierId || formData.supplierId,
+                          });
+                        }}
+                        className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
+                      >
+                        <option value="">-- Pilih PO --</option>
+                        {pos.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.poNumber || `PO-${p.id.slice(0, 8)}`}{p.supplier?.name ? ` - ${p.supplier.name}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
 
                 <div className="grid grid-cols-1 gap-4">
                   <div>
@@ -539,7 +543,7 @@ const PembayaranMaterialPage = () => {
                       className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
                     >
                       <option value="BELUM_BAYAR">Belum Bayar</option>
-                      <option value="BON">BON</option>
+                      <option value="PARTIAL">Sebagian / Tempo</option>
                       <option value="LUNAS">Lunas</option>
                     </select>
                   </div>
