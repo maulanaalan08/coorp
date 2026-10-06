@@ -20,6 +20,7 @@ const UploadHspk = lazy(() => import("./pages/UploadHspk"));
 const BackUpVolume = lazy(() => import("./pages/BackUpVolume"));
 const DataSurvey = lazy(() => import("./pages/DataSurvey"));
 const RabBudgeting = lazy(() => import("./pages/RabBudgeting"));
+const SpkPage = lazy(() => import("./pages/SpkPage"));
 const GlobalSchedulePage = lazy(() => import("./pages/GlobalSchedulePage"));
 const TimeSchedulePage = lazy(() => import("./pages/TimeSchedulePage"));
 const JoinOpnamePage = lazy(() => import("./pages/JoinOpnamePage"));
@@ -60,7 +61,7 @@ function App() {
     const tabFromPath = path.split('/')[0];
     const validTabs = [
       'dashboard', 'project-board', 'project-detail', 'upload-hspk', 'data-survey',
-      'bv', 'backup-volume', 'rab', 'finance', 'pembelian-siap-pakai', 'purchase-orders',
+      'bv', 'backup-volume', 'rab', 'spk-contract', 'finance', 'pembelian-siap-pakai', 'purchase-orders',
       'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'pembayaran-material', 'invoice-penagihan',
       'laporan-harian', 'global-schedule', 'time-schedule', 'join-opname', 'bast', 'complain',
       'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories'
@@ -203,6 +204,7 @@ function App() {
               }}
             />
           )}
+          {activeTab === "spk-contract" && <SpkPage initialProjectId={globalProjectId} />}
           {activeTab === "finance" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
           {activeTab === "pembelian-siap-pakai" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />} 
           {activeTab === "purchase-orders" && <PurchaseOrderPage />}

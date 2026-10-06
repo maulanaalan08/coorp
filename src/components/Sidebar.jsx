@@ -51,7 +51,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   const [isHspkOpen, setIsHspkOpen] = useState(false);
 
   useEffect(() => {
-    if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
+    if (["data-survey", "bv", "rab", "spk-contract"].includes(activeTab)) setIsPerencanaanOpen(true);
     if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
     if (["finance", "pembelian-siap-pakai", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-material", "laporan-harian", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
     if (["purchase-orders", "po-jasa", "retur-pembelian", "invoice-penagihan", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
@@ -182,6 +182,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                   <SubNavItem icon={Map} label="Data Survey" tab="data-survey" />
                   <SubNavItem icon={ClipboardList} label="Back Up Volume" tab="bv" />
                   <SubNavItem icon={Wallet} label="RAB & Budgeting" tab="rab" />
+                  <SubNavItem icon={FileText} label="SPK Client & Subcon" tab="spk-contract" />
                 </ul>
               )}
             </li>
