@@ -416,7 +416,7 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                               {po.items?.length === 0 ? (
                                 <p className="text-xs text-[#666] italic py-2">PO ini belum punya item.</p>
                               ) : (
-                                <div className="border border-white/10 rounded-lg overflow-hidden">
+                                <div className="border border-white/10 rounded-lg overflow-x-auto">
                                   <table className="w-full text-xs">
                                     <thead>
                                       <tr className="bg-white/[0.03] text-[#888] text-left">
@@ -450,7 +450,7 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                                               ? (po.keteranganVolume || it.keteranganVolume || '-')
                                               : (() => {
                                                   const rapData = getRapForJasa(it);
-                                                  const rap = it.materialRequest?.estimatedVolume || it.estimatedVolume || rapData?.rapQty || 0;
+                                                  const rap = it.materialRequest?.estimatedVolume || it.estimatedVolume || rapData?.volume || 0;
                                                   if (!rap) return <span style={{ color: '#444' }}>-</span>;
                                                   const diff = Number(it.qty || 0) - Number(rap);
                                                   if (diff > 0) return <span>Over +{fmtNum(diff)}</span>;
@@ -463,7 +463,7 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                                               ? (po.keteranganHarga || it.keteranganHarga || '-')
                                               : (() => {
                                                   const rapData = getRapForJasa(it);
-                                                  const rapP = it.materialRequest?.pricePerUnit || it.pricePerUnit || rapData?.rapPrice || 0;
+                                                  const rapP = it.materialRequest?.pricePerUnit || it.pricePerUnit || rapData?.rapUnitPrice || 0;
                                                   if (!rapP) return <span style={{ color: '#444' }}>-</span>;
                                                   const diff = Number(it.unitPrice || 0) - Number(rapP);
                                                   if (diff > 0) return <span>Over +{fmtRp(diff)}</span>;

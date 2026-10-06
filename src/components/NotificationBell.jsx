@@ -223,7 +223,7 @@ const NotificationBell = ({ onNavigate }) => {
                         jumlah={data.poAtasan.length}
                         judul="PO menunggu approval atasan"
                         sub={`Terbaru: ${data.poAtasan[0]?.poNumber || '-'} — sudah diverifikasi finance`}
-                        onClick={() => buka('finance', data.poAtasan[0]?.projectId)}
+                        onClick={() => buka('pengajuan-bayar', data.poAtasan[0]?.projectId)}
                       />
                     )}
                     {data.pjAtasan.length > 0 && (

@@ -36,24 +36,61 @@
   font-size: 16px;
 }
 
+.filterContainer {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-shrink: 0;
+}
+
+.filterChip {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid #333;
+  background-color: #1a1814;
+  color: #888;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.filterChip:hover {
+  border-color: #555;
+  color: #fff;
+}
+
+.filterChip.activeChip {
+  background-color: rgba(212, 175, 55, 0.15);
+  border-color: #d4af37;
+  color: #d4af37;
+}
+
+.filterChip.activeChip:hover {
+  background-color: rgba(212, 175, 55, 0.25);
+}
+
 .error {
   color: #ef4444;
 }
 
 .ganttContainer {
-  flex: 1;
+  flex: 0 1 auto;
+  min-height: 0;
   background: #161513;
   border: 1px solid #333;
   border-radius: 12px;
   overflow: auto;
   position: relative;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  /* Optional: smooth scrolling when dragged */
+  scroll-behavior: auto;
 }
 
 .ganttTable {
   border-collapse: collapse;
-  width: 100%;
-  min-width: 800px;
+  width: max-content; /* Ensure it expands to fit all columns */
   table-layout: fixed;
 }
 
@@ -80,6 +117,9 @@
   padding: 8px 4px;
   white-space: nowrap;
   width: 60px; /* Fixed width for weeks */
+  min-width: 60px;
+  max-width: 60px;
+  overflow: hidden;
 }
 
 .projectColHeader {
@@ -122,10 +162,32 @@
 .weekCell {
   position: relative;
   height: 60px;
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
 }
 
 .weekCell.active {
   background-color: rgba(212, 175, 55, 0.05); /* Subtle highlight for week */
+}
+
+.currentWeekHeader {
+  background: #d4af37 !important;
+  color: #161513 !important;
+  font-weight: 700 !important;
+  border-left: 2px solid #d4af37 !important;
+  border-right: 2px solid #d4af37 !important;
+  border-top: 2px solid #d4af37 !important;
+}
+
+.currentWeekCell {
+  background: rgba(212, 175, 55, 0.1) !important;
+  border-left: 2px solid #d4af37 !important;
+  border-right: 2px solid #d4af37 !important;
+}
+
+.currentWeekCell.active {
+  background-color: rgba(212, 175, 55, 0.2) !important;
 }
 
 .barWrapper {
@@ -157,3 +219,92 @@
   font-style: italic;
   padding-left: 12px;
 }
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modalContent {
+  background: #161513;
+  border: 1px solid #333;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 450px;
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeButton:hover {
+  color: #ef4444;
+}
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detailRow span {
+  color: #888;
+  font-size: 14px;
+}
+
+.detailRow strong {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: right;
+  max-width: 60%;
+}
+
+

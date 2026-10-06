@@ -332,25 +332,12 @@ const PurchaseOrderPage = () => {
           </button>
 
           <button
-            className={`${styles.tabBtn} ${activeTab === 'dari-rab' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('dari-rab')}
-          >
-            <ShoppingCart size={16} /> Dari RAB
-          </button>
-
-          <button
             className={`${styles.tabBtn} ${activeTab === 'manage-supplier' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('manage-supplier')}
           >
             <Building size={16} /> Supplier
           </button>
         </div>
-
-        {activeTab === 'dari-rab' && (
-          <div className={styles.tabContent}>
-            <POFromRabPanel projectId={projectId} onCreatePO={handleCreateFromPlan} />
-          </div>
-        )}
 
         {activeTab === 'buat-po' && (
           <div className={styles.tabContent}>
@@ -533,7 +520,7 @@ const PurchaseOrderPage = () => {
                                                   const firstItem = matItems[0];
 
                                                   // Hitung total dari seluruh split item
-                                                  const totalEstVol = matItems.reduce((sum, curr) => sum + (curr.estimatedVolume || 0), 0);
+                                                  const totalEstVol = firstItem.estimatedVolume || 0;
                                                   const totalOrdered = matItems.reduce((sum, curr) => sum + (curr.orderedVolume || 0), 0);
                                                   const totalReceivedVol = matItems.reduce((sum, curr) => sum + (curr.receivedVolume || 0), 0);
                                                   const pct = totalEstVol > 0 ? Math.min((totalOrdered / totalEstVol) * 100, 100) : 0;

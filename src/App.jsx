@@ -61,8 +61,8 @@ function App() {
     const tabFromPath = path.split('/')[0];
     const validTabs = [
       'dashboard', 'project-board', 'project-detail', 'upload-hspk', 'data-survey',
-      'bv', 'backup-volume', 'rab', 'spk-contract', 'finance', 'pembelian-siap-pakai', 'purchase-orders',
-      'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'pembayaran-material', 'invoice-penagihan',
+      'bv', 'backup-volume', 'rab', 'spk-contract', 'finance', 'pembelian-siap-pakai', 'po-material', 'po-jasa',
+      'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'pembayaran-jasa', 'invoice-penagihan',
       'laporan-harian', 'global-schedule', 'time-schedule', 'join-opname', 'bast', 'complain',
       'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories'
     ];
@@ -119,122 +119,122 @@ function App() {
   // JIKA SUDAH LOGIN: Tampilkan Layout Utama (Sidebar + Main Content)
   return (
     <NavContext.Provider value={navigateDariNotifikasi}>
-    <div className="flex w-full h-screen bg-[#0c0b09] overflow-hidden">
+      <div className="flex w-full h-screen bg-[#0c0b09] overflow-hidden">
 
-      {/* Konfigurasi Notifikasi Toaster dari react-hot-toast */}
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: '#1a1814',
-            color: '#fff',
-            border: '1px solid #d4af37',
-            padding: '16px',
-          },
-          success: {
-            iconTheme: {
-              primary: '#d4af37',
-              secondary: '#1a1814',
+        {/* Konfigurasi Notifikasi Toaster dari react-hot-toast */}
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: '#1a1814',
+              color: '#fff',
+              border: '1px solid #d4af37',
+              padding: '16px',
             },
-          },
-        }}
-      />
+            success: {
+              iconTheme: {
+                primary: '#d4af37',
+                secondary: '#1a1814',
+              },
+            },
+          }}
+        />
 
-      {/* Sidebar - Kita bisa passing prop onLogout agar user bisa keluar dari menu sidebar */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onLogout={logoutAuth}
-        user={user}
-      />
+        {/* Sidebar - Kita bisa passing prop onLogout agar user bisa keluar dari menu sidebar */}
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onLogout={logoutAuth}
+          user={user}
+        />
 
-      {/* Konten Utama berdasarkan tab yang aktif */}
-      <main className="flex-1 h-screen overflow-y-auto relative w-full">
-        <Suspense fallback={<RouteLoader />}>
-          {activeTab === "dashboard" && (
-            <Dashboard
-              onCreateBv={(projectId) => {
-                setGlobalProjectId(projectId);
-                setActiveTab("bv");
-              }}
-              onCreateSurvey={(projectId) => {
-                setGlobalProjectId(projectId);
-                setActiveTab("data-survey");
-              }}
-              onViewDetails={() => setActiveTab("project-board")}
-            />
-          )}
-          {activeTab === "project-board" && (
-            <ProjectBoard 
-              onProjectClick={(projectId) => {
-                setGlobalProjectId(projectId);
-                setActiveTab("project-detail");
-              }} 
-            />
-          )}
-          {activeTab === "project-detail" && (
-            <ProjectDetailDashboard 
-              projectId={globalProjectId} 
-              onBack={() => setActiveTab("project-board")} 
-            />
-          )}
-          {activeTab === "upload-hspk" && <UploadHspk />}
-          {activeTab === "work-categories" && <WorkCategoriesPage />}
-          {activeTab === "data-survey" && <DataSurvey initialProjectId={globalProjectId} />}
-          {(activeTab === "bv" || activeTab === "backup-volume") && (
-            <BackUpVolume
-              initialProjectId={globalProjectId}
-              onProjectChange={setGlobalProjectId}
-              onGoToRab={(pid) => {
-                setGlobalProjectId(pid);
-                setActiveTab("rab");
-                window.location.hash = "rab";
-              }}
-            />
-          )}
-          {activeTab === "rab" && (
-            <RabBudgeting
-              key={globalProjectId || "none"}
-              initialProjectId={globalProjectId}
-              onProjectChange={setGlobalProjectId}
-              onBackToBv={(pid) => {
-                if (pid) setGlobalProjectId(pid);
-                setActiveTab("bv");
-                window.location.hash = "bv";
-              }}
-            />
-          )}
-          {activeTab === "spk-contract" && <SpkPage initialProjectId={globalProjectId} />}
-          {activeTab === "finance" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
-          {activeTab === "pembelian-siap-pakai" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />} 
-          {activeTab === "purchase-orders" && <PurchaseOrderPage />}
-          {activeTab === "po-jasa" && <PurchaseOrderJasaPage />}
-          {activeTab === "retur-pembelian" && <ReturPembelianPage />}
-          {activeTab === "pengajuan-bayar" && <PengajuanBayarPage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
-          {activeTab === "pembayaran-supplier" && <PembayaranSupplierPage />}
-          {activeTab === "pembayaran-material" && <PembayaranMaterialPage />}
-          {activeTab === "invoice-penagihan" && <InvoicePenagihanPage />}
-          {activeTab === "laporan-harian" && <LaporanHarianPage />}
-          {activeTab === "global-schedule" && <GlobalSchedulePage />}
-          {activeTab === "time-schedule" && <TimeSchedulePage />}
-          {activeTab === "join-opname" && <JoinOpnamePage />}
-          {activeTab === "bast" && <BastPage />}
-          {activeTab === "complain" && <ComplaintPage />}
-          {activeTab === "item-tracking" && <ItemTrackingPage onNavigate={setActiveTab} />}
-          {activeTab === "habis-pakai" && <RiwayatHabisPakaiPage />}
-          {activeTab === "buku-besar" && <BukuBesarPage />}
-        </Suspense>
-      </main>
+        {/* Konten Utama berdasarkan tab yang aktif */}
+        <main className="flex-1 h-screen overflow-y-auto relative w-full">
+          <Suspense fallback={<RouteLoader />}>
+            {activeTab === "dashboard" && (
+              <Dashboard
+                onCreateBv={(projectId) => {
+                  setGlobalProjectId(projectId);
+                  setActiveTab("bv");
+                }}
+                onCreateSurvey={(projectId) => {
+                  setGlobalProjectId(projectId);
+                  setActiveTab("data-survey");
+                }}
+                onViewDetails={() => setActiveTab("project-board")}
+              />
+            )}
+            {activeTab === "project-board" && (
+              <ProjectBoard
+                onProjectClick={(projectId) => {
+                  setGlobalProjectId(projectId);
+                  setActiveTab("project-detail");
+                }}
+              />
+            )}
+            {activeTab === "project-detail" && (
+              <ProjectDetailDashboard
+                projectId={globalProjectId}
+                onBack={() => setActiveTab("project-board")}
+              />
+            )}
+            {activeTab === "upload-hspk" && <UploadHspk />}
+            {activeTab === "work-categories" && <WorkCategoriesPage />}
+            {activeTab === "data-survey" && <DataSurvey initialProjectId={globalProjectId} />}
+            {(activeTab === "bv" || activeTab === "backup-volume") && (
+              <BackUpVolume
+                initialProjectId={globalProjectId}
+                onProjectChange={setGlobalProjectId}
+                onGoToRab={(pid) => {
+                  setGlobalProjectId(pid);
+                  setActiveTab("rab");
+                  window.location.hash = "rab";
+                }}
+              />
+            )}
+            {activeTab === "rab" && (
+              <RabBudgeting
+                key={globalProjectId || "none"}
+                initialProjectId={globalProjectId}
+                onProjectChange={setGlobalProjectId}
+                onBackToBv={(pid) => {
+                  if (pid) setGlobalProjectId(pid);
+                  setActiveTab("bv");
+                  window.location.hash = "bv";
+                }}
+              />
+            )}
+            {activeTab === "spk-contract" && <SpkPage initialProjectId={globalProjectId} />}
+            {activeTab === "finance" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
+            {activeTab === "pembelian-siap-pakai" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
+            {activeTab === "po-material" && <PurchaseOrderPage />}
+            {activeTab === "po-jasa" && <PurchaseOrderJasaPage />}
+            {activeTab === "retur-pembelian" && <ReturPembelianPage />}
+            {activeTab === "pengajuan-bayar" && <PengajuanBayarPage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
+            {activeTab === "pembayaran-supplier" && <PembayaranMaterialPage />}
+            {activeTab === "pembayaran-jasa" && <PembayaranSupplierPage />}
+            {activeTab === "invoice-penagihan" && <InvoicePenagihanPage />}
+            {activeTab === "laporan-harian" && <LaporanHarianPage />}
+            {activeTab === "global-schedule" && <GlobalSchedulePage />}
+            {activeTab === "time-schedule" && <TimeSchedulePage />}
+            {activeTab === "join-opname" && <JoinOpnamePage />}
+            {activeTab === "bast" && <BastPage />}
+            {activeTab === "complain" && <ComplaintPage />}
+            {activeTab === "item-tracking" && <ItemTrackingPage onNavigate={setActiveTab} />}
+            {activeTab === "habis-pakai" && <RiwayatHabisPakaiPage />}
+            {activeTab === "buku-besar" && <BukuBesarPage />}
+          </Suspense>
+        </main>
 
-      {/* Floating Chatbot Placeholder */}
-      <button
-        type="button"
-        onClick={() => alert("Chatbot feature coming soon!")}
-        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#d4af37] to-[#a8862a] text-[#0c0b09] flex justify-center items-center shadow-lg shadow-[#d4af37]/40 border-none cursor-pointer z-50 hover:scale-110 transition-transform duration-200"
-      >
-        <Bot size={28} />
-      </button>
-    </div>
+        {/* Floating Chatbot Placeholder */}
+        <button
+          type="button"
+          onClick={() => alert("Chatbot feature coming soon!")}
+          className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#d4af37] to-[#a8862a] text-[#0c0b09] flex justify-center items-center shadow-lg shadow-[#d4af37]/40 border-none cursor-pointer z-50 hover:scale-110 transition-transform duration-200"
+        >
+          <Bot size={28} />
+        </button>
+      </div>
     </NavContext.Provider>
   );
 }

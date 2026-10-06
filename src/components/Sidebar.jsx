@@ -53,14 +53,15 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   useEffect(() => {
     if (["data-survey", "bv", "rab", "spk-contract"].includes(activeTab)) setIsPerencanaanOpen(true);
     if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
-    if (["finance", "pembelian-siap-pakai", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-material", "laporan-harian", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
-    if (["purchase-orders", "po-jasa", "retur-pembelian", "invoice-penagihan", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
+    if (["finance", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-jasa", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
+    if (["po-material", "po-jasa", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
     if (["upload-hspk", "work-categories"].includes(activeTab)) setIsHspkOpen(true);
   }, [activeTab]);
 
   const handleNavigation = (e, tab) => {
     e.preventDefault();
     setActiveTab(tab);
+    window.history.pushState(null, '', '/' + tab);
     setIsMobileOpen(false); // Close on mobile after navigation
   };
 
@@ -69,11 +70,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
       <a
         href={`#${tab}`}
         onClick={(e) => handleNavigation(e, tab)}
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all group ${
-          activeTab === tab
+        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all group ${activeTab === tab
             ? "bg-[#d4af37]/10 text-[#d4af37]"
             : "text-[#888] hover:bg-white/5 hover:text-white"
-        }`}
+          }`}
       >
         <Icon size={18} className={activeTab === tab ? "text-[#d4af37]" : "text-[#888] group-hover:text-white"} />
         <span>{label}</span>
@@ -86,11 +86,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
       <a
         href={`#${tab}`}
         onClick={(e) => handleNavigation(e, tab)}
-        className={`flex items-center gap-3 pl-11 pr-4 py-2.5 rounded-lg text-sm font-medium transition-all group ${
-          activeTab === tab
+        className={`flex items-center gap-3 pl-11 pr-4 py-2.5 rounded-lg text-sm font-medium transition-all group ${activeTab === tab
             ? "bg-[#d4af37]/10 text-[#d4af37]"
             : "text-[#888] hover:bg-white/5 hover:text-white"
-        }`}
+          }`}
       >
         <Icon size={16} className={activeTab === tab ? "text-[#d4af37]" : "text-[#888] group-hover:text-white"} />
         <span>{label}</span>
@@ -101,7 +100,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   return (
     <>
       {/* MOBILE TOGGLE BUTTON */}
-      <button 
+      <button
         className="md:hidden fixed top-5 left-5 z-50 bg-[#161513] text-white p-2 rounded-md border border-[#333] shadow-lg"
         onClick={() => setIsMobileOpen(true)}
       >
@@ -110,17 +109,16 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
 
       {/* OVERLAY FOR MOBILE */}
       {isMobileOpen && (
-        <div 
+        <div
           className="md:hidden fixed inset-0 bg-black/60 z-[90] backdrop-blur-sm"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       {/* SIDEBAR CONTAINER */}
-      <aside 
-        className={`fixed md:relative top-0 left-0 h-full w-[280px] bg-[#0c0b09] border-r border-[#222] flex flex-col z-[100] transition-transform duration-300 ease-in-out shrink-0 overflow-y-auto overflow-x-hidden ${
-          isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
+      <aside
+        className={`fixed md:relative top-0 left-0 h-full w-[280px] bg-[#0c0b09] border-r border-[#222] flex flex-col z-[100] transition-transform duration-300 ease-in-out shrink-0 overflow-y-auto overflow-x-hidden ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          }`}
       >
         {/* HEADER / BRAND */}
         <div className="p-6 bg-[#0c0b09] flex justify-between items-start shrink-0">
@@ -212,6 +210,28 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               )}
             </li>
 
+            {/* DROPDOWN: PURCHASING */}
+            <li>
+              <button
+                type="button"
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all text-[#888] hover:bg-white/5 hover:text-white ${isPurchasingOpen ? "bg-white/5 text-white" : ""}`}
+                onClick={() => setIsPurchasingOpen(!isPurchasingOpen)}
+              >
+                <div className="flex items-center gap-3">
+                  <ShoppingCart size={18} className={isPurchasingOpen ? "text-white" : "text-[#888]"} />
+                  <span>Purchasing</span>
+                </div>
+                {isPurchasingOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+              {isPurchasingOpen && (
+                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
+                  <SubNavItem icon={ClipboardList} label="PO Material" tab="po-material" />
+                  <SubNavItem icon={ClipboardList} label="PO Jasa" tab="po-jasa" />
+                  <SubNavItem icon={PackagePlus} label="Pembelian Habis Pakai" tab="habis-pakai" />
+                </ul>
+              )}
+            </li>
+
             {/* DROPDOWN: FINANCE */}
             <li>
               <button
@@ -228,44 +248,18 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               {isFinanceOpen && (
                 <ul className="mt-1 flex flex-col gap-1 list-none p-0">
                   <SubNavItem icon={Wallet} label="Kebutuhan Material & Jasa" tab="finance" />
-                  <SubNavItem icon={Package} label="Pembelian Siap Pakai" tab="pembelian-siap-pakai" />
                   <SubNavItem icon={FileInput} label="Pengajuan Bayar" tab="pengajuan-bayar" />
-                  <SubNavItem icon={Banknote} label="Pembayaran Supplier" tab="pembayaran-material" />
-                  <SubNavItem icon={Banknote} label="Pembayaran Jasa" tab="pembayaran-supplier" />
-                  <SubNavItem icon={CalendarDays} label="Laporan" tab="laporan-harian" />
+                  <SubNavItem icon={Banknote} label="Pembayaran Supplier" tab="pembayaran-supplier" />
+                  <SubNavItem icon={Banknote} label="Pembayaran Jasa" tab="pembayaran-jasa" />
                   <SubNavItem icon={Landmark} label="Buku Besar Kas/Bank" tab="buku-besar" />
-                </ul>
-              )}
-            </li>
-
-            {/* DROPDOWN: PURCHASING */}
-            <li>
-              <button
-                type="button"
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all text-[#888] hover:bg-white/5 hover:text-white ${isPurchasingOpen ? "bg-white/5 text-white" : ""}`}
-                onClick={() => setIsPurchasingOpen(!isPurchasingOpen)}
-              >
-                <div className="flex items-center gap-3">
-                  <ShoppingCart size={18} className={isPurchasingOpen ? "text-white" : "text-[#888]"} />
-                  <span>Purchasing</span>
-                </div>
-                {isPurchasingOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              </button>
-              {isPurchasingOpen && (
-                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
-                  <SubNavItem icon={ClipboardList} label="Purchase Orders" tab="purchase-orders" />
-                  <SubNavItem icon={ClipboardList} label="PO Jasa" tab="po-jasa" />
-                  <SubNavItem icon={RotateCcw} label="Retur Pembelian" tab="retur-pembelian" />
-                  <SubNavItem icon={PackagePlus} label="Pembelian Habis Pakai" tab="habis-pakai" />
-                  <SubNavItem icon={ReceiptText} label="Invoice Penagihan" tab="invoice-penagihan" />
                 </ul>
               )}
             </li>
           </ul>
 
           {/* CREATE PROJECT BUTTON */}
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="mt-6 mx-2 py-3 px-4 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-lg border border-dashed border-[#555] hover:border-[#d4af37] transition-all"
             onClick={() => setIsModalOpen(true)}
           >

@@ -1327,7 +1327,8 @@ export default function BukuBesarPage() {
                 </button>
               </form>
 
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
                 <thead className="bg-[#1e1c19] text-[#d4af37]">
                   <tr>
                     <th className="p-3 text-left">Nama Rekening</th>
@@ -1383,7 +1384,8 @@ export default function BukuBesarPage() {
                     </tr>
                   )}
                 </tbody>
-              </table>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -1435,7 +1437,8 @@ export default function BukuBesarPage() {
               </div>
             </form>
 
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
               <thead className="bg-[#1e1c19] text-[#d4af37]">
                 <tr>
                   <th className="p-3 text-left">Tipe Rekening</th>
@@ -1478,6 +1481,7 @@ export default function BukuBesarPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}

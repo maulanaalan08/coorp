@@ -408,7 +408,7 @@ export default function ComplaintPage() {
                               
                               return (
                                 <tr key={item.id}>
-                                  <td>{item.defectList}</td>
+                                  <td style={{ wordWrap: 'break-word', wordBreak: 'break-word', maxWidth: '250px' }}>{item.defectList}</td>
                                   <td>
                                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                                       {beforePhotos.map((p, i) => (
@@ -429,7 +429,7 @@ export default function ComplaintPage() {
                                     </div>
                                   </td>
                                   <td>{item.repairDate ? formatDate(item.repairDate) : <span className="muted">-</span>}</td>
-                                  <td>{item.repairDefectReport || <span className="muted">-</span>}</td>
+                                  <td style={{ wordWrap: 'break-word', wordBreak: 'break-word', maxWidth: '300px' }}>{item.repairDefectReport || <span className="muted">-</span>}</td>
                                   <td>
                                     <span style={{ color: item.status ? '#10b981' : '#f59e0b', fontWeight: 'bold', fontSize: '12px' }}>
                                       {item.status ? 'Selesai' : 'On going'}
