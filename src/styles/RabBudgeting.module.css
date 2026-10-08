@@ -446,6 +446,16 @@
   margin-left: 4px;
 }
 
+.rab-subcategory {
+  padding: 2px 7px;
+  color: #d8c9ad;
+  background: #2b261c;
+  border: 1px solid #4a412f;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
 .rab-group-subtotal {
   margin-left: auto;
   font-size: 13px;

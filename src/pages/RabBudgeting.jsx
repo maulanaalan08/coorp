@@ -23,6 +23,7 @@ import { useProjects } from "../hooks/useProjects";
 import { useRabGroups } from "../hooks/useRabGroups";
 import { useRabItems } from "../hooks/useRabItems";
 import toast from "react-hot-toast";
+import { getWorkClassificationLabel } from "../utils/workSubCategorySelection";
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -1599,6 +1600,8 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, c
       const emptyPrice = Number(unitPriceDisplay || 0) <= 0 && !item.isByOwner && !item.isStip && !hasChildren;
       const itemRef = !hasChildren ? getItemRef(item, source) : "Header / Sub-Group";
       const itemNumber = renderNumber(item, idx, parentNum, isParent);
+      const classification = getWorkClassificationLabel(item);
+      const subcategoryLabel = hasChildren ? '' : classification.subcategory;
 
     return (
       <tr key={item.id} className={rowClass}>
@@ -1626,13 +1629,14 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, c
                 {item.workCategory.code}
               </span>
             )}
-            {item.discipline && item.discipline !== "GENERAL" && (
+            {item.discipline && item.discipline !== "GENERAL" && !item.workCategory?.code && (
               <span className={styles["rab-group-discipline"]} style={{ background: DISCIPLINE_BADGE[item.discipline] || "#666", color: "#fff" }}>
                 {item.discipline}
               </span>
             )}
           </div>
         </td>
+        <td>{subcategoryLabel}</td>
         <td>
           {!hasChildren && emptyPrice && <span className={styles["rab-unfilled-tag"]}>BELUM DIISI</span>}
         </td>
@@ -1694,6 +1698,7 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, c
           <th style={{ width: "55px", textAlign: "center" }}>No</th>
           <th style={{ width: "23%" }}>Uraian Pekerjaan</th>
           <th style={{ width: "8%" }}>Kategori</th>
+          <th style={{ width: "10%" }}>Subkategori</th>
           <th style={{ width: "8%" }}>Status</th>
           <th style={{ width: "7%" }}>Sat</th>
           <th style={{ width: "7%" }}>Vol</th>

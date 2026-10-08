@@ -499,6 +499,19 @@
   border: 1px solid rgba(160, 82, 45, 0.45);
 }
 
+.subcategoryBadge {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 2px 6px;
+  color: #d8c9ad;
+  background: #262219;
+  border: 1px solid #49402f;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
 /* TABLE DARK STYLING */
 .bvTable {
   width: 100%;

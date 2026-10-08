@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ProjectSelector from '../components/ProjectSelector';
 import styles from '../styles/BackUpVolume.module.css';
 import Header from '../components/Header';
@@ -6,6 +6,15 @@ import { useProjects } from '../hooks/useProjects';
 import { useBvItems } from '../hooks/useBvItems';
 import { groupService } from '../services/groupService';
 import { hspkService } from '../services/hspkService';
+import { workCategoryService } from '../services/workCategoryService';
+import {
+  changeWorkCategory,
+  getInitialWorkClassification,
+  getWorkClassificationLabel,
+  getWorkSubCategoryValidationError,
+  hasWorkClassificationChanged,
+  requiresHeaderCategoryChangeConfirmation,
+} from '../utils/workSubCategorySelection';
 import { Pencil, Trash2, Plus, RefreshCw, Download, Eye, ChevronDown, History } from 'lucide-react';
 import BvRabHistoryPanel from '../components/BvRabHistoryPanel';
 import BvRabApprovalBar from '../components/BvRabApprovalBar';
@@ -94,7 +103,7 @@ function GroupModal({ isOpen, onClose, projectId, parentId, editGroup, onSuccess
 // ================================================================
 // MODAL TAMBAH / EDIT ITEM BV
 // ================================================================
-function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, parentItem, editItem, project, activeFilter, onSuccess }) {
+function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, parentItem, editItem, project, activeFilter, bvItems = [], onSuccess }) {
   const hspkPeriod = project?.hspkPeriod;
   const projectCategories = (project?.workCategories || [])
     .filter((entry) => entry.isActive && entry.workCategory?.isActive !== false)
@@ -105,6 +114,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
   const selectableProjectCategories = projectCategories.filter(
     (entry) => String(entry.workCategory?.code || '').trim().toUpperCase() !== 'GENERAL',
   );
+  const hasConfiguredWorkCategories = selectableProjectCategories.length > 0;
   const inheritedWorkCategoryId = parentItem?.workCategoryId || null;
   const initialWorkCategoryId = editItem
     ? (editItem.workCategoryId || inheritedWorkCategoryId || '')
@@ -119,6 +129,13 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
   const isRootItem = !parentBvItemId;
   const canChooseCategory = isRootItem && !editItem?.parentBvItemId;
   const [workCategoryId, setWorkCategoryId] = useState(initialWorkCategoryId);
+  const [workSubCategoryId, setWorkSubCategoryId] = useState(() => (
+    getInitialWorkClassification({ editItem, parentItem }).workSubCategoryId
+  ));
+  const [classificationTouched, setClassificationTouched] = useState(false);
+  const [subcategories, setSubcategories] = useState([]);
+  const [loadingSubcategories, setLoadingSubcategories] = useState(false);
+  const subcategoryRequestRef = useRef(0);
   const selectedProjectCategory = projectCategories.find(
     (entry) => entry.workCategoryId === workCategoryId,
   );
@@ -135,18 +152,57 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
 
   const [jobTypes, setJobTypes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen || !workCategoryId || mode === 'header') {
+      subcategoryRequestRef.current += 1;
+      setSubcategories([]);
+      setLoadingSubcategories(false);
+      return;
+    }
+
+    const requestId = subcategoryRequestRef.current + 1;
+    subcategoryRequestRef.current = requestId;
+    setLoadingSubcategories(true);
+    workCategoryService.getSubcategories(workCategoryId)
+      .then((result) => {
+        if (subcategoryRequestRef.current !== requestId) return;
+        const rows = Array.isArray(result) ? result : result?.data || [];
+        const activeRows = rows.filter((row) => row.isActive !== false);
+        setSubcategories(activeRows);
+        setWorkSubCategoryId((current) => (
+          current && !activeRows.some((row) => row.id === current) ? '' : current
+        ));
+      })
+      .catch((err) => {
+        if (subcategoryRequestRef.current !== requestId) return;
+        setSubcategories([]);
+        setError(err?.message || 'Gagal memuat subkategori.');
+      })
+      .finally(() => {
+        if (subcategoryRequestRef.current === requestId) setLoadingSubcategories(false);
+      });
+
+    return () => {
+      if (subcategoryRequestRef.current === requestId) subcategoryRequestRef.current += 1;
+    };
+  }, [isOpen, workCategoryId, mode]);
 
   // Reset kategori saat modal dibuka; anak selalu mengikuti kategori induk.
   useEffect(() => {
     if (!isOpen) return;
-    const nextCategoryId = editItem
-      ? (editItem.workCategoryId || parentItem?.workCategoryId || '')
-      : (parentItem?.workCategoryId || '');
-    setWorkCategoryId(nextCategoryId);
+    const classification = getInitialWorkClassification({ editItem, parentItem });
+    setWorkCategoryId(classification.workCategoryId);
+    setWorkSubCategoryId(classification.workSubCategoryId);
+    setClassificationTouched(false);
     setDisciplineLabel(editItem?.disciplineLabel || parentItem?.disciplineLabel || '');
   }, [
     isOpen,
     editItem?.workCategoryId,
+    editItem?.workSubCategoryId,
+    editItem?.isHeaderOnly,
     editItem?.disciplineLabel,
     parentItem?.workCategoryId,
     parentItem?.disciplineLabel,
@@ -167,9 +223,6 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
       jumlahSisi: 1, jumlahBh: 1, waste: 0,
     }
   ]);
-
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
 
   // Item baru mengikuti mode sumber harga kategori; item edit tidak diubah otomatis.
   useEffect(() => {
@@ -342,6 +395,14 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
     waste: normalizeBvInput(b.waste, 'Waste', 0),
   });
 
+  const handleModeChange = (nextMode) => {
+    setMode(nextMode);
+    if (nextMode === 'header') {
+      setWorkSubCategoryId('');
+      setClassificationTouched(true);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -349,6 +410,40 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
 
     try {
       const isHeaderOnly = mode === 'header';
+      const originalClassification = editItem ? {
+        isHeaderOnly: editItem.isHeaderOnly,
+        workCategoryId: editItem.workCategoryId,
+        workSubCategoryId: editItem.workSubCategoryId,
+        parentBvItemId: editItem.parentBvItemId,
+      } : null;
+      const nextClassification = {
+        isHeaderOnly,
+        workCategoryId,
+        workSubCategoryId: isHeaderOnly ? null : workSubCategoryId,
+        parentBvItemId,
+      };
+      const classificationChanged = editItem
+        ? hasWorkClassificationChanged(originalClassification, nextClassification)
+        : true;
+      const hasChildren = editItem
+        ? bvItems.some((item) => item.parentBvItemId === editItem.id)
+        : false;
+      if (requiresHeaderCategoryChangeConfirmation({ editItem, hasChildren, nextWorkCategoryId: workCategoryId })
+        && !window.confirm('Header ini memiliki suburaian. Mengubah kategori akan mengubah klasifikasi header dan turunannya. Lanjutkan?')) {
+        setSaving(false);
+        return;
+      }
+      const subcategoryError = getWorkSubCategoryValidationError({
+        isHeaderOnly,
+        projectHasWorkCategories: hasConfiguredWorkCategories,
+        workCategoryId,
+        workSubCategoryId,
+        isEdit: Boolean(editItem),
+        classificationTouched: classificationTouched || classificationChanged,
+        subcategoryOptionsLoaded: hasConfiguredWorkCategories && Boolean(workCategoryId) && !loadingSubcategories,
+        subcategoryOptionCount: subcategories.length,
+      });
+      if (subcategoryError) throw new Error(subcategoryError);
       if (projectCategories.length > 0 && !workCategoryId && !editItem) {
         throw new Error(parentBvItemId
           ? 'Kategori item induk belum ditetapkan. Edit item induk terlebih dahulu.'
@@ -382,9 +477,12 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
             ? selectedCategoryCode
             : disciplineLabel || (editItem?.disciplineLabel ?? null))
           : undefined,
-        workCategoryId: canChooseCategory
-          ? workCategoryId || (editItem?.workCategoryId ?? null)
-          : undefined,
+        ...(editItem && !classificationChanged
+          ? {}
+          : {
+            workCategoryId: workCategoryId || null,
+            workSubCategoryId: isHeaderOnly ? null : (workSubCategoryId || null),
+          }),
         ahspDiscipline: (!workCategoryId && mode === 'hspk')
           ? (sourceJobTypeId ? undefined : null)
           : undefined,
@@ -424,7 +522,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
             <div className={styles.bvSectionTitle}>1. Sumber pekerjaan</div>
             <div className={styles.formGroup}>
               <label>Mode input</label>
-              <select value={mode} onChange={(e) => setMode(e.target.value)}>
+              <select value={mode} onChange={(e) => handleModeChange(e.target.value)}>
                 <option value="hspk">Dari Master HSPK/AHSP</option>
                 <option value="custom">Custom (input manual)</option>
                 {!parentBvItemId && <option value="header">Header / Judul Pekerjaan</option>}
@@ -442,14 +540,24 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                   onChange={(event) => {
                     if (!canChooseCategory) return;
                     const nextId = event.target.value;
-                    setWorkCategoryId(nextId);
+                    if (requiresHeaderCategoryChangeConfirmation({
+                      editItem,
+                      hasChildren: bvItems.some((item) => item.parentBvItemId === editItem?.id),
+                      nextWorkCategoryId: nextId,
+                    }) && !window.confirm('Header ini memiliki suburaian. Mengubah kategori akan mengubah klasifikasi header dan turunannya. Lanjutkan?')) {
+                      return;
+                    }
+                    const changed = changeWorkCategory({ workCategoryId, workSubCategoryId }, nextId);
+                    setWorkCategoryId(changed.workCategoryId);
+                    setWorkSubCategoryId(changed.workSubCategoryId);
+                    setClassificationTouched(true);
                     const nextCode = String(
                       selectableProjectCategories.find((entry) => entry.workCategoryId === nextId)?.workCategory?.code || '',
                     ).toUpperCase();
                     setDisciplineLabel(['SIPIL', 'INTERIOR'].includes(nextCode) ? nextCode : '');
                   }}
                   disabled={!canChooseCategory}
-                  required
+                  required={canChooseCategory && (!editItem || classificationTouched)}
                 >
                   {canChooseCategory && !workCategoryId && (
                     <option value="">Pilih kategori pekerjaan</option>
@@ -494,9 +602,43 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
             )}
           </div>
 
+          {mode !== 'header' && workCategoryId && (
+            <div className={styles.bvInputSection}>
+              <div className={styles.bvSectionTitle}>3. Subkategori pekerjaan</div>
+              <div className={styles.formGroup}>
+                <label>{parentBvItemId ? 'Subkategori baris' : 'Subkategori'}</label>
+                <select
+                  value={workSubCategoryId}
+                  onChange={(event) => {
+                    setWorkSubCategoryId(event.target.value);
+                    setClassificationTouched(true);
+                  }}
+                  disabled={loadingSubcategories}
+                  required={!editItem || classificationTouched}
+                >
+                  <option value="">
+                    {loadingSubcategories ? 'Memuat subkategori...' : 'Pilih subkategori pekerjaan'}
+                  </option>
+                  {subcategories.map((subcategory) => (
+                    <option key={subcategory.id} value={subcategory.id}>
+                      {subcategory.code} — {subcategory.name}
+                      {subcategory.isActive === false ? ' (nonaktif)' : ''}
+                    </option>
+                  ))}
+                </select>
+                {!loadingSubcategories && subcategories.length === 0 && (
+                  <small className={styles.inheritedHint}>Belum ada subkategori aktif pada kategori ini.</small>
+                )}
+                {!workSubCategoryId && editItem && (
+                  <small className={styles.inheritedHint}>Data lama: Belum ditentukan. Pilih subkategori sebelum menyimpan.</small>
+                )}
+              </div>
+            </div>
+          )}
+
           {mode === 'hspk' && (
             <div className={styles.bvInputSection}>
-              <div className={styles.bvSectionTitle}>3. Pilih master AHSP ({selectedProjectCategory ? String(selectedProjectCategory.workCategory?.code || '').toUpperCase() : disciplineLabel})</div>
+              <div className={styles.bvSectionTitle}>4. Pilih master AHSP ({selectedProjectCategory ? String(selectedProjectCategory.workCategory?.code || '').toUpperCase() : disciplineLabel})</div>
               <div className={styles.formGroup}>
                 <label>Cari jenis pekerjaan</label>
                 <input
@@ -523,7 +665,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
           )}
 
           <div className={styles.bvInputSection}>
-            <div className={styles.bvSectionTitle}>{mode === 'hspk' ? '4. Rincian uraian' : '3. Rincian uraian'}</div>
+            <div className={styles.bvSectionTitle}>{mode === 'hspk' ? '5. Rincian uraian' : '4. Rincian uraian'}</div>
             <div className={styles.formGroup}>
               <label>Uraian pekerjaan / judul</label>
               <input
@@ -564,7 +706,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
             <>
               <div className={styles.bvInputSection}>
                 <div className={styles.bvSectionHeaderRow}>
-                  <div className={styles.bvSectionTitle}>{mode === 'hspk' ? '5. Breakdown dimensi' : '4. Breakdown dimensi'}</div>
+                  <div className={styles.bvSectionTitle}>{mode === 'hspk' ? '6. Breakdown dimensi' : '5. Breakdown dimensi'}</div>
                   <small className={styles.inheritedHint}>Centang dimensi yang digunakan untuk perhitungan volume</small>
                 </div>
 
@@ -1104,6 +1246,8 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
         </th>
         <th rowSpan={2}>NO</th>
         <th rowSpan={2} className={styles.jobDescriptionHeader}>URAIAN PEKERJAAN</th>
+        <th rowSpan={2}>KATEGORI</th>
+        <th rowSpan={2}>SUBKATEGORI</th>
         <th colSpan={2} rowSpan={1}>VOLUME</th>
         <th rowSpan={2}>KETERANGAN</th>
         <th rowSpan={2}>Panjang<br />(m)</th>
@@ -1156,7 +1300,9 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
         ketText = b0.keterangan;
       }
 
-      const categoryCode = String(it.workCategory?.code || it.disciplineLabel || 'GENERAL').toUpperCase();
+      const classification = getWorkClassificationLabel(it);
+      const categoryCode = classification.category;
+      const subcategoryLabel = it.isHeaderOnly ? '' : classification.subcategory;
       const categoryLabel = categoryCode !== ALL_CATEGORY_FILTER ? categoryCode : '';
       const categoryClass = categoryCode === 'SIPIL'
         ? styles.disciplineSipil
@@ -1178,12 +1324,15 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             <td>{no}</td>
             <td className={styles.jobDescriptionCell} style={{ paddingLeft: isChild ? 18 : 6 }}>
               {isChild ? '-- ' : ''}{it.name}
+            </td>
+            <td>
               {categoryLabel && (
                 <span className={`${styles.disciplineBadge} ${categoryClass}`}>
                   {categoryLabel}
                 </span>
               )}
             </td>
+            <td>{subcategoryLabel}</td>
             <td>{it.paymentUnit || ''}</td>
             <td className="num">{it.isHeaderOnly ? '' : renderBvVolume(it.totalVolume)}</td>
             <td className="left">{ketText}</td>
@@ -1291,6 +1440,8 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                 <td></td>
                 <td></td>
                 <td className="left"></td>
+                <td></td>
+                <td></td>
                 <td colSpan={2}></td>
                 <td className="left">{b.keterangan || ''}</td>
                 <td className="num">{b.isPChecked ? '☑ ' : ''}{renderBvNumber(b.panjang)}</td>
@@ -1765,6 +1916,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
         parentItem={bvModalParentItem}
         project={selectedProject}
         activeFilter={activeFilter}
+        bvItems={bvItems}
         onSuccess={() => { refresh(); fetchGroups(); }}
       />
     </div>
