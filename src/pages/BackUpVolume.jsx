@@ -15,6 +15,7 @@ import {
   hasWorkClassificationChanged,
   requiresHeaderCategoryChangeConfirmation,
 } from '../utils/workSubCategorySelection';
+import { countItemsBySubCategory, filterItemTreeBySubCategory } from '../utils/workSubCategoryFilter';
 import { Pencil, Trash2, Plus, RefreshCw, Download, Eye, ChevronDown, History } from 'lucide-react';
 import BvRabHistoryPanel from '../components/BvRabHistoryPanel';
 import BvRabApprovalBar from '../components/BvRabApprovalBar';
@@ -868,6 +869,10 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   const projectRef = React.useRef(selectedProjectId);
   projectRef.current = selectedProjectId;
   const [activeFilter, setActiveFilter] = useState(() => parseBvHash().filter);
+  const [activeSubCategoryId, setActiveSubCategoryId] = useState('');
+  const [filterSubcategories, setFilterSubcategories] = useState([]);
+  const [loadingFilterSubcategories, setLoadingFilterSubcategories] = useState(false);
+  const filterSubcategoryRequestRef = useRef(0);
   const [groupPage, setGroupPage] = useState(1);
   const [expandedGroupIds, setExpandedGroupIds] = useState(() => new Set());
   const GROUPS_PER_PAGE = 10;
@@ -911,7 +916,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
 
   React.useEffect(() => {
     setGroupPage(1);
-  }, [activeFilter, selectedProjectId]);
+  }, [activeFilter, activeSubCategoryId, selectedProjectId]);
 
   const { bvItems, loading: loadingBv, refresh, deleteBvItem, deleteBulk, linkToRab, linkToRabBulk, syncBvItem, syncBulk } = useBvItems(selectedProjectId);
 
@@ -974,6 +979,40 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
   const activeCategoryLabel = activeFilter === ALL_CATEGORY_FILTER
     ? 'Semua'
     : selectedFilterCategory?.name || activeFilter;
+
+  useEffect(() => {
+    setActiveSubCategoryId('');
+    setFilterSubcategories([]);
+
+    const categoryId = selectedFilterCategory?.workCategoryId;
+    if (!categoryId) {
+      filterSubcategoryRequestRef.current += 1;
+      setLoadingFilterSubcategories(false);
+      return;
+    }
+
+    const requestId = filterSubcategoryRequestRef.current + 1;
+    filterSubcategoryRequestRef.current = requestId;
+    setLoadingFilterSubcategories(true);
+    workCategoryService.getSubcategories(categoryId)
+      .then((rows) => {
+        if (filterSubcategoryRequestRef.current !== requestId) return;
+        const list = Array.isArray(rows) ? rows : rows?.data || [];
+        setFilterSubcategories(list.filter((row) => row.isActive !== false));
+      })
+      .catch((error) => {
+        if (filterSubcategoryRequestRef.current !== requestId) return;
+        console.error(error);
+        setFilterSubcategories([]);
+      })
+      .finally(() => {
+        if (filterSubcategoryRequestRef.current === requestId) setLoadingFilterSubcategories(false);
+      });
+
+    return () => {
+      if (filterSubcategoryRequestRef.current === requestId) filterSubcategoryRequestRef.current += 1;
+    };
+  }, [selectedProjectId, selectedFilterCategory?.workCategoryId]);
 
   useEffect(() => {
     if (!selectedProjectId || activeFilter === ALL_CATEGORY_FILTER) return;
@@ -1466,7 +1505,10 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
     });
   };
 
-  const filteredBvItems = filterBvByCategory(bvItems, selectedFilterCategory);
+  const categoryFilteredBvItems = filterBvByCategory(bvItems, selectedFilterCategory);
+  const filteredBvItems = activeSubCategoryId
+    ? filterItemTreeBySubCategory(categoryFilteredBvItems, activeSubCategoryId)
+    : categoryFilteredBvItems;
 
   const bvByGroup = {};
   filteredBvItems.forEach(it => {
@@ -1688,21 +1730,54 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
 
         {selectedProjectId && (
           <div className={styles.controlBar}>
-            <div className={styles.filterGroup}>
-              <span className={styles.controlLabel}>Kategori</span>
-              {categoryFilterOptions.map((option) => (
-                <a
-                  key={option.id}
-                  href={`#bv/${option.code}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.location.hash = `bv/${option.code}`;
-                  }}
-                  className={`${styles.filterBtn} ${activeFilter === option.code ? styles.filterBtnActive : ''}`}
-                >
-                  {option.name}
-                </a>
-              ))}
+            <div className={styles.filterPanel}>
+              <div className={styles.filterGroup}>
+                <span className={styles.controlLabel}>Kategori</span>
+                {categoryFilterOptions.map((option) => (
+                  <a
+                    key={option.id}
+                    href={`#bv/${option.code}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.hash = `bv/${option.code}`;
+                    }}
+                    className={`${styles.filterBtn} ${activeFilter === option.code ? styles.filterBtnActive : ''}`}
+                  >
+                    {option.name}
+                  </a>
+                ))}
+              </div>
+              {selectedFilterCategory?.workCategoryId && (
+                <div className={styles.subcategoryFilterRow}>
+                  <span className={styles.controlLabel}>Subkategori</span>
+                  <button
+                    type="button"
+                    className={`${styles.filterBtn} ${!activeSubCategoryId ? styles.filterBtnActive : ''}`}
+                    onClick={() => setActiveSubCategoryId('')}
+                  >
+                    Semua
+                  </button>
+                  {loadingFilterSubcategories ? (
+                    <span className={styles.subcategoryFilterState}>Memuat...</span>
+                  ) : filterSubcategories.length === 0 ? (
+                    <span className={styles.subcategoryFilterState}>Belum ada subkategori aktif</span>
+                  ) : (
+                    filterSubcategories.map((subcategory) => (
+                      <button
+                        type="button"
+                        key={subcategory.id}
+                        className={`${styles.filterBtn} ${activeSubCategoryId === subcategory.id ? styles.filterBtnActive : ''}`}
+                        onClick={() => setActiveSubCategoryId(subcategory.id)}
+                      >
+                        {subcategory.code || subcategory.name}
+                        <span className={styles.filterCount}>
+                          ({countItemsBySubCategory(categoryFilteredBvItems, subcategory.id)})
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
             <div className={styles.selectionTools}>
               <button

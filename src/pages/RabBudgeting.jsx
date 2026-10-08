@@ -23,7 +23,9 @@ import { useProjects } from "../hooks/useProjects";
 import { useRabGroups } from "../hooks/useRabGroups";
 import { useRabItems } from "../hooks/useRabItems";
 import toast from "react-hot-toast";
+import { workCategoryService } from "../services/workCategoryService";
 import { getWorkClassificationLabel } from "../utils/workSubCategorySelection";
+import { countGroupItemsBySubCategory, filterGroupTreeBySubCategory } from "../utils/workSubCategoryFilter";
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -97,6 +99,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     const filter = parts[1]?.toUpperCase();
     return filter || ALL_CATEGORY_FILTER;
   });
+  const [activeSubCategoryId, setActiveSubCategoryId] = useState('');
+  const [filterSubcategories, setFilterSubcategories] = useState([]);
+  const [loadingFilterSubcategories, setLoadingFilterSubcategories] = useState(false);
+  const filterSubcategoryRequestRef = useRef(0);
 
   useEffect(() => {
     const onHash = () => {
@@ -152,6 +158,39 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const activeCategoryLabel = activeFilter === ALL_CATEGORY_FILTER
     ? 'Semua'
     : selectedFilterCategory?.name || activeFilter;
+
+  useEffect(() => {
+    setActiveSubCategoryId('');
+    setFilterSubcategories([]);
+    const categoryId = selectedFilterCategory?.workCategoryId;
+    if (!categoryId) {
+      filterSubcategoryRequestRef.current += 1;
+      setLoadingFilterSubcategories(false);
+      return;
+    }
+
+    const requestId = filterSubcategoryRequestRef.current + 1;
+    filterSubcategoryRequestRef.current = requestId;
+    setLoadingFilterSubcategories(true);
+    workCategoryService.getSubcategories(categoryId)
+      .then((rows) => {
+        if (filterSubcategoryRequestRef.current !== requestId) return;
+        const list = Array.isArray(rows) ? rows : rows?.data || [];
+        setFilterSubcategories(list.filter((row) => row.isActive !== false));
+      })
+      .catch((error) => {
+        if (filterSubcategoryRequestRef.current !== requestId) return;
+        console.error(error);
+        setFilterSubcategories([]);
+      })
+      .finally(() => {
+        if (filterSubcategoryRequestRef.current === requestId) setLoadingFilterSubcategories(false);
+      });
+
+    return () => {
+      if (filterSubcategoryRequestRef.current === requestId) filterSubcategoryRequestRef.current += 1;
+    };
+  }, [projectId, selectedFilterCategory?.workCategoryId]);
 
   // Redirect hash ke SEMUA jika kategori tidak ditemukan pada project
   useEffect(() => {
@@ -211,11 +250,19 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // Backend sudah memfilter berdasarkan kategori; tidak perlu filter lokal ganda.
   const filterGroupByDiscipline = (groupList, label) => groupList;
 
-  const visibleGroups = useMemo(() => {
-    return filterGroups(groups, search.trim().toLowerCase());
-  }, [groups, search]);
+  const categoryGroups = groups;
+  const subcategoryGroups = useMemo(
+    () => (activeSubCategoryId
+      ? filterGroupTreeBySubCategory(categoryGroups, activeSubCategoryId)
+      : categoryGroups),
+    [categoryGroups, activeSubCategoryId],
+  );
 
-  const allItems = useMemo(() => flattenItems(groups), [groups]);
+  const visibleGroups = useMemo(() => {
+    return filterGroups(subcategoryGroups, search.trim().toLowerCase());
+  }, [subcategoryGroups, search]);
+
+  const allItems = useMemo(() => flattenItems(categoryGroups), [categoryGroups]);
   const visibleAllItems = useMemo(() => flattenItems(visibleGroups), [visibleGroups]);
 
   const sumGroupRecursive = (group) => {
@@ -1055,27 +1102,59 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
             </div>
 
               {projectId && (
-                <div className={styles["rab-filters"]}>
-                  {categoryFilterOptions.map((opt) => {
-                    const cnt = allItems.filter((it) => {
-                      if (opt.code === ALL_CATEGORY_FILTER) return true;
-                      const itemCode = String(it.workCategory?.code || it.discipline || 'GENERAL').toUpperCase();
-                      return itemCode === opt.code;
-                    }).length;
-                    return (
-                      <a
-                        key={opt.id}
-                        href={`#rab/${opt.code}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          window.location.hash = `rab/${opt.code}`;
-                        }}
-                        className={[styles["rab-chip"], activeFilter === opt.code ? styles["on"] : ""].join(" ")}
+                <div className={styles["rab-filter-panel"]}>
+                  <div className={styles["rab-filter-row"]}>
+                    <span className={styles["rab-filter-label"]}>Kategori</span>
+                    {categoryFilterOptions.map((opt) => {
+                      const cnt = allItems.filter((it) => {
+                        if (opt.code === ALL_CATEGORY_FILTER) return true;
+                        const itemCode = String(it.workCategory?.code || it.discipline || 'GENERAL').toUpperCase();
+                        return itemCode === opt.code;
+                      }).length;
+                      return (
+                        <a
+                          key={opt.id}
+                          href={`#rab/${opt.code}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            window.location.hash = `rab/${opt.code}`;
+                          }}
+                          className={[styles["rab-chip"], activeFilter === opt.code ? styles["on"] : ""].join(" ")}
+                        >
+                          {opt.name} <span className={styles["cnt"]}>({cnt})</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                  {selectedFilterCategory?.workCategoryId && (
+                    <div className={styles["rab-filter-row"]}>
+                      <span className={styles["rab-filter-label"]}>Subkategori</span>
+                      <button
+                        type="button"
+                        className={[styles["rab-chip"], !activeSubCategoryId ? styles["on"] : ""].join(" ")}
+                        onClick={() => setActiveSubCategoryId('')}
                       >
-                        {opt.name} <span className={styles["cnt"]}>({cnt})</span>
-                      </a>
-                    );
-                  })}
+                        Semua
+                      </button>
+                      {loadingFilterSubcategories ? (
+                        <span className={styles["rab-filter-state"]}>Memuat...</span>
+                      ) : filterSubcategories.length === 0 ? (
+                        <span className={styles["rab-filter-state"]}>Belum ada subkategori aktif</span>
+                      ) : (
+                        filterSubcategories.map((subcategory) => (
+                          <button
+                            type="button"
+                            key={subcategory.id}
+                            className={[styles["rab-chip"], activeSubCategoryId === subcategory.id ? styles["on"] : ""].join(" ")}
+                            onClick={() => setActiveSubCategoryId(subcategory.id)}
+                          >
+                            {subcategory.code || subcategory.name}
+                            <span className={styles["cnt"]}>({countGroupItemsBySubCategory(categoryGroups, subcategory.id)})</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

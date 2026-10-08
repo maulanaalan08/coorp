@@ -277,6 +277,46 @@
 
 .rab-lock { font-size: 10px; opacity: 0.7; margin-left: 4px; }
 
+.rab-filter-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin-left: auto;
+}
+
+.rab-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.rab-filter-label {
+  min-width: 78px;
+  color: var(--rab-gold-dim);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rab-filter-row .rab-chip {
+  background: transparent;
+}
+
+.rab-filter-row .rab-chip.on {
+  background: var(--rab-gold);
+}
+
+.rab-filter-state {
+  color: var(--rab-muted);
+  font-size: 11px;
+}
+
 .rab-filters {
   display: flex;
   gap: 8px;
