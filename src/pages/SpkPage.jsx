@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, FileText, Plus, RefreshCw, Save, Send, ShieldCheck, Trash2, XCircle } from 'lucide-react';
+import { Download, Eye, FileText, Plus, RefreshCw, Save, Send, ShieldCheck, Trash2, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ProjectSelector from '../components/ProjectSelector';
 import { useProjects } from '../hooks/useProjects';
 import { spkService } from '../services/spkService';
+import {
+  buildSpkPartyPayload,
+  createClientPartyForm,
+  mapContractPartiesToForm,
+  validateClientPartyForm,
+  validateClientSchedule,
+} from '../utils/spkPartyForm';
 
 const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })}`;
 const numberValue = (value) => Number(String(value ?? '').replace(/[^0-9.-]/g, '')) || 0;
@@ -95,12 +102,14 @@ export default function SpkPage({ initialProjectId = null }) {
   const { projects, loading: projectsLoading } = useProjects();
   const [projectId, setProjectId] = useState(initialProjectId || '');
   const [source, setSource] = useState(null);
+  const [project, setProject] = useState(null);
   const [contracts, setContracts] = useState([]);
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [type, setType] = useState('CLIENT');
   const [retentionPercent, setRetentionPercent] = useState(0);
   const [terms, setTerms] = useState([newTerm(0)]);
-  const [partyData, setPartyData] = useState({ partyName: '', signerName: '', signerPosition: '' });
+  const [subconPartyName, setSubconPartyName] = useState('');
+  const [clientParties, setClientParties] = useState(() => createClientPartyForm());
   const [workDurationDays, setWorkDurationDays] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -119,6 +128,7 @@ export default function SpkPage({ initialProjectId = null }) {
   const loadProjectData = async (id = projectId) => {
     if (!id) {
       setSource(null);
+      setProject(null);
       setContracts([]);
       setSelectedItemIds([]);
       return;
@@ -131,6 +141,9 @@ export default function SpkPage({ initialProjectId = null }) {
       ]);
       setSource(nextSource);
       setContracts(nextContracts.contracts || []);
+      const loadedProject = nextContracts.project || nextSource.project || null;
+      setProject(loadedProject);
+      if (!editingId && type === 'CLIENT') setClientParties(createClientPartyForm(loadedProject));
       setSelectedItemIds((nextSource.items || []).map((item) => item.id));
     } catch (error) {
       toast.error(error.message || 'Gagal memuat sumber RAB/SPK.');
@@ -140,20 +153,22 @@ export default function SpkPage({ initialProjectId = null }) {
   };
 
   useEffect(() => {
+    // Existing page lifecycle: mirror an externally selected project.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (initialProjectId) setProjectId(initialProjectId);
   }, [initialProjectId]);
 
   useEffect(() => {
-    if (type === 'CLIENT') {
-      setPartyData({ partyName: '', signerName: '', signerPosition: '' });
-    }
-  }, [type]);
-
-  useEffect(() => {
+    // Existing page lifecycle: load when the selected project changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (projectId) loadProjectData(projectId);
+  // loadProjectData is intentionally scoped to the selected project.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   useEffect(() => {
+    // Existing page lifecycle: recalculate derived term amounts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTerms((current) => current.map((term) => ({
       ...term,
       amount: Math.round(selectedValue * numberValue(term.percent) / 100),
@@ -179,7 +194,8 @@ export default function SpkPage({ initialProjectId = null }) {
     setType('CLIENT');
     setRetentionPercent(0);
     setTerms([newTerm(0)]);
-    setPartyData({ partyName: '', signerName: '', signerPosition: '' });
+    setSubconPartyName('');
+    setClientParties(createClientPartyForm(project));
     setWorkDurationDays('');
     setStartDate('');
     setEndDate('');
@@ -202,11 +218,17 @@ export default function SpkPage({ initialProjectId = null }) {
       }))
       : [newTerm(0)];
     setTerms(rebalanceTermsForRetention(savedTerms, savedRetention, Number(contract.contractValue)));
-    setPartyData({
-      partyName: contract.partyData?.name || contract.snapshot?.party?.name || '',
-      signerName: contract.partyData?.signerName || '',
-      signerPosition: contract.partyData?.signerPosition || '',
-    });
+    if ((contract.type || 'CLIENT') === 'CLIENT') {
+      setClientParties(mapContractPartiesToForm(contract, project));
+      setSubconPartyName('');
+    } else {
+      setSubconPartyName(
+        contract.partyData?.contractorName
+        || contract.partyData?.name
+        || contract.snapshot?.party?.name
+        || '',
+      );
+    }
     setWorkDurationDays(contract.workDurationDays ? String(contract.workDurationDays) : '');
     setStartDate(dateInput(contract.startDate));
     setEndDate(dateInput(contract.endDate));
@@ -220,16 +242,24 @@ export default function SpkPage({ initialProjectId = null }) {
   const saveDraft = async () => {
     if (!projectId) return toast.error('Pilih project terlebih dahulu.');
     if (!selectedItemIds.length) return toast.error('Pilih minimal satu item RAB.');
+    if (type === 'CLIENT') {
+      const partyErrors = validateClientPartyForm(clientParties);
+      if (partyErrors.length) return toast.error(partyErrors[0]);
+      const scheduleErrors = validateClientSchedule({ workDurationDays, startDate, endDate });
+      if (scheduleErrors.length) return toast.error(scheduleErrors[0]);
+    } else if (!subconPartyName.trim()) {
+      return toast.error('Nama pihak/kontraktor wajib diisi.');
+    }
     setSaving(true);
     try {
+      const partyPayload = buildSpkPartyPayload(type, { clientParties, subconPartyName });
       const payload = {
         type,
         rabItemIds: selectedItemIds,
         contractValue: selectedValue,
         terms: terms.map((term) => ({ ...term, percent: numberValue(term.percent), amount: Math.round(selectedValue * numberValue(term.percent) / 100) })),
         retentionPercent: numberValue(retentionPercent),
-        partyName: partyData.partyName,
-        partyData: { ...partyData },
+        ...partyPayload,
         workDurationDays: workDurationDays ? Number(workDurationDays) : null,
         startDate: startDate || null,
         endDate: endDate || null,
@@ -248,6 +278,55 @@ export default function SpkPage({ initialProjectId = null }) {
       toast.error(error.message || 'Gagal menyimpan draft SPK.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleProjectChange = (event) => {
+    resetDraftForm();
+    setProjectId(event.target.value);
+  };
+
+  const handleTypeChange = (nextType) => {
+    setType(nextType);
+    if (nextType === 'CLIENT' && !editingId) setClientParties(createClientPartyForm(project));
+  };
+
+  const updateClientParty = (partyKey, field, value) => {
+    setClientParties((current) => ({
+      ...current,
+      [partyKey]: { ...current[partyKey], [field]: value },
+    }));
+  };
+
+  const viewPdf = async (contract) => {
+    const previewWindow = window.open('', '_blank');
+    if (!previewWindow) return toast.error('Izinkan pop-up browser untuk melihat PDF.');
+    previewWindow.document.write('<p style="font-family:Arial,sans-serif;padding:24px">Memuat PDF SPK...</p>');
+    try {
+      const blob = await spkService.getPdfView(contract.id);
+      const objectUrl = URL.createObjectURL(blob);
+      previewWindow.location.href = objectUrl;
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (error) {
+      previewWindow.close();
+      toast.error(error.message || 'Gagal melihat PDF SPK.');
+    }
+  };
+
+  const downloadPdf = async (contract) => {
+    try {
+      const blob = await spkService.getPdfDownload(contract.id);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeNumber = (contract.spkNumber || `DRAFT-${contract.id}`).replace(/[^a-zA-Z0-9_-]+/g, '-');
+      link.href = objectUrl;
+      link.download = `SPK-${safeNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      toast.error(error.message || 'Gagal mengunduh PDF SPK.');
     }
   };
 
@@ -296,7 +375,7 @@ export default function SpkPage({ initialProjectId = null }) {
         </button>
       </div>
 
-      <ProjectSelector projectList={projects} projectId={projectId} loading={projectsLoading} onChange={(event) => setProjectId(event.target.value)} />
+      <ProjectSelector projectList={projects} projectId={projectId} loading={projectsLoading} onChange={handleProjectChange} />
 
       {!projectId ? (
         <div style={{ padding: 40, border: `1px dashed ${colors.border}`, color: colors.muted, textAlign: 'center', borderRadius: 10 }}>Pilih project untuk mulai membuat SPK.</div>
@@ -307,7 +386,7 @@ export default function SpkPage({ initialProjectId = null }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div>
                   <h2 style={{ margin: 0, fontSize: 17 }}>Sumber nilai kontrak dari RAB</h2>
-                  <p style={{ margin: '5px 0 0', color: colors.muted, fontSize: 12 }}>{source?.project?.name || 'Project'} · centang item yang masuk snapshot SPK</p>
+                  <p style={{ margin: '5px 0 0', color: colors.muted, fontSize: 12 }}>{project?.name || 'Project'} · centang item yang masuk snapshot SPK</p>
                 </div>
                 <strong style={{ color: colors.gold }}>{money(selectedValue)}</strong>
               </div>
@@ -327,20 +406,57 @@ export default function SpkPage({ initialProjectId = null }) {
             <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10, padding: 20 }}>
               <h2 style={{ margin: '0 0 14px', fontSize: 17 }}>Identitas SPK</h2>
               <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>TIPE KONTRAK</label>
-              <select style={{ ...inputStyle, marginBottom: 12 }} value={type} onChange={(event) => setType(event.target.value)}>
+              <select style={{ ...inputStyle, marginBottom: 12 }} value={type} onChange={(event) => handleTypeChange(event.target.value)}>
                 <option value="CLIENT">SPK Client</option>
                 <option value="SUBCON">SPK Subcon</option>
               </select>
-              <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>NAMA PIHAK / KONTRAKTOR</label>
-              <input style={{ ...inputStyle, marginBottom: 12 }} value={partyData.partyName} onChange={(event) => setPartyData({ ...partyData, partyName: event.target.value })} placeholder="Nama pihak / kontraktor" />
-              <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>ALAMAT PROJECT</label>
-              <div style={{ ...inputStyle, minHeight: 42, marginBottom: 12, color: colors.muted, display: 'flex', alignItems: 'center' }}>
-                {source?.project?.location || 'Otomatis dari alamat project'}
-              </div>
+
+              {type === 'CLIENT' ? (
+                <>
+                  <div style={{ padding: 12, border: `1px solid ${colors.border}`, borderRadius: 7, marginBottom: 12 }}>
+                    <strong style={{ display: 'block', color: colors.gold, fontSize: 11, letterSpacing: 1, marginBottom: 10 }}>PIHAK PERTAMA — PERUSAHAAN / INTERNAL</strong>
+                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>NAMA PERWAKILAN</label>
+                    <input style={{ ...inputStyle, marginBottom: 9 }} value={clientParties.firstParty.name} onChange={(event) => updateClientParty('firstParty', 'name', event.target.value)} placeholder="Nama perwakilan internal" />
+                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>JABATAN</label>
+                    <input style={{ ...inputStyle, marginBottom: 9 }} value={clientParties.firstParty.position} onChange={(event) => updateClientParty('firstParty', 'position', event.target.value)} placeholder="Contoh: Direktur" />
+                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>PERUSAHAAN</label>
+                    <input style={{ ...inputStyle, marginBottom: 9 }} value={clientParties.firstParty.companyName} onChange={(event) => updateClientParty('firstParty', 'companyName', event.target.value)} />
+                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>ALAMAT PERUSAHAAN</label>
+                    <textarea style={{ ...inputStyle, minHeight: 58 }} value={clientParties.firstParty.address} onChange={(event) => updateClientParty('firstParty', 'address', event.target.value)} />
+                  </div>
+
+                  <div style={{ padding: 12, border: `1px solid ${colors.border}`, borderRadius: 7, marginBottom: 12 }}>
+                    <strong style={{ display: 'block', color: colors.gold, fontSize: 11, letterSpacing: 1, marginBottom: 10 }}>PIHAK KEDUA — CLIENT</strong>
+                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>NAMA CLIENT</label>
+                    <input style={{ ...inputStyle, marginBottom: 9 }} value={clientParties.secondParty.name} onChange={(event) => updateClientParty('secondParty', 'name', event.target.value)} placeholder="Otomatis dari client project" />
+                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>JABATAN</label>
+                    <input style={{ ...inputStyle, marginBottom: 9 }} value={clientParties.secondParty.position} onChange={(event) => updateClientParty('secondParty', 'position', event.target.value)} />
+                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>ALAMAT PROJECT (READ-ONLY)</label>
+                    <div style={{ ...inputStyle, minHeight: 42, color: colors.muted, display: 'flex', alignItems: 'center' }}>
+                      {clientParties.secondParty.address || 'Alamat project belum tersedia'}
+                    </div>
+                  </div>
+                  <p style={{ margin: '0 0 12px', color: colors.muted, fontSize: 11 }}>PDF mencetak area tanda tangan kosong untuk kedua pihak; tidak ada upload gambar tanda tangan pada versi ini.</p>
+                </>
+              ) : (
+                <>
+                  <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>NAMA PIHAK / KONTRAKTOR</label>
+                  <input style={{ ...inputStyle, marginBottom: 12 }} value={subconPartyName} onChange={(event) => setSubconPartyName(event.target.value)} placeholder="Nama pihak / kontraktor" />
+                  <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>ALAMAT PROJECT</label>
+                  <div style={{ ...inputStyle, minHeight: 42, marginBottom: 12, color: colors.muted, display: 'flex', alignItems: 'center' }}>
+                    {project?.location || 'Otomatis dari alamat project'}
+                  </div>
+                </>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div><label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>DURASI (HARI)</label><input type="number" min="1" style={inputStyle} value={workDurationDays} onChange={(event) => setWorkDurationDays(event.target.value)} /></div>
+                <div>
+                  <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>DURASI (HARI){type === 'CLIENT' ? ' *' : ''}</label>
+                  <input type="number" min="1" required={type === 'CLIENT'} style={inputStyle} value={workDurationDays} onChange={(event) => setWorkDurationDays(event.target.value)} />
+                </div>
                 <div><label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>RETENSI (%)</label><input type="number" min="0" max="100" step="0.01" style={inputStyle} value={retentionPercent} onChange={(event) => updateRetention(event.target.value)} /></div>
               </div>
+              {type === 'CLIENT' && <p style={{ margin: '8px 0 0', color: colors.muted, fontSize: 11 }}>Durasi pekerjaan wajib berupa angka lebih dari 0 hari untuk SPK Client.</p>}
             </div>
           </section>
 
@@ -369,9 +485,16 @@ export default function SpkPage({ initialProjectId = null }) {
 
           <section style={{ marginTop: 18, background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10, padding: 20 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div><label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>TANGGAL MULAI</label><input type="date" style={inputStyle} value={startDate} onChange={(event) => setStartDate(event.target.value)} /></div>
-              <div><label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>TANGGAL SELESAI</label><input type="date" style={inputStyle} value={endDate} onChange={(event) => setEndDate(event.target.value)} /></div>
+              <div>
+                <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>TANGGAL MULAI{type === 'CLIENT' ? ' *' : ''}</label>
+                <input type="date" required={type === 'CLIENT'} style={inputStyle} value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>TANGGAL SELESAI{type === 'CLIENT' ? ' *' : ''}</label>
+                <input type="date" required={type === 'CLIENT'} style={inputStyle} value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+              </div>
             </div>
+            {type === 'CLIENT' && <p style={{ margin: '8px 0 0', color: colors.muted, fontSize: 11 }}>Tanggal mulai dan selesai wajib diisi; tanggal selesai tidak boleh lebih awal dari tanggal mulai.</p>}
             <label style={{ display: 'block', color: colors.muted, fontSize: 11, margin: '12px 0 5px' }}>CATATAN</label>
             <textarea style={{ ...inputStyle, minHeight: 65 }} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan khusus draft SPK" />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
@@ -386,6 +509,8 @@ export default function SpkPage({ initialProjectId = null }) {
               {contracts.map((contract) => <div key={contract.id} style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 9, padding: 15, display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
                 <div><div style={{ display: 'flex', alignItems: 'center', gap: 9 }}><strong>{contract.spkNumber || 'DRAFT / belum bernomor'}</strong><span style={{ color: statusColor[contract.status] || colors.muted, fontSize: 11, fontWeight: 800 }}>{contract.status}</span><span style={{ color: colors.muted, fontSize: 11 }}>{contract.type}</span></div><div style={{ marginTop: 5, color: colors.muted, fontSize: 12 }}>{money(contract.contractValue)} · {contract.contractValueWords}</div></div>
                 <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {contract.type === 'CLIENT' && <button type="button" style={buttonStyle()} onClick={() => viewPdf(contract)}><Eye size={14} /> {contract.status === 'DRAFT' ? 'Preview PDF' : 'Lihat PDF'}</button>}
+                  {contract.type === 'CLIENT' && <button type="button" style={buttonStyle()} onClick={() => downloadPdf(contract)}><Download size={14} /> Unduh PDF</button>}
                   {contract.status === 'DRAFT' && <button type="button" style={buttonStyle()} onClick={() => startEdit(contract)}><FileText size={14} /> Edit</button>}
                   {contract.status === 'DRAFT' && <button type="button" style={buttonStyle('primary')} onClick={() => issue(contract.id)}><Send size={14} /> Terbitkan</button>}
                   {contract.status === 'TERBIT' && <button type="button" style={buttonStyle()} onClick={() => sign(contract.id)}><ShieldCheck size={14} /> Tandai Ditandatangani</button>}
