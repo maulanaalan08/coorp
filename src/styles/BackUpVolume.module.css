@@ -185,6 +185,14 @@
   border-radius: 0 0 10px 10px;
 }
 
+.filterPanel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .filterGroup,
 .selectionTools,
 .bulkActions {
@@ -201,6 +209,36 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.subcategoryFilterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  padding-left: 4px;
+}
+
+.subcategoryFilterRow .filterBtn {
+  border-style: dashed;
+  background: #17150f;
+}
+
+.subcategoryFilterRow .filterBtnActive {
+  border-style: solid;
+  background: #9d8130;
+  color: #0c0b09;
+}
+
+.subcategoryFilterState {
+  color: #8f897d;
+  font-size: 11px;
+}
+
+.filterCount {
+  margin-left: 4px;
+  opacity: 0.65;
+  font-weight: 600;
 }
 
 .btnSubtle {
@@ -497,6 +535,19 @@
   color: #f0b39a;
   background: rgba(160, 82, 45, 0.18);
   border: 1px solid rgba(160, 82, 45, 0.45);
+}
+
+.subcategoryBadge {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 2px 6px;
+  color: #d8c9ad;
+  background: #262219;
+  border: 1px solid #49402f;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 /* TABLE DARK STYLING */

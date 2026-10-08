@@ -114,8 +114,102 @@
 }
 
 .wcp-col-action {
-  width: 140px;
+  width: 300px;
   text-align: right;
+}
+
+.wcp-manage-sub-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 8px;
+  padding: 8px 10px;
+  border: 1px solid #4a3e28;
+  border-radius: 4px;
+  background: #1d1810;
+  color: #c9a24b;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.wcp-subcategory-row > td {
+  padding: 0 16px 16px !important;
+  background: #100e0b;
+}
+
+.wcp-subcategory-panel {
+  margin-left: 60px;
+  padding: 14px;
+  border: 1px solid #322b1e;
+  border-radius: 4px;
+  background: #17140f;
+}
+
+.wcp-subcategory-toolbar,
+.wcp-subcategory-item,
+.wcp-subcategory-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wcp-subcategory-toolbar {
+  justify-content: space-between;
+  margin-bottom: 10px;
+  color: #d8c9ad;
+}
+
+.wcp-subcategory-form {
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #100e0b;
+  border: 1px solid #2a2318;
+}
+
+.wcp-subcategory-form input {
+  min-width: 0;
+  padding: 8px 10px;
+  color: #f2ead9;
+  background: #1d1810;
+  border: 1px solid #3a3021;
+  border-radius: 4px;
+}
+
+.wcp-subcategory-form input:nth-child(1) { width: 120px; }
+.wcp-subcategory-form input:nth-child(2) { flex: 1; }
+
+.wcp-btn-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.wcp-subcategory-list {
+  display: grid;
+  gap: 6px;
+}
+
+.wcp-subcategory-item {
+  min-height: 42px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #2a2318;
+}
+
+.wcp-subcategory-name { flex: 1; }
+.wcp-subcategory-actions { white-space: nowrap; }
+.wcp-subcategory-inactive { opacity: 0.65; }
+.wcp-subcategory-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: #8f826d;
+  font-size: 13px;
 }
 
 .wcp-code {
@@ -353,7 +447,22 @@
   }
 
   .wcp-table {
-    min-width: 560px;
+    min-width: 760px;
+  }
+
+  .wcp-subcategory-panel {
+    margin-left: 0;
+  }
+
+  .wcp-subcategory-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .wcp-subcategory-form input:nth-child(1),
+  .wcp-subcategory-form input:nth-child(2),
+  .wcp-subcategory-form input:nth-child(3) {
+    width: 100%;
   }
 
   .wcp-actions {
