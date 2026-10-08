@@ -21,7 +21,7 @@ const WorkCategoriesPage = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ code: "", name: "", sortOrder: 0 });
+  const [form, setForm] = useState({ code: "", name: "" });
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
@@ -64,7 +64,6 @@ const WorkCategoriesPage = () => {
       id: subcategory?.id || null,
       code: subcategory?.code || "",
       name: subcategory?.name || "",
-      sortOrder: subcategory?.sortOrder ?? 0,
     });
   };
 
@@ -80,7 +79,6 @@ const WorkCategoriesPage = () => {
       const payload = {
         code: subcategoryForm.code.trim().toUpperCase(),
         name: subcategoryForm.name.trim(),
-        sortOrder: Number(subcategoryForm.sortOrder) || 0,
       };
       if (subcategoryForm.id) {
         await workCategoryService.updateSubcategory(
@@ -160,7 +158,7 @@ const WorkCategoriesPage = () => {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ code: "", name: "", sortOrder: categories.length });
+    setForm({ code: "", name: "" });
     setIsModalOpen(true);
   };
 
@@ -169,7 +167,6 @@ const WorkCategoriesPage = () => {
     setForm({
       code: cat.code,
       name: cat.name,
-      sortOrder: cat.sortOrder,
     });
     setIsModalOpen(true);
   };
@@ -177,7 +174,7 @@ const WorkCategoriesPage = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditing(null);
-    setForm({ code: "", name: "", sortOrder: 0 });
+    setForm({ code: "", name: "" });
   };
 
   const handleSubmit = async (e) => {
@@ -196,9 +193,6 @@ const WorkCategoriesPage = () => {
       const payload = {
         name: form.name.trim(),
         code: form.code.trim().toUpperCase(),
-        sortOrder: Number.isNaN(Number(form.sortOrder))
-          ? 0
-          : Number(form.sortOrder),
       };
 
       if (editing) {
@@ -314,12 +308,12 @@ const WorkCategoriesPage = () => {
                 {categories
                   .slice()
                   .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
-                  .map((cat) => (
+                  .map((cat, categoryIndex) => (
                     <Fragment key={cat.id}>
                     <tr
                       className={cat.isActive === false ? "wcp-row-inactive" : ""}
                     >
-                      <td className="wcp-col-order">{cat.sortOrder}</td>
+                      <td className="wcp-col-order">{categoryIndex + 1}</td>
                       <td>
                         <span className="wcp-code">{cat.code}</span>
                       </td>
@@ -412,12 +406,6 @@ const WorkCategoriesPage = () => {
                                   placeholder="Nama subkategori"
                                   required
                                 />
-                                <input
-                                  type="number"
-                                  value={subcategoryForm.sortOrder}
-                                  onChange={(e) => setSubcategoryForm({ ...subcategoryForm, sortOrder: e.target.value })}
-                                  aria-label="Urutan subkategori"
-                                />
                                 <button type="submit" className="wcp-btn-primary wcp-btn-compact" disabled={submittingSubcategory}>
                                   {submittingSubcategory ? <Loader2 className="wcp-spin" size={15} /> : <Check size={15} />}
                                   Simpan
@@ -437,8 +425,9 @@ const WorkCategoriesPage = () => {
                                 {(subcategoriesByCategory[cat.id] || [])
                                   .slice()
                                   .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
-                                  .map((sub) => (
+                                  .map((sub, subcategoryIndex) => (
                                     <div key={sub.id} className={`wcp-subcategory-item ${sub.isActive === false ? "wcp-subcategory-inactive" : ""}`}>
+                                      <span className="wcp-col-order">{subcategoryIndex + 1}</span>
                                       <span className="wcp-code">{sub.code}</span>
                                       <span className="wcp-subcategory-name">{sub.name}</span>
                                       <span className={`wcp-badge ${sub.isActive === false ? "wcp-badge-inactive" : "wcp-badge-active"}`}>
@@ -508,17 +497,6 @@ const WorkCategoriesPage = () => {
                 <small className="wcp-hint">
                   Kode unik, maksimal 20 karakter.
                 </small>
-              </div>
-              <div className="wcp-field">
-                <label>Urutan</label>
-                <input
-                  type="number"
-                  value={form.sortOrder}
-                  onChange={(e) =>
-                    setForm({ ...form, sortOrder: e.target.value })
-                  }
-                  placeholder="0"
-                />
               </div>
               <div className="wcp-actions">
                 <button

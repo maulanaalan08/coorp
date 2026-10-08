@@ -178,7 +178,6 @@
 
 .wcp-subcategory-form input:nth-child(1) { width: 120px; }
 .wcp-subcategory-form input:nth-child(2) { flex: 1; }
-.wcp-subcategory-form input:nth-child(3) { width: 80px; }
 
 .wcp-btn-compact {
   display: inline-flex;
