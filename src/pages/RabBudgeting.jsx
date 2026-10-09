@@ -24,7 +24,11 @@ import { useRabGroups } from "../hooks/useRabGroups";
 import { useRabItems } from "../hooks/useRabItems";
 import toast from "react-hot-toast";
 import { workCategoryService } from "../services/workCategoryService";
-import { getWorkClassificationLabel } from "../utils/workSubCategorySelection";
+import {
+  buildRabSwitchClassification,
+  getWorkClassificationLabel,
+  resolveBulkRabWorkCategoryId,
+} from "../utils/workSubCategorySelection";
 import { countGroupItemsBySubCategory, filterGroupTreeBySubCategory } from "../utils/workSubCategoryFilter";
 
 const API_BASE = import.meta.env.VITE_API_URL
@@ -612,12 +616,18 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         payload.ahspDiscipline = activeDiscipline;
       }
 
+      const switchClassification = buildRabSwitchClassification({
+        itemWorkCategoryId: item.workCategoryId,
+        activeWorkCategoryId,
+        activeDiscipline,
+        allCategoryFilter: ALL_CATEGORY_FILTER,
+      });
       const switchPromise = switchJob(
         item.id,
         sourceJobId,
         overheadPercent !== "" ? Number(overheadPercent) : undefined,
-        activeDiscipline && activeDiscipline !== ALL_CATEGORY_FILTER ? activeDiscipline : undefined,
-        item.workCategoryId || activeWorkCategoryId || undefined,
+        switchClassification.ahspDiscipline,
+        switchClassification.workCategoryId,
       ).then(() => refreshGroups());
 
       toast.promise(switchPromise, {
@@ -717,11 +727,27 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     if (!bulkSwitchModal) return;
     if (!bulkSwitchModal.sourceJobId) return toast.error("ID Master Pekerjaan wajib dipilih!");
     
+    let bulkWorkCategoryId;
+    try {
+      bulkWorkCategoryId = resolveBulkRabWorkCategoryId(
+        allItems,
+        selectedItemIds,
+        activeWorkCategoryId,
+      );
+    } catch (error) {
+      return toast.error(error.message);
+    }
+    const switchClassification = buildRabSwitchClassification({
+      activeWorkCategoryId: bulkWorkCategoryId,
+      activeDiscipline,
+      allCategoryFilter: ALL_CATEGORY_FILTER,
+    });
     const bulkSwitchPromise = bulkSwitchJob(
         selectedItemIds,
         bulkSwitchModal.sourceJobId,
         bulkSwitchModal.overheadPercent !== "" ? Number(bulkSwitchModal.overheadPercent) : undefined,
-        activeWorkCategoryId ? undefined : (activeDiscipline !== ALL_CATEGORY_FILTER ? activeDiscipline : undefined)
+        switchClassification.ahspDiscipline,
+        switchClassification.workCategoryId,
     ).then(() => refreshGroups());
     
     toast.promise(bulkSwitchPromise, {

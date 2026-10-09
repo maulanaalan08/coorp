@@ -12,6 +12,7 @@ import {
   getInitialWorkClassification,
   getWorkClassificationLabel,
   getWorkSubCategoryValidationError,
+  getBvDisciplinePayload,
   hasWorkClassificationChanged,
   requiresHeaderCategoryChangeConfirmation,
 } from '../utils/workSubCategorySelection';
@@ -463,7 +464,6 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
       if (mode === 'hspk' && selectedProjectCategory?.pricingMode === 'CUSTOM') {
         throw new Error('Kategori ini memakai mode CUSTOM dan tidak memiliki master AHSP.');
       }
-      const selectedCategoryCode = String(selectedProjectCategory?.workCategory?.code || '').toUpperCase();
       const payload = {
         groupId: groupId || null,
         parentBvItemId: parentBvItemId || null,
@@ -474,9 +474,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
         paymentUnit: isHeaderOnly ? null : paymentUnit.trim(),
         ecommerceLink: isHeaderOnly ? null : (ecommerceLink.trim() || null),
         disciplineLabel: canChooseCategory
-          ? (['SIPIL', 'INTERIOR'].includes(selectedCategoryCode)
-            ? selectedCategoryCode
-            : disciplineLabel || (editItem?.disciplineLabel ?? null))
+          ? getBvDisciplinePayload({ workCategoryId, disciplineLabel })
           : undefined,
         ...(editItem && !classificationChanged
           ? {}
@@ -552,10 +550,7 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                     setWorkCategoryId(changed.workCategoryId);
                     setWorkSubCategoryId(changed.workSubCategoryId);
                     setClassificationTouched(true);
-                    const nextCode = String(
-                      selectableProjectCategories.find((entry) => entry.workCategoryId === nextId)?.workCategory?.code || '',
-                    ).toUpperCase();
-                    setDisciplineLabel(['SIPIL', 'INTERIOR'].includes(nextCode) ? nextCode : '');
+                    setDisciplineLabel('');
                   }}
                   disabled={!canChooseCategory}
                   required={canChooseCategory && (!editItem || classificationTouched)}

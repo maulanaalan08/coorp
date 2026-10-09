@@ -248,17 +248,8 @@ const CreateProjectModal = ({
       return;
     }
 
-    // Sipil dan Interior wajib ikut dalam setiap project.
-    const requiredCodes = ["SIPIL", "INTERIOR"];
-    for (const code of requiredCodes) {
-      const category = workCategories.find(
-        (item) => String(item.code).toUpperCase() === code
-      );
-      if (!category || !selectedCategories[category.id]?.isActive) {
-        toast.error(`Kategori ${code === "SIPIL" ? "Sipil" : "Interior"} wajib dipilih.`);
-        return;
-      }
-    }
+    // Semua kategori bersifat dinamis. Minimal satu kategori aktif sudah
+    // divalidasi di atas; tidak ada kode kategori yang diwajibkan.
 
     // Validasi: kategori HSPK wajib punya grade
     for (const [catId, cfg] of activeCats) {

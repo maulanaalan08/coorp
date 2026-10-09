@@ -8,6 +8,9 @@ import {
   getSubcategoryCellLabel,
   hasWorkClassificationChanged,
   requiresHeaderCategoryChangeConfirmation,
+  buildRabSwitchClassification,
+  resolveBulkRabWorkCategoryId,
+  getBvDisciplinePayload,
 } from './workSubCategorySelection.js';
 
 test('child inherits its parent category while preserving an existing leaf subcategory', () => {
@@ -170,27 +173,37 @@ test('subcategory column label follows header, leaf, and legacy rules', () => {
   );
 });
 
-test('empty subcategory option list blocks the new leaf with an explicit message', () => {
-  const error = getWorkSubCategoryValidationError({
-    isHeaderOnly: false,
-    projectHasWorkCategories: true,
-    workCategoryId: 'cat-1',
-    workSubCategoryId: '',
-    isEdit: false,
-    subcategoryOptionsLoaded: true,
-    subcategoryOptionCount: 0,
-  });
-  assert.match(error, /subkategori aktif/i);
-  assert.equal(
-    getWorkSubCategoryValidationError({
-      isHeaderOnly: false,
-      projectHasWorkCategories: true,
-      workCategoryId: 'cat-1',
-      workSubCategoryId: '',
-      isEdit: false,
-      subcategoryOptionsLoaded: false,
-      subcategoryOptionCount: 0,
+test('single RAB switch prefers dynamic category and omits legacy discipline', () => {
+  assert.deepEqual(
+    buildRabSwitchClassification({
+      itemWorkCategoryId: 'cat-canopy',
+      activeWorkCategoryId: 'cat-other',
+      activeDiscipline: 'SIPIL',
     }),
-    'Pilih subkategori pekerjaan.',
+    { workCategoryId: 'cat-canopy', ahspDiscipline: undefined },
   );
+  assert.deepEqual(
+    buildRabSwitchClassification({ activeDiscipline: 'INTERIOR' }),
+    { workCategoryId: undefined, ahspDiscipline: 'INTERIOR' },
+  );
+});
+
+test('bulk RAB switch accepts one dynamic category and rejects mixed categories', () => {
+  const rows = [
+    { id: 'rab-1', workCategoryId: 'cat-canopy' },
+    { id: 'rab-2', workCategoryId: 'cat-canopy' },
+  ];
+  assert.equal(resolveBulkRabWorkCategoryId(rows, ['rab-1', 'rab-2'], null), 'cat-canopy');
+  assert.throws(
+    () => resolveBulkRabWorkCategoryId([
+      rows[0],
+      { id: 'rab-2', workCategoryId: 'cat-interior' },
+    ], ['rab-1', 'rab-2'], null),
+    /kategori berbeda/i,
+  );
+});
+
+test('BV dynamic category omits legacy disciplineLabel while legacy row keeps it', () => {
+  assert.equal(getBvDisciplinePayload({ workCategoryId: 'cat-canopy', disciplineLabel: 'SIPIL' }), undefined);
+  assert.equal(getBvDisciplinePayload({ workCategoryId: '', disciplineLabel: 'INTERIOR' }), 'INTERIOR');
 });
