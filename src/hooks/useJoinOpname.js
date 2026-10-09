@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { timeScheduleService } from "../services/timeScheduleService";
 import { joinOpnameService } from "../services/joinOpnameService";
+import { workCategoryService } from "../services/workCategoryService";
 import toast from "react-hot-toast";
 import { toInputDate } from "../services/utils";
 
@@ -20,6 +21,13 @@ export function useJoinOpname(initialProjectId) {
   const [notice, setNotice] = useState(null);
   const [discipline, setDiscipline] = useState("General");
   const [filterLabel, setFilterLabel] = useState("General");
+
+  // State subkategori (hierarki 2-tier: Kategori -> Subkategori)
+  const [activeSubCategoryId, setActiveSubCategoryId] = useState("");
+  const [filterSubcategories, setFilterSubcategories] = useState([]);
+  const [loadingFilterSubcategories, setLoadingFilterSubcategories] = useState(false);
+  const [subCategoryCounts, setSubCategoryCounts] = useState({});
+  const subcategoryRequestRef = useRef(0);
 
   const [unsavedChanges, setUnsavedChanges] = useState(new Set());
   const [savingBatch, setSavingBatch] = useState(false);
@@ -69,11 +77,61 @@ export function useJoinOpname(initialProjectId) {
     }
   }, [projectId]);
 
-  const fetchJoinOpname = useCallback(async (id, disc = discipline) => {
+  // Muat subkategori saat kategori aktif berubah (hierarki: Kategori -> Subkategori)
+  useEffect(() => {
+    setActiveSubCategoryId("");
+    setFilterSubcategories([]);
+    setSubCategoryCounts({});
+
+    if (!projectId || !discipline || discipline === "General") {
+      subcategoryRequestRef.current += 1;
+      setLoadingFilterSubcategories(false);
+      return;
+    }
+
+    const reqId = subcategoryRequestRef.current + 1;
+    subcategoryRequestRef.current = reqId;
+    setLoadingFilterSubcategories(true);
+
+    workCategoryService.getSubcategories(discipline)
+      .then((rows) => {
+        if (subcategoryRequestRef.current !== reqId) return;
+        const list = Array.isArray(rows) ? rows : rows?.data || [];
+        setFilterSubcategories(list.filter((r) => r.isActive !== false));
+      })
+      .catch((err) => {
+        if (subcategoryRequestRef.current !== reqId) return;
+        console.error("Gagal mengambil subkategori:", err);
+        setFilterSubcategories([]);
+      })
+      .finally(() => {
+        if (subcategoryRequestRef.current === reqId) setLoadingFilterSubcategories(false);
+      });
+  }, [projectId, discipline]);
+
+  // Hitung jumlah item per subkategori saat data kategori dimuat
+  useEffect(() => {
+    if (!data?.items) {
+      setSubCategoryCounts({});
+      return;
+    }
+    const counts = {};
+    data.items.forEach((it) => {
+      if (it.workSubCategoryId) {
+        counts[it.workSubCategoryId] = (counts[it.workSubCategoryId] || 0) + 1;
+      }
+    });
+    setSubCategoryCounts((prev) => {
+      if (!activeSubCategoryId) return counts;
+      return prev;
+    });
+  }, [data, activeSubCategoryId]);
+
+  const fetchJoinOpname = useCallback(async (id, disc = discipline, subCatId = activeSubCategoryId) => {
     if (!id) { setData(null); return; }
     setLoading(true); setError(null);
     try {
-      const json = await joinOpnameService.getJoinOpname(id, disc === "General" ? "" : disc);
+      const json = await joinOpnameService.getJoinOpname(id, disc === "General" ? "" : disc, subCatId);
       setData(json);
       if (!selectedDate && json?.days?.length) {
         const todayStr = toInputDate(new Date());
@@ -85,11 +143,14 @@ export function useJoinOpname(initialProjectId) {
         setProgressInputs(buildProgressInputs(json.items || [], selectedDate));
       }
     } catch (err) { setError(err.message); } finally { setLoading(false); }
-  }, [selectedDate, buildProgressInputs, discipline]);
+  }, [selectedDate, buildProgressInputs, discipline, activeSubCategoryId]);
 
   useEffect(() => { if (initialProjectId) setProjectId(initialProjectId); }, [initialProjectId]);
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
-  useEffect(() => { if (projectId) fetchJoinOpname(projectId, discipline); else setData(null); }, [projectId, discipline, fetchJoinOpname]);
+  useEffect(() => {
+    if (projectId) fetchJoinOpname(projectId, discipline, activeSubCategoryId);
+    else setData(null);
+  }, [projectId, discipline, activeSubCategoryId, fetchJoinOpname]);
 
   const handleProjectChange = (e) => {
     if (unsavedChanges.size > 0 && !window.confirm("Ada pekerjaan yang belum disimpan! Yakin ingin pindah project?")) return;
@@ -147,7 +208,7 @@ export function useJoinOpname(initialProjectId) {
         next.delete(item.rabItemId);
         return next;
       });
-      fetchJoinOpname(projectId);
+      fetchJoinOpname(projectId, discipline, activeSubCategoryId);
     }).catch(err => {
       console.error(err);
     }).finally(() => {
@@ -180,7 +241,7 @@ export function useJoinOpname(initialProjectId) {
       error: 'Beberapa progress gagal disimpan.'
     }).then(() => {
       setUnsavedChanges(new Set());
-      fetchJoinOpname(projectId);
+      fetchJoinOpname(projectId, discipline, activeSubCategoryId);
     }).finally(() => {
       setSavingBatch(false);
       setBusyItems(prev => {
@@ -275,6 +336,8 @@ export function useJoinOpname(initialProjectId) {
     handleProjectChange, handleDateChange, handleProgressChange, handleFileChange, handleSaveProgress,
     items, days, totalDays, startDate, groupedItems, selectedDay, summary,
     discipline, setDiscipline, filterLabel, setFilterLabel,
+    activeSubCategoryId, setActiveSubCategoryId,
+    filterSubcategories, loadingFilterSubcategories, subCategoryCounts,
     unsavedChanges, savingBatch, handleSaveAllProgress
   };
 }

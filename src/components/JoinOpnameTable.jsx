@@ -2,6 +2,8 @@ import React from 'react';
 import { formatCurrency, formatNumber, formatPercent, formatDate } from '../services/utils';
 import { Save, Image } from 'lucide-react';
 
+const DISCIPLINE_BADGE = { INTERIOR: '#a0522d', SIPIL: '#4682b4', GENERAL: '#666' };
+
 export default function JoinOpnameTable({ groupedItems, progressInputs, busyItems, selectedDate, handleProgressChange, handleFileChange, handleSaveProgress }) {
   return (
     <div className="jo-table-wrapper">
@@ -33,23 +35,49 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
                 return (
                   <tr key={item.rabItemId}>
                     <td style={{ whiteSpace: 'nowrap', fontWeight: 'bold', fontSize: '10px' }}>
-                      {(item.workCategoryCode || item.discipline) && (item.workCategoryCode || item.discipline) !== 'GENERAL' ? (
-                        <span style={{
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          textTransform: 'uppercase',
-                          background: { INTERIOR: '#a0522d', SIPIL: '#4682b4' }[item.workCategoryCode || item.discipline] || '#666',
-                          color: '#fff'
-                        }}>
-                          {item.workCategoryCode || item.discipline}
-                        </span>
-                      ) : "-"}
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {(item.workCategoryCode || item.discipline) && (item.workCategoryCode || item.discipline) !== 'GENERAL' && (
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              textTransform: 'uppercase',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              background: DISCIPLINE_BADGE[item.workCategoryCode || item.discipline] || '#666',
+                              color: '#fff',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {item.workCategoryCode || item.discipline}
+                          </span>
+                        )}
+                        {(item.workSubCategoryCode || item.workSubCategoryName || item.workSubCategory?.code || item.workSubCategory?.name) && !item.hasChildren && (
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              background: '#23201b',
+                              color: '#d4af37',
+                              border: '1px solid #4a4231',
+                              fontWeight: 600,
+                            }}
+                            title={`Sub Label: ${item.workSubCategoryName || item.workSubCategoryCode || item.workSubCategory?.name || item.workSubCategory?.code}`}
+                          >
+                            {item.workSubCategoryCode || item.workSubCategoryName || item.workSubCategory?.code || item.workSubCategory?.name}
+                          </span>
+                        )}
+                        {item.isByOwner && <span className="tsp-owner-tag">By Owner</span>}
+                        {item.isStip && <span className="tsp-stip-tag">Stip</span>}
+                        {!item.workCategoryCode && !item.discipline && !(item.workSubCategoryCode || item.workSubCategoryName || item.workSubCategory) && !item.isByOwner && !item.isStip && "-"}
+                      </div>
                     </td>
                     <td className="jo-name-cell">
-                      {item.name}
-                      {item.isByOwner && <span className="jo-tag jo-tag-owner">By Owner</span>}
-                      {item.isStip && <span className="jo-tag jo-tag-stip">Stip</span>}
-                      {item.hasChildren && <span className="jo-tag jo-tag-parent">Parent</span>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {item.isChild && <span style={{ color: '#9ca3af' }}>↳ </span>}
+                        <span>{item.name}</span>
+                        {item.hasChildren && <span className="jo-tag jo-tag-parent">Parent</span>}
+                      </div>
                     </td>
                     <td>{item.paymentUnit || "-"}</td>
                     <td>{formatNumber(item.volume)}</td>

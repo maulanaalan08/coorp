@@ -9,7 +9,6 @@ import "./styles/Auth.css";
 
 // --- Komponen Layout (dimuat langsung: selalu dipakai) ---
 import Sidebar from "./components/Sidebar";
-import { Bot } from "lucide-react";
 import { NavContext } from "./contexts/NavContext";
 
 // --- Halaman di-lazy-load per route: tidak semua data dimuat saat buka app ---
@@ -61,7 +60,7 @@ function App() {
     const tabFromPath = path.split('/')[0];
     const validTabs = [
       'dashboard', 'project-board', 'project-detail', 'upload-hspk', 'data-survey',
-      'bv', 'backup-volume', 'rab', 'spk-contract', 'finance', 'pembelian-siap-pakai', 'po-material', 'po-jasa',
+      'bv', 'backup-volume', 'rab', 'spk-contract', 'finance', 'pembelian-siap-pakai', 'po-material', 'po-jasa', 'kelola-jasa',
       'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'pembayaran-jasa', 'invoice-penagihan',
       'laporan-harian', 'global-schedule', 'time-schedule', 'join-opname', 'bast', 'complain',
       'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories'
@@ -208,7 +207,7 @@ function App() {
             {activeTab === "finance" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
             {activeTab === "pembelian-siap-pakai" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
             {activeTab === "po-material" && <PurchaseOrderPage />}
-            {activeTab === "po-jasa" && <PurchaseOrderJasaPage />}
+            {(activeTab === "po-jasa" || activeTab === "kelola-jasa") && <PurchaseOrderJasaPage />}
             {activeTab === "retur-pembelian" && <ReturPembelianPage />}
             {activeTab === "pengajuan-bayar" && <PengajuanBayarPage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
             {activeTab === "pembayaran-supplier" && <PembayaranMaterialPage />}
@@ -225,15 +224,6 @@ function App() {
             {activeTab === "buku-besar" && <BukuBesarPage />}
           </Suspense>
         </main>
-
-        {/* Floating Chatbot Placeholder */}
-        <button
-          type="button"
-          onClick={() => alert("Chatbot feature coming soon!")}
-          className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#d4af37] to-[#a8862a] text-[#0c0b09] flex justify-center items-center shadow-lg shadow-[#d4af37]/40 border-none cursor-pointer z-50 hover:scale-110 transition-transform duration-200"
-        >
-          <Bot size={28} />
-        </button>
       </div>
     </NavContext.Provider>
   );

@@ -76,9 +76,9 @@ export default function SpkPage({ initialProjectId = null }) {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-  const selectedValue = useMemo(() => (source?.items || [])
+  const selectedValue = useMemo(() => Math.round((source?.items || [])
     .filter((item) => selectedItemIds.includes(item.id))
-    .reduce((sum, item) => sum + itemContractTotal(item), 0), [source, selectedItemIds]);
+    .reduce((sum, item) => sum + itemContractTotal(item), 0)), [source, selectedItemIds]);
   const termsPercent = terms.reduce((sum, term) => sum + numberValue(term.percent), 0);
   const totalPercent = termsPercent + numberValue(retentionPercent);
   const retentionAmount = Math.round(selectedValue * numberValue(retentionPercent) / 100);
