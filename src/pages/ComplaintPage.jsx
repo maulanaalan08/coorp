@@ -7,6 +7,7 @@ import ComplaintAddHeaderModal from "../components/ComplaintAddHeaderModal";
 import ComplaintEditItemModal from "../components/ComplaintEditItemModal";
 import Bast2Modal from "../components/Bast2Modal";
 import ProjectSelector from "../components/ProjectSelector";
+import { spkService } from "../services/spkService";
 import toast from 'react-hot-toast';
 import { Image, FileText, CheckCircle, Clock } from 'lucide-react';
 import styles from '../styles/BackUpVolume.module.css';
@@ -27,14 +28,36 @@ export default function ComplaintPage() {
   const [activeTab, setActiveTab] = useState("COMPLAINT");
   const [bast2List, setBast2List] = useState([]);
   const [loadingBast2, setLoadingBast2] = useState(false);
+  const [clientSpks, setClientSpks] = useState([]);
+  const [loadingSpks, setLoadingSpks] = useState(false);
 
   useEffect(() => {
     if (projectId) {
       fetchBast2List();
+      fetchClientSpks();
     } else {
       setBast2List([]);
+      setClientSpks([]);
     }
   }, [projectId]);
+
+  const fetchClientSpks = async () => {
+    try {
+      setLoadingSpks(true);
+      const res = await spkService.getByProjectId(projectId);
+      const validSpks = (res?.contracts || []).filter(
+        (c) => c.type === 'CLIENT' && c.spkNumber && c.status !== 'DIBATALKAN'
+      );
+      setClientSpks(validSpks);
+    } catch (err) {
+      console.error("Gagal memuat SPK Client:", err);
+      setClientSpks([]);
+    } finally {
+      setLoadingSpks(false);
+    }
+  };
+
+  const hasIssuedClientSpk = clientSpks.length > 0;
 
   const fetchBast2List = async () => {
     try {
@@ -224,6 +247,10 @@ export default function ComplaintPage() {
   };
 
   const handleBast2Submit = async (formData) => {
+    if (!hasIssuedClientSpk) {
+      toast.error("Project ini belum memiliki SPK Client yang diterbitkan (Nomor SPK belum ada).");
+      return;
+    }
     try {
       if (complaintReport && complaintReport.id) {
         await complaintService.createBast2(projectId, complaintReport.id, formData);
@@ -299,6 +326,28 @@ export default function ComplaintPage() {
             </button>
           </div>
 
+          {projectId && !loadingSpks && !hasIssuedClientSpk && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              border: '1px solid rgba(245, 158, 11, 0.35)',
+              borderLeft: '4px solid #f59e0b',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              marginBottom: '20px',
+              color: '#fef3c7',
+              fontSize: '13px',
+            }}>
+              <span style={{ fontSize: '16px' }}>⚠️</span>
+              <div>
+                <strong>Perhatian:</strong> Project ini belum memiliki <strong>SPK Client</strong> yang diterbitkan (Nomor SPK belum ada).
+                BAST 2 tidak dapat digenerate sebelum dokumen SPK Client diterbitkan di menu SPK Client.
+              </div>
+            </div>
+          )}
+
           {activeTab === 'COMPLAINT' && (
             <>
               {isLoading && <div className="loading-state">Memuat data complaint...</div>}
@@ -332,14 +381,27 @@ export default function ComplaintPage() {
                   </button>
                   <button 
                     className="btn-download" 
-                    onClick={() => setShowBast2Modal(true)} 
-                    disabled={!complaintReport || !isAllDone}
+                    onClick={() => {
+                      if (!hasIssuedClientSpk) {
+                        toast.error("Project ini belum memiliki SPK Client yang diterbitkan.");
+                        return;
+                      }
+                      setShowBast2Modal(true);
+                    }} 
+                    disabled={!complaintReport || !isAllDone || !hasIssuedClientSpk}
                     style={{ 
                       display: 'flex', alignItems: 'center', gap: '8px', 
-                      background: (!complaintReport || !isAllDone) ? '#333' : '#10b981',
-                      color: (!complaintReport || !isAllDone) ? '#666' : '#fff'
+                      background: (!complaintReport || !isAllDone || !hasIssuedClientSpk) ? '#333' : '#10b981',
+                      color: (!complaintReport || !isAllDone || !hasIssuedClientSpk) ? '#666' : '#fff',
+                      cursor: (!complaintReport || !isAllDone || !hasIssuedClientSpk) ? 'not-allowed' : 'pointer',
                     }}
-                    title={!isAllDone ? "Seluruh komplain harus berstatus Selesai" : "Generate BAST 2"}
+                    title={
+                      !isAllDone 
+                        ? "Seluruh komplain harus berstatus Selesai" 
+                        : !hasIssuedClientSpk
+                        ? "Belum ada SPK Client yang diterbitkan (Nomor SPK belum ada)"
+                        : "Generate BAST 2"
+                    }
                   >
                     <FileText size={16} /> BAST 2
                   </button>
@@ -563,6 +625,7 @@ export default function ComplaintPage() {
         onClose={() => setShowBast2Modal(false)}
         onSubmit={handleBast2Submit}
         isSubmitting={false}
+        clientSpks={clientSpks}
       />
     </div>
   );

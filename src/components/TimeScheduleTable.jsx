@@ -99,9 +99,26 @@ export default function TimeScheduleTable({
                               borderRadius: '4px',
                               background: DISCIPLINE_BADGE[item.workCategoryCode || item.discipline] || '#666',
                               color: '#fff',
+                              fontWeight: 600,
                             }}
                           >
                             {item.workCategoryCode || item.discipline}
+                          </span>
+                        )}
+                        {(item.workSubCategoryCode || item.workSubCategoryName) && !item.hasChildren && (
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              background: '#23201b',
+                              color: '#d4af37',
+                              border: '1px solid #4a4231',
+                              fontWeight: 600,
+                            }}
+                            title={`Sub Label: ${item.workSubCategoryName || item.workSubCategoryCode}`}
+                          >
+                            {item.workSubCategoryCode || item.workSubCategoryName}
                           </span>
                         )}
                         {item.isByOwner && <span className="tsp-owner-tag">By Owner</span>}

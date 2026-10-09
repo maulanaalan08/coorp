@@ -17,7 +17,7 @@ export const timeScheduleService = {
     return handleResponse(res);
   },
 
-  getSchedule: async (projectId, filterValue) => {
+  getSchedule: async (projectId, filterValue, workSubCategoryId) => {
     const url = new URL(`${API_BASE_URL}/projects/${projectId}/rap-time-schedule`);
     if (filterValue && filterValue !== 'General') {
       if (filterValue.length > 20) {
@@ -25,6 +25,9 @@ export const timeScheduleService = {
       } else {
         url.searchParams.append('discipline', filterValue);
       }
+    }
+    if (workSubCategoryId) {
+      url.searchParams.append('workSubCategoryId', workSubCategoryId);
     }
     const res = await fetch(url.toString());
     return handleResponse(res);

@@ -54,9 +54,9 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   useEffect(() => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
     if (["spk-contract"].includes(activeTab)) setIsDocumentOpen(true);
-    if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
+    if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking", "kelola-jasa", "po-jasa"].includes(activeTab)) setIsPelaksanaanOpen(true);
     if (["finance", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-jasa", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
-    if (["po-material", "po-jasa", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
+    if (["po-material", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
     if (["upload-hspk", "work-categories"].includes(activeTab)) setIsHspkOpen(true);
   }, [activeTab]);
 
@@ -83,21 +83,24 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
     </li>
   );
 
-  const SubNavItem = ({ icon: Icon, label, tab }) => (
-    <li>
-      <a
-        href={`#${tab}`}
-        onClick={(e) => handleNavigation(e, tab)}
-        className={`flex items-center gap-3 pl-11 pr-4 py-2.5 rounded-lg text-sm font-medium transition-all group ${activeTab === tab
-            ? "bg-[#d4af37]/10 text-[#d4af37]"
-            : "text-[#888] hover:bg-white/5 hover:text-white"
-          }`}
-      >
-        <Icon size={16} className={activeTab === tab ? "text-[#d4af37]" : "text-[#888] group-hover:text-white"} />
-        <span>{label}</span>
-      </a>
-    </li>
-  );
+  const SubNavItem = ({ icon: Icon, label, tab }) => {
+    const isActive = activeTab === tab || (tab === "kelola-jasa" && activeTab === "po-jasa");
+    return (
+      <li>
+        <a
+          href={`#${tab}`}
+          onClick={(e) => handleNavigation(e, tab)}
+          className={`flex items-center gap-3 pl-11 pr-4 py-2.5 rounded-lg text-sm font-medium transition-all group ${isActive
+              ? "bg-[#d4af37]/10 text-[#d4af37]"
+              : "text-[#888] hover:bg-white/5 hover:text-white"
+            }`}
+        >
+          <Icon size={16} className={isActive ? "text-[#d4af37]" : "text-[#888] group-hover:text-white"} />
+          <span>{label}</span>
+        </a>
+      </li>
+    );
+  };
 
   return (
     <>
@@ -228,6 +231,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                   <SubNavItem icon={FileText} label="Berita Acara (BAST)" tab="bast" />
                   <SubNavItem icon={PieChart} label="Complain" tab="complain" />
                   <SubNavItem icon={MapPin} label="Item Tracking" tab="item-tracking" />
+                  <SubNavItem icon={ClipboardList} label="Kelola Jasa" tab="kelola-jasa" />
                 </ul>
               )}
             </li>
@@ -248,7 +252,6 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               {isPurchasingOpen && (
                 <ul className="mt-1 flex flex-col gap-1 list-none p-0">
                   <SubNavItem icon={ClipboardList} label="PO Material" tab="po-material" />
-                  <SubNavItem icon={ClipboardList} label="PO Jasa" tab="po-jasa" />
                   <SubNavItem icon={PackagePlus} label="Pembelian Habis Pakai" tab="habis-pakai" />
                 </ul>
               )}

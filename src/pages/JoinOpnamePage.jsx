@@ -19,11 +19,10 @@ function JoinOpnamePage({ initialProjectId = null }) {
     handleProjectChange, handleDateChange, handleProgressChange, handleFileChange, handleSaveProgress,
     items, days, totalDays, startDate, groupedItems, selectedDay, summary,
     discipline, setDiscipline, filterLabel, setFilterLabel,
+    activeSubCategoryId, setActiveSubCategoryId,
+    filterSubcategories, loadingFilterSubcategories, subCategoryCounts,
     unsavedChanges, savingBatch, handleSaveAllProgress
   } = useJoinOpname(initialProjectId);
-
-  const [showMonthModal, setShowMonthModal] = React.useState(false);
-  const [exportMonth, setExportMonth] = React.useState("");
 
   React.useEffect(() => {
     if (loadingProjects || loading) {
@@ -126,21 +125,26 @@ function JoinOpnamePage({ initialProjectId = null }) {
 
           {!loading && !error && data && (
             <>
-              <div className="jo-card jo-control-card" style={{ marginBottom: '16px' }}>
-                  <h2 style={{ fontSize: '14px', marginBottom: '8px', color: '#9ca3af' }}>Filter Disiplin Pekerjaan</h2>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div className="jo-card jo-control-card" style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <h2 style={{ fontSize: '13px', fontWeight: 600, color: '#9ca3af', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Label Utama (Kategori)
+                  </h2>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <button
+                      type="button"
                       className={`tsp-btn ${discipline === 'General' ? 'tsp-btn-primary' : ''}`}
-                      style={{ minWidth: '100px', cursor: 'pointer' }}
+                      style={{ minWidth: '90px', cursor: 'pointer' }}
                       onClick={() => { setDiscipline('General'); setFilterLabel('General'); }}
                     >
-                      General
+                      Semua
                     </button>
-                    {projectList.find(p => p.id === projectId)?.workCategories?.filter(c => c.isActive && c.workCategory?.isActive).map((c) => (
+                    {projectList.find(p => p.id === projectId)?.workCategories?.filter(c => c.isActive && c.workCategory?.isActive && String(c.workCategory?.code).toUpperCase() !== 'GENERAL').map((c) => (
                       <button
+                        type="button"
                         key={c.workCategoryId}
                         className={`tsp-btn ${discipline === c.workCategoryId ? 'tsp-btn-primary' : ''}`}
-                        style={{ minWidth: '100px', cursor: 'pointer' }}
+                        style={{ minWidth: '90px', cursor: 'pointer' }}
                         onClick={() => { setDiscipline(c.workCategoryId); setFilterLabel(c.workCategory.code.toUpperCase()); }}
                       >
                         {c.workCategory.code.toUpperCase()}
@@ -148,7 +152,49 @@ function JoinOpnamePage({ initialProjectId = null }) {
                     ))}
                   </div>
                 </div>
-                <div className="jo-card jo-table-card">
+
+                {discipline !== 'General' && (
+                  <div style={{ borderTop: '1px solid #2a261e', paddingTop: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#d4af37', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Sub Label (Subkategori)
+                      </span>
+                      {loadingFilterSubcategories && (
+                        <span style={{ fontSize: '11px', color: '#888' }}>Memuat...</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        className={`tsp-btn tsp-btn-sm ${!activeSubCategoryId ? 'tsp-btn-primary' : ''}`}
+                        onClick={() => setActiveSubCategoryId('')}
+                      >
+                        Semua
+                      </button>
+                      {!loadingFilterSubcategories && filterSubcategories.length === 0 ? (
+                        <span style={{ fontSize: '12px', color: '#888' }}>Belum ada subkategori aktif</span>
+                      ) : (
+                        filterSubcategories.map((subcat) => {
+                          const count = subCategoryCounts[subcat.id];
+                          const countLabel = count !== undefined ? ` (${count})` : '';
+                          return (
+                            <button
+                              type="button"
+                              key={subcat.id}
+                              className={`tsp-btn tsp-btn-sm ${activeSubCategoryId === subcat.id ? 'tsp-btn-primary' : ''}`}
+                              onClick={() => setActiveSubCategoryId(subcat.id)}
+                            >
+                              {subcat.code || subcat.name}{countLabel}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="jo-card jo-table-card">
                 <div className="jo-table-header">
                   <div>
                     <h2>Rekap Progress</h2>
@@ -166,16 +212,30 @@ function JoinOpnamePage({ initialProjectId = null }) {
                       </button>
                     )}
                     <div className="jo-selected-date">{formatDate(selectedDate)}</div>
-                    <button className="jo-btn jo-btn-primary" onClick={() => setShowMonthModal(true)}>
-                      ⬇ Excel
-                    </button>
                     <select 
                       className="jo-btn jo-btn-primary"
                       style={{ appearance: 'none', cursor: 'pointer' }}
                       value=""
                       onChange={(e) => {
                         if (e.target.value) {
-                          joinOpnameService.exportPdf(projectId, discipline, selectedDate, e.target.value);
+                          joinOpnameService.exportExcel(projectId, discipline, selectedDate, e.target.value, activeSubCategoryId);
+                          e.target.value = "";
+                        }
+                      }}
+                    >
+                      <option value="" disabled>⬇ Excel</option>
+                      <option value="daily">Harian</option>
+                      <option value="weekly">Mingguan</option>
+                      <option value="monthly">Bulanan</option>
+                      <option value="overall">Keseluruhan</option>
+                    </select>
+                    <select 
+                      className="jo-btn jo-btn-primary"
+                      style={{ appearance: 'none', cursor: 'pointer' }}
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          joinOpnameService.exportPdf(projectId, discipline, selectedDate, e.target.value, activeSubCategoryId);
                           e.target.value = "";
                         }
                       }}
@@ -230,7 +290,13 @@ function JoinOpnamePage({ initialProjectId = null }) {
                   <tbody>
                     {items.map((item) => (
                       <tr key={item.rabItemId}>
-                        <td className="jo-name-cell jo-daily-sticky-name">{item.name}</td>
+                        <td className="jo-name-cell jo-daily-sticky-name">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {item.isChild && <span style={{ color: '#9ca3af' }}>↳ </span>}
+                            <span>{item.name}</span>
+                            {item.hasChildren && <span className="jo-tag jo-tag-parent">Parent</span>}
+                          </div>
+                        </td>
                         <td className="jo-daily-sticky-weight">{formatPercent(item.weight)}%</td>
                         {days.map((day) => {
                           const breakdown = item.dailyBreakdown?.find((r) => r.dayNumber === day.dayNumber);
@@ -288,37 +354,6 @@ function JoinOpnamePage({ initialProjectId = null }) {
             </div>
           )}
 
-          {showMonthModal && (
-            <div className="modal-overlay" onClick={() => setShowMonthModal(false)} style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-              background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-            }}>
-              <div className="modal-content" onClick={e => e.stopPropagation()} style={{
-                background: '#161513', padding: '24px', borderRadius: '12px', border: '1px solid #333', width: '300px'
-              }}>
-                <h3 style={{ marginTop: 0, marginBottom: '16px', color: '#fff' }}>Pilih Bulan Export</h3>
-                <input 
-                  type="month" 
-                  value={exportMonth}
-                  onChange={(e) => setExportMonth(e.target.value)}
-                  style={{ width: '100%', padding: '8px', marginBottom: '20px', borderRadius: '4px', border: '1px solid #555', background: '#222', color: '#fff' }}
-                />
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                  <button className="jo-btn" onClick={() => setShowMonthModal(false)} style={{ background: 'transparent', color: '#888' }}>Batal</button>
-                  <button 
-                    className="jo-btn jo-btn-primary" 
-                    disabled={!exportMonth}
-                    onClick={() => {
-                      joinOpnameService.exportExcel(projectId, exportMonth);
-                      setShowMonthModal(false);
-                    }}
-                  >
-                    Export
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

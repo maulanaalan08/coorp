@@ -335,6 +335,9 @@ export default function TimeScheduleCalendar({ items, discipline, projectStartDa
                     </div>
                     <div style={{ fontSize: '12px', color: '#9ca3af', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                       <span>Group: <strong style={{color: '#d4af37'}}>{ev.groupName || '-'}</strong></span>
+                      {(ev.workSubCategoryCode || ev.workSubCategoryName) && (
+                        <span>Sub Label: <strong style={{color: '#d4af37'}}>{ev.workSubCategoryCode || ev.workSubCategoryName}</strong></span>
+                      )}
                       <span>Durasi: {format(new Date(ev.startDate), 'dd/MM/yy')} - {format(new Date(ev.endDate), 'dd/MM/yy')}</span>
                     </div>
                   </div>

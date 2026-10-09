@@ -3,16 +3,26 @@ import { bastService } from '../services/bastService';
 
 export const useBast = (projectId) => {
   const [basts, setBasts] = useState([]);
+  const [clientSpks, setClientSpks] = useState([]);
+  const [hasIssuedClientSpk, setHasIssuedClientSpk] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const fetchBasts = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {
+      setBasts([]);
+      setClientSpks([]);
+      setHasIssuedClientSpk(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const response = await bastService.getBastList(projectId);
       setBasts(response.data || []);
+      const spks = response.clientSpks || [];
+      setClientSpks(spks);
+      setHasIssuedClientSpk(Boolean(response.hasIssuedClientSpk ?? (spks.length > 0)));
     } catch (err) {
       setError(err.message || 'Gagal mengambil data BAST');
     } finally {
@@ -57,6 +67,8 @@ export const useBast = (projectId) => {
 
   return {
     basts,
+    clientSpks,
+    hasIssuedClientSpk,
     loading,
     error,
     refresh: fetchBasts,

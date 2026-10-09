@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import styles from '../styles/BastPage.module.css';
 
-const Bast2Modal = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
+const Bast2Modal = ({ isOpen, onClose, onSubmit, isSubmitting, clientSpks = [] }) => {
   const [formData, setFormData] = useState({
     bastNumber: '',
     spkNumber: '',
@@ -12,18 +12,24 @@ const Bast2Modal = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
     statusText: '',
   });
 
+  const availableSpkOptions = [...(clientSpks || [])];
+
   useEffect(() => {
     if (isOpen) {
+      const defaultSpk = (clientSpks && clientSpks.length === 1) 
+        ? clientSpks[0].spkNumber 
+        : (clientSpks?.[0]?.spkNumber || '');
+      const matchedSpkObj = clientSpks?.find((s) => s.spkNumber === defaultSpk);
       setFormData({
         bastNumber: '',
-        spkNumber: '',
+        spkNumber: defaultSpk,
         handoverDate: new Date().toISOString().split('T')[0],
-        pihakPertamaName: '',
-        pihakKeduaName: '',
-        statusText: '',
+        pihakPertamaName: matchedSpkObj?.clientName || '',
+        pihakKeduaName: 'JIMMY CHRISTIAN, S.Ds.',
+        statusText: 'SELESAI DIKERJAKAN 100% dan DITERIMA DENGAN BAIK',
       });
     }
-  }, [isOpen]);
+  }, [isOpen, clientSpks]);
 
   if (!isOpen) return null;
 
@@ -32,8 +38,24 @@ const Bast2Modal = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleSpkChange = (e) => {
+    const selectedVal = e.target.value;
+    const matchedSpk = clientSpks?.find((s) => s.spkNumber === selectedVal);
+    setFormData((prev) => ({
+      ...prev,
+      spkNumber: selectedVal,
+      pihakPertamaName: (!prev.pihakPertamaName || clientSpks?.some((s) => s.clientName === prev.pihakPertamaName))
+        ? (matchedSpk?.clientName || prev.pihakPertamaName)
+        : prev.pihakPertamaName,
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!formData.spkNumber) {
+      alert('Nomor SPK Client wajib dipilih!');
+      return;
+    }
     onSubmit(formData);
   };
 
@@ -63,15 +85,51 @@ const Bast2Modal = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Nomor SPK</label>
-              <input
-                type="text"
-                name="spkNumber"
-                className={styles.input}
-                value={formData.spkNumber}
-                onChange={handleChange}
-                placeholder="Ex: 001/SPK/DJP/2026"
-              />
+              <label className={styles.label}>
+                Nomor SPK Client <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              {availableSpkOptions.length === 0 ? (
+                <div style={{ color: '#ef4444', fontSize: '13px', padding: '10px 0' }}>
+                  ⚠️ Belum ada Nomor SPK Client yang terbit.
+                </div>
+              ) : availableSpkOptions.length === 1 ? (
+                <div>
+                  <select
+                    name="spkNumber"
+                    className={styles.input}
+                    value={formData.spkNumber}
+                    onChange={handleSpkChange}
+                    required
+                  >
+                    <option value={availableSpkOptions[0].spkNumber}>
+                      {availableSpkOptions[0].spkNumber} {availableSpkOptions[0].status ? `(${availableSpkOptions[0].status})` : ''}
+                    </option>
+                  </select>
+                  <span style={{ fontSize: '11px', color: '#10b981', display: 'block', marginTop: '4px' }}>
+                    ✓ Otomatis dari dokumen SPK Client
+                  </span>
+                </div>
+              ) : (
+                <div>
+                  <select
+                    name="spkNumber"
+                    className={styles.input}
+                    value={formData.spkNumber}
+                    onChange={handleSpkChange}
+                    required
+                  >
+                    <option value="">-- Pilih Nomor SPK Client --</option>
+                    {availableSpkOptions.map((spk) => (
+                      <option key={spk.id || spk.spkNumber} value={spk.spkNumber}>
+                        {spk.spkNumber} {spk.status ? `(${spk.status})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: '11px', color: '#aaa', display: 'block', marginTop: '4px' }}>
+                    Pilih Nomor SPK Client yang diterbitkan
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

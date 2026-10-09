@@ -4,7 +4,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useBast } from '../hooks/useBast';
 import { bastService } from '../services/bastService';
 import BastModal from '../components/BastModal';
-import { Plus, Eye, Download, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Eye, Download, Pencil, Trash2, AlertCircle } from 'lucide-react';
 import styles from '../styles/BastPage.module.css';
 import toast from 'react-hot-toast';
 
@@ -13,7 +13,7 @@ const BastPage = () => {
   const [selectedProjectId, setSelectedProjectId] = useState('');
   
   const { 
-    basts, loading, refresh, createBast, updateBast, deleteBast 
+    basts, clientSpks, hasIssuedClientSpk, loading, refresh, createBast, updateBast, deleteBast 
   } = useBast(selectedProjectId);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +23,10 @@ const BastPage = () => {
   const handleOpenCreate = () => {
     if (!selectedProjectId) {
       toast.error('Pilih project terlebih dahulu!');
+      return;
+    }
+    if (!hasIssuedClientSpk) {
+      toast.error('Project ini belum memiliki SPK Client yang diterbitkan (Nomor SPK belum ada). Silakan terbitkan SPK Client terlebih dahulu.');
       return;
     }
     setEditingBast(null);
@@ -74,7 +78,18 @@ const BastPage = () => {
           <h1 className={styles.pageTitle}>Berita Acara (BAST)</h1>
           <p className={styles.pageSubtitle}>Kelola dan cetak Berita Acara Serah Terima Pekerjaan</p>
         </div>
-        <button className={styles.btnPrimary} onClick={handleOpenCreate}>
+        <button 
+          className={styles.btnPrimary} 
+          onClick={handleOpenCreate}
+          disabled={!selectedProjectId || !hasIssuedClientSpk || loading}
+          title={
+            !selectedProjectId 
+              ? 'Pilih project terlebih dahulu' 
+              : !hasIssuedClientSpk 
+              ? 'Project ini belum memiliki SPK Client yang diterbitkan (Nomor SPK belum ada)' 
+              : 'Buat BAST Baru'
+          }
+        >
           <Plus size={18} /> Buat BAST
         </button>
       </div>
@@ -87,6 +102,18 @@ const BastPage = () => {
           loading={loadingProjects}
         />
       </div>
+
+      {selectedProjectId && !loading && !hasIssuedClientSpk && (
+        <div className={styles.warningBanner}>
+          <AlertCircle size={20} className={styles.warningIcon} />
+          <div>
+            <strong>Perhatian:</strong> Project ini belum memiliki <strong>SPK Client</strong> yang diterbitkan (Nomor SPK belum ada).
+            <div style={{ fontSize: '13px', marginTop: '4px', color: '#fef3c7' }}>
+              BAST tidak dapat dibuat sebelum SPK Client diterbitkan di menu SPK Client.
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className={styles.tableContainer}>
         <table className={styles.bastTable}>
@@ -180,6 +207,7 @@ const BastPage = () => {
         onSubmit={handleSubmit}
         initialData={editingBast}
         isSubmitting={isSubmitting}
+        clientSpks={clientSpks}
       />
     </div>
   );

@@ -235,9 +235,9 @@ const PurchaseOrderJasaPage = () => {
 
       <header className={styles.financeHeader}>
         <div className={styles.headerMain}>
-          <p className={styles.eyebrow}>Purchase Orders</p>
-          <h2 className={styles.title}>Manajemen PO Jasa</h2>
-          <p className={styles.subtitle}>PO Jasa berbasis RAP. Qty & harga default mengikuti RAP, over/under diberi catatan.</p>
+          <p className={styles.eyebrow}>Pelaksanaan</p>
+          <h2 className={styles.title}>Kelola Jasa</h2>
+          <p className={styles.subtitle}>Kelola jasa berbasis RAP. Qty & harga default mengikuti RAP, over/under diberi catatan.</p>
         </div>
         <div style={{ minWidth: '300px' }}>
           {activeTab === 'buat-po' && (

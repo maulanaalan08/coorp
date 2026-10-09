@@ -19,7 +19,7 @@ export const joinOpnameService = {
     return handleResponse(response);
   },
 
-  getJoinOpname: async (projectId, filterValue) => {
+  getJoinOpname: async (projectId, filterValue, workSubCategoryId) => {
     const params = {};
     if (filterValue && filterValue !== "General") {
       if (filterValue.length > 20) {
@@ -27,6 +27,9 @@ export const joinOpnameService = {
       } else {
         params.discipline = filterValue;
       }
+    }
+    if (workSubCategoryId) {
+      params.workSubCategoryId = workSubCategoryId;
     }
     const response = await fetch(buildApiUrl(API_BASE_URL, `/projects/${projectId}/join-opname`, params), {
       headers: joinOpnameService.getAuthHeaders()
@@ -55,7 +58,7 @@ export const joinOpnameService = {
     return handleResponse(response);
   },
 
-  exportPdf: (projectId, filterValue, date, type) => {
+  exportPdf: (projectId, filterValue, date, type, workSubCategoryId) => {
     const url = new URL(`${API_BASE_URL}/projects/${projectId}/join-opname/export/pdf`);
     if (filterValue && filterValue !== "General") {
       if (filterValue.length > 20) {
@@ -64,13 +67,28 @@ export const joinOpnameService = {
         url.searchParams.append("discipline", filterValue);
       }
     }
+    if (workSubCategoryId) {
+      url.searchParams.append("workSubCategoryId", workSubCategoryId);
+    }
     if (date) url.searchParams.append("date", date);
     if (type) url.searchParams.append("type", type);
     window.open(url.toString(), "_blank");
   },
 
-  exportExcel: (projectId, monthStr) => {
+  exportExcel: (projectId, filterValue, date, type = "daily", workSubCategoryId = null, monthStr = null) => {
     const url = new URL(`${API_BASE_URL}/projects/${projectId}/join-opname/export/excel`);
+    if (filterValue && filterValue !== "General") {
+      if (filterValue.length > 20) {
+        url.searchParams.append("workCategoryId", filterValue);
+      } else {
+        url.searchParams.append("discipline", filterValue);
+      }
+    }
+    if (workSubCategoryId) {
+      url.searchParams.append("workSubCategoryId", workSubCategoryId);
+    }
+    if (date) url.searchParams.append("date", date);
+    if (type) url.searchParams.append("type", type);
     if (monthStr) url.searchParams.append("month", monthStr);
     window.location.href = url.toString();
   }

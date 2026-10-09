@@ -12,6 +12,8 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
     projectId, setProjectId, projectList, loadingProjects, projectError, fetchProjects, fetchSchedule,
     data, loading, error, notice, showNotice, 
     discipline, setDiscipline, filterLabel, setFilterLabel,
+    activeSubCategoryId, setActiveSubCategoryId,
+    filterSubcategories, loadingFilterSubcategories, subCategoryCounts,
     startDateInput, setStartDateInput, savingStartDate, setSavingStartDate,
     editDrafts, setEditDrafts, busyItems, setBusyItems, hoverPoint, setHoverPoint, 
     periods, items, scheduledCount, lastProgress, groupedItems, chart
@@ -176,27 +178,81 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
       ) : (
         <>
           <div className="tsp-controls-row">
-            <div className="tsp-card tsp-control-card">
-              <h2 className="tsp-card-title">Filter Disiplin Pekerjaan</h2>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  className={`tsp-btn ${discipline === 'General' ? 'tsp-btn-primary' : ''}`}
-                  style={{ minWidth: '100px' }}
-                  onClick={() => { setDiscipline('General'); setFilterLabel('General'); }}
-                >
-                  General
-                </button>
-                {projectList.find(p => p.id === projectId)?.workCategories?.filter(c => c.isActive && c.workCategory?.isActive).map((c) => (
+            <div className="tsp-card tsp-control-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <h2 className="tsp-card-title" style={{ marginBottom: '8px' }}>Label Utama (Kategori)</h2>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <button
-                    key={c.workCategoryId}
-                    className={`tsp-btn ${discipline === c.workCategoryId ? 'tsp-btn-primary' : ''}`}
-                    style={{ minWidth: '100px' }}
-                    onClick={() => { setDiscipline(c.workCategoryId); setFilterLabel(c.workCategory.code.toUpperCase()); }}
+                    type="button"
+                    className={`tsp-btn ${discipline === 'General' ? 'tsp-btn-primary' : ''}`}
+                    style={{ minWidth: '90px' }}
+                    onClick={() => {
+                      setDiscipline('General');
+                      setFilterLabel('General');
+                    }}
                   >
-                    {c.workCategory.code.toUpperCase()}
+                    Semua
                   </button>
-                ))}
+                  {projectList
+                    .find((p) => p.id === projectId)
+                    ?.workCategories
+                    ?.filter((c) => c.isActive && c.workCategory?.isActive && String(c.workCategory?.code).toUpperCase() !== 'GENERAL')
+                    .map((c) => (
+                      <button
+                        type="button"
+                        key={c.workCategoryId}
+                        className={`tsp-btn ${discipline === c.workCategoryId ? 'tsp-btn-primary' : ''}`}
+                        style={{ minWidth: '90px' }}
+                        onClick={() => {
+                          setDiscipline(c.workCategoryId);
+                          setFilterLabel(c.workCategory.code.toUpperCase());
+                        }}
+                      >
+                        {c.workCategory.code.toUpperCase()}
+                      </button>
+                    ))}
+                </div>
               </div>
+
+              {discipline !== 'General' && (
+                <div style={{ borderTop: '1px solid #2a261e', paddingTop: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#d4af37', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Sub Label (Subkategori)
+                    </span>
+                    {loadingFilterSubcategories && (
+                      <span style={{ fontSize: '11px', color: '#888' }}>Memuat...</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      className={`tsp-btn tsp-btn-sm ${!activeSubCategoryId ? 'tsp-btn-primary' : ''}`}
+                      onClick={() => setActiveSubCategoryId('')}
+                    >
+                      Semua
+                    </button>
+                    {!loadingFilterSubcategories && filterSubcategories.length === 0 ? (
+                      <span style={{ fontSize: '12px', color: '#888' }}>Belum ada subkategori aktif</span>
+                    ) : (
+                      filterSubcategories.map((subcat) => {
+                        const count = subCategoryCounts[subcat.id];
+                        const countLabel = count !== undefined ? ` (${count})` : '';
+                        return (
+                          <button
+                            type="button"
+                            key={subcat.id}
+                            className={`tsp-btn tsp-btn-sm ${activeSubCategoryId === subcat.id ? 'tsp-btn-primary' : ''}`}
+                            onClick={() => setActiveSubCategoryId(subcat.id)}
+                          >
+                            {subcat.code || subcat.name}{countLabel}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="tsp-card tsp-control-card" style={{ marginLeft: '16px' }}>

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { timeScheduleService } from "../services/timeScheduleService";
+import { workCategoryService } from "../services/workCategoryService";
 
 // Gunakan named export secara eksplisit di sini
 export function useTimeSchedule(initialProjectId) {
@@ -15,6 +16,12 @@ export function useTimeSchedule(initialProjectId) {
 
   const [discipline, setDiscipline] = useState("General");
   const [filterLabel, setFilterLabel] = useState("General");
+  const [activeSubCategoryId, setActiveSubCategoryId] = useState("");
+  const [filterSubcategories, setFilterSubcategories] = useState([]);
+  const [loadingFilterSubcategories, setLoadingFilterSubcategories] = useState(false);
+  const [subCategoryCounts, setSubCategoryCounts] = useState({});
+  const subcategoryRequestRef = useRef(0);
+
   const [startDateInput, setStartDateInput] = useState("");
   const [savingStartDate, setSavingStartDate] = useState(false);
   
@@ -42,24 +49,74 @@ export function useTimeSchedule(initialProjectId) {
     }
   }, [projectId]);
 
-  const fetchSchedule = useCallback(async (id, disc = discipline) => {
+  // Muat subkategori saat kategori aktif berubah (hierarki: Kategori -> Subkategori)
+  useEffect(() => {
+    setActiveSubCategoryId("");
+    setFilterSubcategories([]);
+    setSubCategoryCounts({});
+
+    if (!projectId || !discipline || discipline === "General") {
+      subcategoryRequestRef.current += 1;
+      setLoadingFilterSubcategories(false);
+      return;
+    }
+
+    const reqId = subcategoryRequestRef.current + 1;
+    subcategoryRequestRef.current = reqId;
+    setLoadingFilterSubcategories(true);
+
+    workCategoryService.getSubcategories(discipline)
+      .then((rows) => {
+        if (subcategoryRequestRef.current !== reqId) return;
+        const list = Array.isArray(rows) ? rows : rows?.data || [];
+        setFilterSubcategories(list.filter((r) => r.isActive !== false));
+      })
+      .catch((err) => {
+        if (subcategoryRequestRef.current !== reqId) return;
+        console.error("Gagal mengambil subkategori:", err);
+        setFilterSubcategories([]);
+      })
+      .finally(() => {
+        if (subcategoryRequestRef.current === reqId) setLoadingFilterSubcategories(false);
+      });
+
+    return () => {
+      if (subcategoryRequestRef.current === reqId) subcategoryRequestRef.current += 1;
+    };
+  }, [projectId, discipline]);
+
+  const fetchSchedule = useCallback(async (id = projectId, disc = discipline, subCatId = activeSubCategoryId) => {
     if (!id) return setData(null);
     setLoading(true);
     setError(null);
     try {
-      const json = await timeScheduleService.getSchedule(id, disc);
+      const json = await timeScheduleService.getSchedule(id, disc, subCatId);
       setData(json);
       setStartDateInput(json?.startDate ? String(json.startDate).slice(0, 10) : "");
       setEditDrafts({});
+
+      // Jika memuat seluruh kategori (subCatId kosong), update counter item per subkategori
+      if (!subCatId) {
+        const counts = {};
+        (json?.items || []).forEach((it) => {
+          if (it.workSubCategoryId) {
+            counts[it.workSubCategoryId] = (counts[it.workSubCategoryId] || 0) + 1;
+          }
+        });
+        setSubCategoryCounts(counts);
+      }
     } catch (err) {
       setError(err.message || "Terjadi kesalahan saat memuat Time Schedule.");
     } finally {
       setLoading(false);
     }
-  }, [discipline]);
+  }, [projectId, discipline, activeSubCategoryId]);
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
-  useEffect(() => { if (projectId) fetchSchedule(projectId, discipline); else setData(null); }, [projectId, discipline, fetchSchedule]);
+  useEffect(() => {
+    if (projectId) fetchSchedule(projectId, discipline, activeSubCategoryId);
+    else setData(null);
+  }, [projectId, discipline, activeSubCategoryId, fetchSchedule]);
 
   const periods = data?.periods || [];
   const items = data?.items || [];
@@ -111,6 +168,8 @@ export function useTimeSchedule(initialProjectId) {
     projectId, setProjectId, projectList, loadingProjects, projectError, fetchProjects, fetchSchedule,
     data, loading, error, notice, showNotice,
     discipline, setDiscipline, filterLabel, setFilterLabel,
+    activeSubCategoryId, setActiveSubCategoryId,
+    filterSubcategories, loadingFilterSubcategories, subCategoryCounts,
     startDateInput, setStartDateInput, savingStartDate, setSavingStartDate,
     editDrafts, setEditDrafts, busyItems, setBusyItems, hoverPoint, setHoverPoint,
     periods, items, scheduledCount, lastProgress, groupedItems, chart
