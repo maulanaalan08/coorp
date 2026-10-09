@@ -59,9 +59,15 @@ export const useRabItems = (projectId, discipline = '', workCategoryId = null) =
     }
   }, [fetchItems]);
 
-  const switchJob = useCallback(async (id, newJobTypeId, customOverhead, ahspDiscipline) => {
+  const switchJob = useCallback(async (id, newJobTypeId, customOverhead, ahspDiscipline, workCategoryId) => {
     try {
-      const res = await rabService.switchJob(id, newJobTypeId, customOverhead, ahspDiscipline);
+      const res = await rabService.switchJob(
+        id,
+        newJobTypeId,
+        customOverhead,
+        ahspDiscipline,
+        workCategoryId,
+      );
       await fetchItems();
       return res;
     } catch (err) {
@@ -79,9 +85,21 @@ export const useRabItems = (projectId, discipline = '', workCategoryId = null) =
     }
   }, [fetchItems]);
 
-  const bulkSwitchJob = useCallback(async (ids, newJobTypeId, customOverhead, ahspDiscipline) => {
+  const bulkSwitchJob = useCallback(async (
+    ids,
+    newJobTypeId,
+    customOverhead,
+    ahspDiscipline,
+    workCategoryId,
+  ) => {
     try {
-      const res = await rabService.bulkSwitchJob(ids, newJobTypeId, customOverhead, ahspDiscipline);
+      const res = await rabService.bulkSwitchJob(
+        ids,
+        newJobTypeId,
+        customOverhead,
+        ahspDiscipline,
+        workCategoryId,
+      );
       await fetchItems();
       return res;
     } catch (err) {

@@ -24,7 +24,11 @@ import { useRabGroups } from "../hooks/useRabGroups";
 import { useRabItems } from "../hooks/useRabItems";
 import toast from "react-hot-toast";
 import { workCategoryService } from "../services/workCategoryService";
-import { getWorkClassificationLabel } from "../utils/workSubCategorySelection";
+import {
+  buildRabSwitchClassification,
+  getWorkClassificationLabel,
+  resolveBulkRabWorkCategoryId,
+} from "../utils/workSubCategorySelection";
 import { countGroupItemsBySubCategory, filterGroupTreeBySubCategory } from "../utils/workSubCategoryFilter";
 
 const API_BASE = import.meta.env.VITE_API_URL
@@ -135,19 +139,14 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       (a.workCategory?.sortOrder ?? 0) - (b.workCategory?.sortOrder ?? 0)
       || String(a.workCategory?.name || '').localeCompare(String(b.workCategory?.name || '')),
     );
-  const projectCategoryOptions = configuredProjectCategories.length > 0
-    ? configuredProjectCategories.map((entry) => ({
-        id: entry.workCategoryId,
-        workCategoryId: entry.workCategoryId,
-        code: String(entry.workCategory?.code || '').toUpperCase(),
-        name: String(entry.workCategory?.code || '').toUpperCase(),
-        grade: entry.grade || null,
-        pricingMode: entry.pricingMode || null,
-      }))
-    : [
-        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'SIPIL', grade: project?.sipilGrade || null },
-        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'INTERIOR', grade: project?.interiorGrade || null },
-      ];
+  const projectCategoryOptions = configuredProjectCategories.map((entry) => ({
+    id: entry.workCategoryId,
+    workCategoryId: entry.workCategoryId,
+    code: String(entry.workCategory?.code || '').toUpperCase(),
+    name: String(entry.workCategory?.code || '').toUpperCase(),
+    grade: entry.grade || null,
+    pricingMode: entry.pricingMode || null,
+  }));
   const categoryFilterOptions = [
     { id: ALL_CATEGORY_FILTER, workCategoryId: null, code: ALL_CATEGORY_FILTER, name: 'Semua' },
     ...projectCategoryOptions,
@@ -612,12 +611,18 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         payload.ahspDiscipline = activeDiscipline;
       }
 
+      const switchClassification = buildRabSwitchClassification({
+        itemWorkCategoryId: item.workCategoryId,
+        activeWorkCategoryId,
+        activeDiscipline,
+        allCategoryFilter: ALL_CATEGORY_FILTER,
+      });
       const switchPromise = switchJob(
         item.id,
         sourceJobId,
         overheadPercent !== "" ? Number(overheadPercent) : undefined,
-        activeDiscipline && activeDiscipline !== ALL_CATEGORY_FILTER ? activeDiscipline : undefined,
-        item.workCategoryId || activeWorkCategoryId || undefined,
+        switchClassification.ahspDiscipline,
+        switchClassification.workCategoryId,
       ).then(() => refreshGroups());
 
       toast.promise(switchPromise, {
@@ -690,12 +695,24 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     setBulkSwitchModal((prev) => ({ ...prev, switchQuery: query }));
     if (query.trim().length < 2) return setBulkSwitchModal((prev) => ({ ...prev, switchResults: [] }));
     try {
-      const grade = activeWorkCategoryId
-        ? (selectedFilterCategory?.grade || null)
-        : (activeFilter === 'SIPIL' ? project?.sipilGrade : activeFilter === 'INTERIOR' ? project?.interiorGrade : project?.grade);
+      let bulkWorkCategoryId;
+      try {
+        bulkWorkCategoryId = resolveBulkRabWorkCategoryId(
+          allItems,
+          selectedItemIds,
+          activeWorkCategoryId,
+        );
+      } catch (error) {
+        setBulkSwitchModal((prev) => ({ ...prev, switchResults: [] }));
+        return toast.error(error.message);
+      }
+      const categoryConfig = bulkWorkCategoryId
+        ? (project?.workCategories || []).find((entry) => entry.workCategoryId === bulkWorkCategoryId)
+        : null;
+      const grade = categoryConfig?.grade || null;
       const params = new URLSearchParams({ q: query.trim() });
-      if (activeWorkCategoryId) {
-        params.set("workCategoryId", activeWorkCategoryId);
+      if (bulkWorkCategoryId) {
+        params.set("workCategoryId", bulkWorkCategoryId);
       } else if (activeDiscipline && activeDiscipline !== ALL_CATEGORY_FILTER) {
         params.set("discipline", activeDiscipline);
       }
@@ -717,11 +734,27 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     if (!bulkSwitchModal) return;
     if (!bulkSwitchModal.sourceJobId) return toast.error("ID Master Pekerjaan wajib dipilih!");
     
+    let bulkWorkCategoryId;
+    try {
+      bulkWorkCategoryId = resolveBulkRabWorkCategoryId(
+        allItems,
+        selectedItemIds,
+        activeWorkCategoryId,
+      );
+    } catch (error) {
+      return toast.error(error.message);
+    }
+    const switchClassification = buildRabSwitchClassification({
+      activeWorkCategoryId: bulkWorkCategoryId,
+      activeDiscipline,
+      allCategoryFilter: ALL_CATEGORY_FILTER,
+    });
     const bulkSwitchPromise = bulkSwitchJob(
         selectedItemIds,
         bulkSwitchModal.sourceJobId,
         bulkSwitchModal.overheadPercent !== "" ? Number(bulkSwitchModal.overheadPercent) : undefined,
-        activeWorkCategoryId ? undefined : (activeDiscipline !== ALL_CATEGORY_FILTER ? activeDiscipline : undefined)
+        switchClassification.ahspDiscipline,
+        switchClassification.workCategoryId,
     ).then(() => refreshGroups());
     
     toast.promise(bulkSwitchPromise, {
@@ -1551,7 +1584,8 @@ function getItemSource(item) {
 function getItemRef(item, source) {
   if (source.key === "ahsp") {
     const ref = item.sourceJobType?.reference || item.reference;
-    if (ref) return `AHSP ${ref} · ${item.discipline || "GENERAL"}${item.grade ? ` · Grade ${item.grade}` : ""}`;
+    const sourceLabel = item.workCategory?.code || item.discipline || 'kategori dinamis';
+    if (ref) return `AHSP ${ref} · ${sourceLabel}${item.grade ? ` · Grade ${item.grade}` : ""}`;
   }
   if (source.key === "manual" && item.reference) return `Ref: ${item.reference}`;
   if (source.key === "komp") return "Rincian bahan & alat manual";
@@ -1590,7 +1624,7 @@ function RabGroupNode({
       <div className={styles["rab-group-hdr"]}>
         {group.reference && <span className={styles["rab-group-ref"]}>{group.reference}</span>}
         <span className={styles["rab-group-name"]}>{group.name}</span>
-        {group.discipline && group.discipline !== "GENERAL" && (
+        {!group.workCategory?.code && group.discipline && group.discipline !== "GENERAL" && (
           <span className={styles["rab-group-discipline"]} style={{ background: DISCIPLINE_BADGE[group.discipline] || "#666", color: "#fff" }}>
             {group.discipline}
           </span>

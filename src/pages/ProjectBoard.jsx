@@ -19,14 +19,19 @@ const ProjectBoard = ({ onProjectClick }) => {
 
   const renderCard = (project) => {
     const imageSeed = project.id ? project.id.substring(0, 5) : 'arch';
-    // Proyek baru bersifat campuran/general.
-    const isInterior = project.discipline === 'INTERIOR';
-    const isSipil = project.discipline === 'SIPIL';
-    const imageUrl = isInterior
-      ? `https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=500&sig=${imageSeed}`
-      : isSipil
-      ? `https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=500&sig=${imageSeed}`
-      : `https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=500&sig=${imageSeed}`;
+    const activeCategories = (project.workCategories || [])
+      .filter((entry) => entry.isActive !== false && entry.workCategory?.isActive !== false)
+      .map((entry) => ({
+        code: String(entry.workCategory?.code || '').toUpperCase(),
+        grade: entry.grade || null,
+      }))
+      .filter((entry) => entry.code && entry.code !== 'GENERAL');
+    const categoryLabel = activeCategories.map((entry) => entry.code).join(' · ') || 'BELUM DIATUR';
+    const gradeLabel = activeCategories
+      .filter((entry) => entry.grade)
+      .map((entry) => `${entry.code}: ${entry.grade}`)
+      .join(' · ');
+    const imageUrl = `https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=500&sig=${imageSeed}`;
 
     return (
       <div
@@ -39,19 +44,17 @@ const ProjectBoard = ({ onProjectClick }) => {
           style={{ backgroundImage: `url('${imageUrl}')` }}
         />
         <div className={styles.cardBody}>
-          <span className={`${styles.badge} ${isInterior ? styles.badgeResidential : isSipil ? styles.badgeCommercial : styles.badgeCommercial}`}>
-            {project.discipline || 'GENERAL'}
+          <span className={`${styles.badge} ${styles.badgeCommercial}`}>
+            {categoryLabel}
           </span>
           <h4>{project.name}</h4>
           <p className={styles.clientText}>Client: {project.client?.name || '-'}</p>
           <p className={styles.clientText} style={{ marginBottom: '4px' }}>
             📍 {project.location || '-'}
           </p>
-          {(project.interiorGrade || project.sipilGrade) && (
+          {gradeLabel && (
             <p className={styles.clientText} style={{ marginBottom: '8px', fontSize: 11 }}>
-              {project.interiorGrade && `Interior: ${project.interiorGrade}`}
-              {project.interiorGrade && project.sipilGrade ? ' · ' : ''}
-              {project.sipilGrade && `Sipil: ${project.sipilGrade}`}
+              {gradeLabel}
             </p>
           )}
           <div className={styles.progressBarContainer}>

@@ -58,13 +58,24 @@ export const rabService = {
   },
 
   // Bulk switch job
-  bulkSwitchJob: async (ids, newJobTypeId, customOverhead) => {
+  bulkSwitchJob: async (
+    ids,
+    newJobTypeId,
+    customOverhead,
+    ahspDiscipline,
+    workCategoryId,
+  ) => {
     // Frontend workaround for backend route collision
     const promises = ids.map(id =>
       fetchAPI(`/rab-items/${id}/switch-job`, {
         method: 'PUT',
         headers: authHeaders(),
-        body: JSON.stringify({ newJobTypeId, customOverhead }),
+        body: JSON.stringify({
+          newJobTypeId,
+          customOverhead,
+          ahspDiscipline,
+          workCategoryId,
+        }),
       })
     );
     return Promise.all(promises);
