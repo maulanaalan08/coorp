@@ -11,6 +11,7 @@ import {
   validateClientPartyForm,
   validateClientSchedule,
 } from '../utils/spkPartyForm';
+import '../styles/SpkPage.css';
 
 const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })}`;
 const numberValue = (value) => Number(String(value ?? '').replace(/[^0-9.-]/g, '')) || 0;
@@ -22,49 +23,6 @@ const dateInput = (value) => {
   if (!value) return '';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
-};
-
-const colors = {
-  page: '#0c0b09',
-  card: '#161513',
-  border: '#363024',
-  muted: '#999384',
-  gold: '#d4af37',
-  green: '#65c18c',
-  red: '#ef7777',
-};
-
-const inputStyle = {
-  width: '100%',
-  boxSizing: 'border-box',
-  background: '#0c0b09',
-  border: `1px solid ${colors.border}`,
-  color: '#f3f0e8',
-  borderRadius: 6,
-  padding: '9px 10px',
-  fontSize: 13,
-};
-
-const buttonStyle = (variant = 'secondary') => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 7,
-  border: `1px solid ${variant === 'primary' ? colors.gold : colors.border}`,
-  background: variant === 'primary' ? colors.gold : '#211e18',
-  color: variant === 'primary' ? '#0c0b09' : '#eee9dc',
-  borderRadius: 7,
-  padding: '9px 13px',
-  fontWeight: 700,
-  fontSize: 12,
-  cursor: 'pointer',
-});
-
-const statusColor = {
-  DRAFT: colors.gold,
-  TERBIT: '#72a9ff',
-  DITANDATANGANI: colors.green,
-  SELESAI: colors.green,
-  DIBATALKAN: colors.red,
 };
 
 const newTerm = (index = 0) => ({
@@ -124,6 +82,22 @@ export default function SpkPage({ initialProjectId = null }) {
   const termsPercent = terms.reduce((sum, term) => sum + numberValue(term.percent), 0);
   const totalPercent = termsPercent + numberValue(retentionPercent);
   const retentionAmount = Math.round(selectedValue * numberValue(retentionPercent) / 100);
+  const selectedItemsCount = selectedItemIds.length;
+  const sourceItemsCount = source?.items?.length || 0;
+  const selectedProjectName = project?.displayName || project?.name || 'Project belum dipilih';
+  const selectedProjectLocation = project?.location || clientParties.secondParty.address || 'Lokasi project belum tersedia';
+  const partyReady = type === 'CLIENT'
+    ? validateClientPartyForm(clientParties).length === 0
+    : Boolean(subconPartyName.trim());
+  const scheduleReady = type !== 'CLIENT'
+    || validateClientSchedule({ workDurationDays, startDate, endDate }).length === 0;
+  const paymentReady = Math.abs(totalPercent - 100) < 0.01;
+
+  const toggleAllItems = () => {
+    setSelectedItemIds(selectedItemsCount === sourceItemsCount
+      ? []
+      : (source?.items || []).map((item) => item.id));
+  };
 
   const loadProjectData = async (id = projectId) => {
     if (!id) {
@@ -363,161 +337,185 @@ export default function SpkPage({ initialProjectId = null }) {
   };
 
   return (
-    <div style={{ minHeight: '100%', background: colors.page, color: '#f3f0e8', padding: '30px 34px 60px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, alignItems: 'flex-start', marginBottom: 24 }}>
+    <div className="spk-page">
+      <header className="spk-header">
         <div>
-          <div style={{ color: colors.gold, fontSize: 11, fontWeight: 800, letterSpacing: 2 }}>PERENCANAAN / KONTRAK</div>
-          <h1 style={{ margin: '7px 0 5px', fontSize: 26 }}>SPK Client &amp; Subcon</h1>
-          <p style={{ margin: 0, color: colors.muted, fontSize: 13 }}>Nomor global per tipe dan tahun. Draft tidak mengambil nomor resmi.</p>
+          <div className="spk-eyebrow">Perencanaan / Kontrak</div>
+          <h1>SPK Client &amp; Subcon</h1>
+          <p>Susun ruang lingkup, para pihak, jadwal, dan termin pembayaran dalam satu alur. Draft tidak mengambil nomor resmi.</p>
         </div>
-        <button type="button" style={buttonStyle()} onClick={() => loadProjectData()} disabled={loading}>
-          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
+        <button type="button" className="spk-btn" onClick={() => loadProjectData()} disabled={loading}>
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Muat ulang
         </button>
+      </header>
+
+      <div className="spk-project-bar">
+        <div className="spk-project-selector">
+          <ProjectSelector projectList={projects} projectId={projectId} loading={projectsLoading} onChange={handleProjectChange} />
+        </div>
+        <div className="spk-type-control">
+          <span className="spk-label">Tipe kontrak</span>
+          <div className="spk-segmented" role="group" aria-label="Tipe kontrak">
+            <button type="button" aria-pressed={type === 'CLIENT'} className={type === 'CLIENT' ? 'active' : ''} onClick={() => handleTypeChange('CLIENT')}>SPK Client</button>
+            <button type="button" aria-pressed={type === 'SUBCON'} className={type === 'SUBCON' ? 'active' : ''} onClick={() => handleTypeChange('SUBCON')}>SPK Subcon</button>
+          </div>
+        </div>
+        {projectId && <button type="button" className="spk-btn" onClick={resetDraftForm}>Mulai draft baru</button>}
       </div>
 
-      <ProjectSelector projectList={projects} projectId={projectId} loading={projectsLoading} onChange={handleProjectChange} />
-
       {!projectId ? (
-        <div style={{ padding: 40, border: `1px dashed ${colors.border}`, color: colors.muted, textAlign: 'center', borderRadius: 10 }}>Pilih project untuk mulai membuat SPK.</div>
+        <div className="spk-empty-state">
+          <FileText size={28} />
+          <h2>Pilih project untuk mulai</h2>
+          <p>Data RAB, para pihak, dan riwayat SPK akan dimuat berdasarkan project yang dipilih.</p>
+        </div>
       ) : (
         <>
-          <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(320px, .8fr)', gap: 18, alignItems: 'start' }}>
-            <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10, padding: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: 17 }}>Sumber nilai kontrak dari RAB</h2>
-                  <p style={{ margin: '5px 0 0', color: colors.muted, fontSize: 12 }}>{project?.name || 'Project'} · centang item yang masuk snapshot SPK</p>
+          <div className="spk-workspace">
+            <div className="spk-form-flow">
+              <section className="spk-panel">
+                <div className="spk-panel-header">
+                  <div className="spk-panel-heading"><span className="spk-step">1</span><div><h2>Ruang lingkup dari RAB</h2><p>Pilih item yang akan dibekukan sebagai snapshot kontrak.</p></div></div>
+                  <strong className="spk-panel-value">{money(selectedValue)}</strong>
                 </div>
-                <strong style={{ color: colors.gold }}>{money(selectedValue)}</strong>
-              </div>
-              <div style={{ maxHeight: 330, overflow: 'auto', border: `1px solid ${colors.border}`, borderRadius: 7 }}>
-                {(source?.items || []).map((item) => {
-                  const checked = selectedItemIds.includes(item.id);
-                  return <label key={item.id} style={{ display: 'grid', gridTemplateColumns: '25px 1fr auto', gap: 10, alignItems: 'center', padding: '10px 12px', borderBottom: `1px solid ${colors.border}`, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={checked} onChange={() => setSelectedItemIds((ids) => checked ? ids.filter((id) => id !== item.id) : [...ids, item.id])} />
-                    <span style={{ fontSize: 12 }}>{item.name}<small style={{ display: 'block', color: colors.muted }}>{item.volume} {item.paymentUnit || ''}</small></span>
-                    <strong style={{ fontSize: 12 }}>{money(itemContractTotal(item))}</strong>
-                  </label>;
-                })}
-                {!source?.items?.length && <div style={{ padding: 18, color: colors.muted, fontSize: 12 }}>Belum ada item RAB pada project ini.</div>}
-              </div>
-            </div>
-
-            <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10, padding: 20 }}>
-              <h2 style={{ margin: '0 0 14px', fontSize: 17 }}>Identitas SPK</h2>
-              <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>TIPE KONTRAK</label>
-              <select style={{ ...inputStyle, marginBottom: 12 }} value={type} onChange={(event) => handleTypeChange(event.target.value)}>
-                <option value="CLIENT">SPK Client</option>
-                <option value="SUBCON">SPK Subcon</option>
-              </select>
-
-              {type === 'CLIENT' ? (
-                <>
-                  <div style={{ padding: 12, border: `1px solid ${colors.border}`, borderRadius: 7, marginBottom: 12 }}>
-                    <strong style={{ display: 'block', color: colors.gold, fontSize: 11, letterSpacing: 1, marginBottom: 10 }}>PIHAK PERTAMA — PERUSAHAAN / INTERNAL</strong>
-                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>NAMA PERWAKILAN</label>
-                    <input style={{ ...inputStyle, marginBottom: 9 }} value={clientParties.firstParty.name} onChange={(event) => updateClientParty('firstParty', 'name', event.target.value)} placeholder="Nama perwakilan internal" />
-                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>JABATAN</label>
-                    <input style={{ ...inputStyle, marginBottom: 9 }} value={clientParties.firstParty.position} onChange={(event) => updateClientParty('firstParty', 'position', event.target.value)} placeholder="Contoh: Direktur" />
-                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>PERUSAHAAN</label>
-                    <input style={{ ...inputStyle, marginBottom: 9 }} value={clientParties.firstParty.companyName} onChange={(event) => updateClientParty('firstParty', 'companyName', event.target.value)} />
-                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>ALAMAT PERUSAHAAN</label>
-                    <textarea style={{ ...inputStyle, minHeight: 58 }} value={clientParties.firstParty.address} onChange={(event) => updateClientParty('firstParty', 'address', event.target.value)} />
+                <div className="spk-panel-body">
+                  <div className="spk-scope-toolbar">
+                    <label className="spk-check-all"><input type="checkbox" checked={sourceItemsCount > 0 && selectedItemsCount === sourceItemsCount} onChange={toggleAllItems} /> Pilih semua item</label>
+                    <span>{selectedItemsCount} dari {sourceItemsCount} item dipilih</span>
                   </div>
+                  <div className="spk-scope-list">
+                    {(source?.items || []).map((item) => {
+                      const checked = selectedItemIds.includes(item.id);
+                      return <label key={item.id} className={`spk-scope-row${checked ? '' : ' is-off'}`}>
+                        <input type="checkbox" checked={checked} onChange={() => setSelectedItemIds((ids) => checked ? ids.filter((id) => id !== item.id) : [...ids, item.id])} />
+                        <span className="spk-scope-name">{item.name}<small>{item.volume} {item.paymentUnit || ''} · RAB</small></span>
+                        <span className="spk-scope-tag">Ruang lingkup</span>
+                        <strong>{money(itemContractTotal(item))}</strong>
+                      </label>;
+                    })}
+                    {!source?.items?.length && <div className="spk-inline-empty">Belum ada item RAB pada project ini.</div>}
+                  </div>
+                </div>
+              </section>
 
-                  <div style={{ padding: 12, border: `1px solid ${colors.border}`, borderRadius: 7, marginBottom: 12 }}>
-                    <strong style={{ display: 'block', color: colors.gold, fontSize: 11, letterSpacing: 1, marginBottom: 10 }}>PIHAK KEDUA — CLIENT</strong>
-                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>NAMA CLIENT</label>
-                    <input style={{ ...inputStyle, marginBottom: 9 }} value={clientParties.secondParty.name} onChange={(event) => updateClientParty('secondParty', 'name', event.target.value)} placeholder="Otomatis dari client project" />
-                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>JABATAN</label>
-                    <input style={{ ...inputStyle, marginBottom: 9 }} value={clientParties.secondParty.position} onChange={(event) => updateClientParty('secondParty', 'position', event.target.value)} />
-                    <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>ALAMAT PROJECT (READ-ONLY)</label>
-                    <div style={{ ...inputStyle, minHeight: 42, color: colors.muted, display: 'flex', alignItems: 'center' }}>
-                      {clientParties.secondParty.address || 'Alamat project belum tersedia'}
+              <section className="spk-panel">
+                <div className="spk-panel-header">
+                  <div className="spk-panel-heading"><span className="spk-step">2</span><div><h2>Identitas para pihak</h2><p>{type === 'CLIENT' ? 'Data dicetak pada isi dan area tanda tangan PDF SPK Client.' : 'Tentukan kontraktor pelaksana dan referensi lokasi project.'}</p></div></div>
+                </div>
+                <div className="spk-panel-body">
+                  {type === 'CLIENT' ? (
+                    <div className="spk-party-grid">
+                      <div className="spk-party-card">
+                        <div className="spk-party-heading"><strong>Pihak pertama</strong><span>Perusahaan / internal</span></div>
+                        <div className="spk-field-grid">
+                          <label className="spk-field"><span>Nama perwakilan</span><input className="spk-input" value={clientParties.firstParty.name} onChange={(event) => updateClientParty('firstParty', 'name', event.target.value)} placeholder="Nama perwakilan internal" /></label>
+                          <label className="spk-field"><span>Jabatan</span><input className="spk-input" value={clientParties.firstParty.position} onChange={(event) => updateClientParty('firstParty', 'position', event.target.value)} placeholder="Contoh: Direktur" /></label>
+                          <label className="spk-field full"><span>Perusahaan</span><input className="spk-input" value={clientParties.firstParty.companyName} onChange={(event) => updateClientParty('firstParty', 'companyName', event.target.value)} /></label>
+                          <label className="spk-field full"><span>Alamat perusahaan</span><textarea className="spk-input" value={clientParties.firstParty.address} onChange={(event) => updateClientParty('firstParty', 'address', event.target.value)} /></label>
+                        </div>
+                      </div>
+                      <div className="spk-party-card">
+                        <div className="spk-party-heading"><strong>Pihak kedua</strong><span>Client / pemberi tugas</span></div>
+                        <div className="spk-field-grid">
+                          <label className="spk-field"><span>Nama client</span><input className="spk-input" value={clientParties.secondParty.name} onChange={(event) => updateClientParty('secondParty', 'name', event.target.value)} placeholder="Otomatis dari client project" /></label>
+                          <label className="spk-field"><span>Jabatan</span><input className="spk-input" value={clientParties.secondParty.position} onChange={(event) => updateClientParty('secondParty', 'position', event.target.value)} /></label>
+                          <div className="spk-field full"><span>Alamat project · otomatis</span><div className="spk-input spk-readonly">{clientParties.secondParty.address || 'Alamat project belum tersedia'}</div></div>
+                          <div className="spk-field full"><div className="spk-notice">PDF menyiapkan area tanda tangan kosong untuk kedua pihak.</div></div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <p style={{ margin: '0 0 12px', color: colors.muted, fontSize: 11 }}>PDF mencetak area tanda tangan kosong untuk kedua pihak; tidak ada upload gambar tanda tangan pada versi ini.</p>
-                </>
-              ) : (
-                <>
-                  <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>NAMA PIHAK / KONTRAKTOR</label>
-                  <input style={{ ...inputStyle, marginBottom: 12 }} value={subconPartyName} onChange={(event) => setSubconPartyName(event.target.value)} placeholder="Nama pihak / kontraktor" />
-                  <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>ALAMAT PROJECT</label>
-                  <div style={{ ...inputStyle, minHeight: 42, marginBottom: 12, color: colors.muted, display: 'flex', alignItems: 'center' }}>
-                    {project?.location || 'Otomatis dari alamat project'}
-                  </div>
-                </>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div>
-                  <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>DURASI (HARI){type === 'CLIENT' ? ' *' : ''}</label>
-                  <input type="number" min="1" required={type === 'CLIENT'} style={inputStyle} value={workDurationDays} onChange={(event) => setWorkDurationDays(event.target.value)} />
+                  ) : (
+                    <div className="spk-subcon-grid">
+                      <label className="spk-field"><span>Nama pihak / kontraktor</span><input className="spk-input" value={subconPartyName} onChange={(event) => setSubconPartyName(event.target.value)} placeholder="Nama pihak / kontraktor" /></label>
+                      <div className="spk-field"><span>Alamat project · otomatis</span><div className="spk-input spk-readonly">{project?.location || 'Otomatis dari alamat project'}</div></div>
+                    </div>
+                  )}
                 </div>
-                <div><label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>RETENSI (%)</label><input type="number" min="0" max="100" step="0.01" style={inputStyle} value={retentionPercent} onChange={(event) => updateRetention(event.target.value)} /></div>
-              </div>
-              {type === 'CLIENT' && <p style={{ margin: '8px 0 0', color: colors.muted, fontSize: 11 }}>Durasi pekerjaan wajib berupa angka lebih dari 0 hari untuk SPK Client.</p>}
-            </div>
-          </section>
+              </section>
 
-          <section style={{ marginTop: 18, background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10, padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div><h2 style={{ margin: 0, fontSize: 17 }}>Termin pembayaran</h2><p style={{ margin: '5px 0 0', color: colors.muted, fontSize: 12 }}>Draft boleh belum 100%; saat Terbitkan harus termin + retensi tepat 100%.</p></div>
-              <div style={{ color: Math.abs(totalPercent - 100) < .01 ? colors.green : colors.gold, fontWeight: 800, fontSize: 13 }}>Total {totalPercent.toFixed(2)}%</div>
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead><tr style={{ color: colors.muted, textAlign: 'left' }}><th style={{ padding: 8 }}>Label</th><th style={{ padding: 8, width: 120 }}>Persen</th><th style={{ padding: 8 }}>Nominal</th><th style={{ padding: 8 }}>Jatuh tempo / milestone</th><th style={{ padding: 8, width: 50 }} /></tr></thead>
-                <tbody>{terms.map((term, index) => <tr key={`${index}-${term.label}`} style={{ borderTop: `1px solid ${colors.border}` }}>
-                  <td style={{ padding: 8 }}><input style={inputStyle} value={term.label} onChange={(event) => updateTerm(index, 'label', event.target.value)} /></td>
-                  <td style={{ padding: 8 }}><input type="number" min="0" max="100" step="0.01" style={inputStyle} value={term.percent} onChange={(event) => updateTerm(index, 'percent', event.target.value)} /></td>
-                  <td style={{ padding: 8, whiteSpace: 'nowrap', color: '#e6dcb9' }}>{money(term.amount)}</td>
-                  <td style={{ padding: 8 }}><input style={inputStyle} value={term.dueDescription} placeholder="Contoh: setelah progres 50%" onChange={(event) => updateTerm(index, 'dueDescription', event.target.value)} /></td>
-                  <td style={{ padding: 8 }}><button type="button" style={{ ...buttonStyle(), padding: 8 }} onClick={() => setTerms((current) => current.filter((_, termIndex) => termIndex !== index))} disabled={terms.length === 1}><Trash2 size={14} /></button></td>
-                </tr>)}</tbody>
-              </table>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
-              <button type="button" style={buttonStyle()} onClick={() => setTerms((current) => [...current, newTerm(current.length)])}><Plus size={15} /> Tambah termin</button>
-              <span style={{ color: colors.muted, fontSize: 12 }}>Retensi {money(retentionAmount)} · {selectedValue ? `${((selectedValue - retentionAmount) / selectedValue * 100).toFixed(2)}% dibayar` : 'Rp 0'}</span>
-            </div>
-          </section>
-
-          <section style={{ marginTop: 18, background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10, padding: 20 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>TANGGAL MULAI{type === 'CLIENT' ? ' *' : ''}</label>
-                <input type="date" required={type === 'CLIENT'} style={inputStyle} value={startDate} onChange={(event) => setStartDate(event.target.value)} />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: colors.muted, fontSize: 11, marginBottom: 5 }}>TANGGAL SELESAI{type === 'CLIENT' ? ' *' : ''}</label>
-                <input type="date" required={type === 'CLIENT'} style={inputStyle} value={endDate} onChange={(event) => setEndDate(event.target.value)} />
-              </div>
-            </div>
-            {type === 'CLIENT' && <p style={{ margin: '8px 0 0', color: colors.muted, fontSize: 11 }}>Tanggal mulai dan selesai wajib diisi; tanggal selesai tidak boleh lebih awal dari tanggal mulai.</p>}
-            <label style={{ display: 'block', color: colors.muted, fontSize: 11, margin: '12px 0 5px' }}>CATATAN</label>
-            <textarea style={{ ...inputStyle, minHeight: 65 }} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan khusus draft SPK" />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
-              {editingId && <button type="button" style={buttonStyle()} onClick={resetDraftForm}>Batalkan Edit</button>}
-              <button type="button" style={buttonStyle('primary')} onClick={saveDraft} disabled={saving}><Save size={15} /> {saving ? 'Menyimpan...' : editingId ? 'Perbarui Draft SPK' : 'Simpan Draft SPK'}</button>
-            </div>
-          </section>
-
-          <section style={{ marginTop: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}><FileText size={18} color={colors.gold} /><h2 style={{ margin: 0, fontSize: 18 }}>SPK pada project ini</h2></div>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {contracts.map((contract) => <div key={contract.id} style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 9, padding: 15, display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
-                <div><div style={{ display: 'flex', alignItems: 'center', gap: 9 }}><strong>{contract.spkNumber || 'DRAFT / belum bernomor'}</strong><span style={{ color: statusColor[contract.status] || colors.muted, fontSize: 11, fontWeight: 800 }}>{contract.status}</span><span style={{ color: colors.muted, fontSize: 11 }}>{contract.type}</span></div><div style={{ marginTop: 5, color: colors.muted, fontSize: 12 }}>{money(contract.contractValue)} · {contract.contractValueWords}</div></div>
-                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  {contract.type === 'CLIENT' && <button type="button" style={buttonStyle()} onClick={() => viewPdf(contract)}><Eye size={14} /> {contract.status === 'DRAFT' ? 'Preview PDF' : 'Lihat PDF'}</button>}
-                  {contract.type === 'CLIENT' && <button type="button" style={buttonStyle()} onClick={() => downloadPdf(contract)}><Download size={14} /> Unduh PDF</button>}
-                  {contract.status === 'DRAFT' && <button type="button" style={buttonStyle()} onClick={() => startEdit(contract)}><FileText size={14} /> Edit</button>}
-                  {contract.status === 'DRAFT' && <button type="button" style={buttonStyle('primary')} onClick={() => issue(contract.id)}><Send size={14} /> Terbitkan</button>}
-                  {contract.status === 'TERBIT' && <button type="button" style={buttonStyle()} onClick={() => sign(contract.id)}><ShieldCheck size={14} /> Tandai Ditandatangani</button>}
-                  {(contract.status === 'DRAFT' || contract.status === 'TERBIT' || contract.status === 'DITANDATANGANI') && <button type="button" style={{ ...buttonStyle(), color: colors.red }} onClick={() => cancel(contract)}><XCircle size={14} /> Batalkan</button>}
+              <section className="spk-panel">
+                <div className="spk-panel-header">
+                  <div className="spk-panel-heading"><span className="spk-step">3</span><div><h2>Jadwal &amp; termin pembayaran</h2><p>Termin dan retensi harus tepat 100% saat SPK diterbitkan.</p></div></div>
+                  <div className={`spk-percent-total${paymentReady ? ' is-ready' : ''}`}><span>Total</span><strong>{totalPercent.toFixed(2)}%</strong></div>
                 </div>
-              </div>)}
-              {!contracts.length && <div style={{ padding: 28, color: colors.muted, border: `1px dashed ${colors.border}`, borderRadius: 9, textAlign: 'center' }}>Belum ada draft atau SPK terbit di project ini.</div>}
+                <div className="spk-panel-body">
+                  <div className="spk-payment-fields">
+                    <label className="spk-field"><span>Durasi pekerjaan (hari){type === 'CLIENT' ? ' *' : ''}</span><input type="number" min="1" required={type === 'CLIENT'} className="spk-input" value={workDurationDays} onChange={(event) => setWorkDurationDays(event.target.value)} /></label>
+                    <label className="spk-field"><span>Retensi (%)</span><input type="number" min="0" max="100" step="0.01" className="spk-input" value={retentionPercent} onChange={(event) => updateRetention(event.target.value)} /></label>
+                    <div className="spk-field"><span>Nilai retensi</span><div className="spk-input spk-readonly">{money(retentionAmount)}</div></div>
+                  </div>
+
+                  <div className="spk-table-scroll">
+                    <table className="spk-term-table">
+                      <thead><tr><th>Termin</th><th>Persen</th><th>Nominal</th><th>Jatuh tempo / milestone</th><th /></tr></thead>
+                      <tbody>{terms.map((term, index) => <tr key={`${index}-${term.label}`}>
+                        <td><input className="spk-input" value={term.label} onChange={(event) => updateTerm(index, 'label', event.target.value)} /></td>
+                        <td><input type="number" min="0" max="100" step="0.01" className="spk-input" value={term.percent} onChange={(event) => updateTerm(index, 'percent', event.target.value)} /></td>
+                        <td className="spk-term-money">{money(term.amount)}</td>
+                        <td><input className="spk-input" value={term.dueDescription} placeholder="Contoh: setelah progres 50%" onChange={(event) => updateTerm(index, 'dueDescription', event.target.value)} /></td>
+                        <td><button type="button" className="spk-btn icon danger" aria-label={`Hapus ${term.label}`} onClick={() => setTerms((current) => current.filter((_, termIndex) => termIndex !== index))} disabled={terms.length === 1}><Trash2 size={14} /></button></td>
+                      </tr>)}</tbody>
+                    </table>
+                  </div>
+                  <div className="spk-term-footer">
+                    <button type="button" className="spk-btn" onClick={() => setTerms((current) => [...current, newTerm(current.length)])}><Plus size={15} /> Tambah termin</button>
+                    <span>Termin dibayar <strong>{money(Math.max(0, selectedValue - retentionAmount))}</strong></span>
+                  </div>
+
+                  <div className="spk-divider" />
+                  <div className="spk-schedule-grid">
+                    <label className="spk-field"><span>Tanggal mulai{type === 'CLIENT' ? ' *' : ''}</span><input type="date" required={type === 'CLIENT'} className="spk-input" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
+                    <label className="spk-field"><span>Tanggal selesai{type === 'CLIENT' ? ' *' : ''}</span><input type="date" required={type === 'CLIENT'} className="spk-input" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+                    <div className="spk-field"><span>Status nomor</span><div className="spk-input spk-readonly">{editingId ? 'Mengubah draft tanpa nomor' : 'Belum dialokasikan (Draft)'}</div></div>
+                  </div>
+                  {type === 'CLIENT' && <p className="spk-helper">Durasi dan tanggal wajib diisi; tanggal selesai tidak boleh lebih awal dari tanggal mulai.</p>}
+                  <label className="spk-field spk-notes"><span>Catatan kontrak</span><textarea className="spk-input" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan khusus draft SPK" /></label>
+                  <div className="spk-save-bar">
+                    <span><i className="spk-ready-dot" /> Draft masih dapat diubah sebelum diterbitkan.</span>
+                    <div>{editingId && <button type="button" className="spk-btn" onClick={resetDraftForm}>Batalkan edit</button>}<button type="button" className="spk-btn primary" onClick={saveDraft} disabled={saving}><Save size={15} /> {saving ? 'Menyimpan...' : editingId ? 'Perbarui Draft SPK' : 'Simpan Draft SPK'}</button></div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <aside className="spk-summary-column">
+              <div className="spk-summary-card">
+                <div className="spk-summary-label">Ringkasan kontrak</div>
+                <h3>{selectedProjectName}</h3><p>{selectedProjectLocation}</p>
+                <div className="spk-divider" />
+                <dl><div><dt>Tipe</dt><dd>{type === 'CLIENT' ? 'SPK Client' : 'SPK Subcon'}</dd></div><div><dt>Ruang lingkup</dt><dd>{selectedItemsCount} item RAB</dd></div><div><dt>Durasi</dt><dd>{workDurationDays ? `${workDurationDays} hari kerja` : 'Belum diisi'}</dd></div><div><dt>Termin + retensi</dt><dd className={paymentReady ? 'ready' : ''}>{totalPercent.toFixed(2)}%</dd></div></dl>
+                <div className="spk-grand-total"><span>Nilai kontrak</span><strong>{money(selectedValue)}</strong></div>
+              </div>
+              <div className="spk-summary-card">
+                <div className="spk-summary-label">Kesiapan draft</div>
+                <ul className="spk-readiness"><li className={selectedItemsCount ? 'ready' : ''}>Ruang lingkup dipilih</li><li className={partyReady ? 'ready' : ''}>Identitas pihak lengkap</li><li className={scheduleReady ? 'ready' : ''}>Jadwal pekerjaan lengkap</li><li className={paymentReady ? 'ready' : ''}>Termin seimbang 100%</li></ul>
+                <div className="spk-notice">Nomor resmi baru dibuat saat tombol <strong>Terbitkan</strong> digunakan pada daftar SPK.</div>
+              </div>
+            </aside>
+          </div>
+
+          <section className="spk-records">
+            <div className="spk-records-header"><div><div className="spk-eyebrow">Riwayat project</div><h2>Draft &amp; SPK terbit</h2></div><span>{contracts.length} dokumen</span></div>
+            <div className="spk-record-list">
+              {contracts.map((contract) => {
+                const partyName = contract.type === 'CLIENT'
+                  ? contract.partyData?.secondParty?.name || contract.snapshot?.partyData?.secondParty?.name || project?.clientName || 'Client'
+                  : contract.partyData?.contractorName || contract.partyData?.name || contract.snapshot?.party?.name || 'Kontraktor';
+                return <article key={contract.id} className="spk-record">
+                  <div><span className="spk-record-type">SPK {contract.type === 'CLIENT' ? 'Client' : 'Subcon'}</span><strong>{contract.spkNumber || 'DRAFT / belum bernomor'}</strong></div>
+                  <div><strong>{partyName}</strong><span>{money(contract.contractValue)} · {contract.snapshot?.workScope?.length || 0} item ruang lingkup</span></div>
+                  <span className={`spk-status status-${String(contract.status).toLowerCase()}`}>{contract.status}</span>
+                  <div className="spk-record-actions">
+                    {contract.type === 'CLIENT' && <button type="button" className="spk-btn" onClick={() => viewPdf(contract)}><Eye size={14} /> {contract.status === 'DRAFT' ? 'Preview PDF' : 'Lihat PDF'}</button>}
+                    {contract.type === 'CLIENT' && <button type="button" className="spk-btn" onClick={() => downloadPdf(contract)}><Download size={14} /> Unduh PDF</button>}
+                    {contract.status === 'DRAFT' && <button type="button" className="spk-btn" onClick={() => startEdit(contract)}><FileText size={14} /> Edit</button>}
+                    {contract.status === 'DRAFT' && <button type="button" className="spk-btn primary" onClick={() => issue(contract.id)}><Send size={14} /> Terbitkan</button>}
+                    {contract.status === 'TERBIT' && <button type="button" className="spk-btn" onClick={() => sign(contract.id)}><ShieldCheck size={14} /> Tandai ditandatangani</button>}
+                    {(contract.status === 'DRAFT' || contract.status === 'TERBIT' || contract.status === 'DITANDATANGANI') && <button type="button" className="spk-btn danger" onClick={() => cancel(contract)}><XCircle size={14} /> Batalkan</button>}
+                  </div>
+                </article>;
+              })}
+              {!contracts.length && <div className="spk-inline-empty records">Belum ada draft atau SPK terbit di project ini.</div>}
             </div>
           </section>
         </>
