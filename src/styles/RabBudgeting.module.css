@@ -505,9 +505,9 @@
 }
 
 .rab-items-table {
-  width: 100%;
-  min-width: 1200px;
-  table-layout: fixed;
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
   border-collapse: collapse;
 }
 
@@ -533,9 +533,19 @@
   font-size: 12px;
   line-height: 1.45;
   vertical-align: middle;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.rab-items-table th:nth-child(3),
+.rab-items-table td:nth-child(3) {
+  min-width: 260px;
+  white-space: normal;
+}
+
+.rab-items-table .rab-mono {
+  min-width: 128px;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .rab-items-table th:first-child,
