@@ -2,6 +2,20 @@ import { fetchAPI } from './api';
 
 const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
+const authenticatedPdfRequest = async (url) => {
+  const token = localStorage.getItem('token');
+  const response = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || errorData?.error || `Gagal memuat PDF (${response.status}).`);
+  }
+
+  return response.blob();
+};
+
 export const spkService = {
   getByProjectId: (projectId) =>
     fetchAPI(`/projects/${projectId}/spk-contracts`),
@@ -43,4 +57,10 @@ export const spkService = {
 
   getPdfDownloadUrl: (contractId) =>
     `${API_ORIGIN}/api/spk-contracts/${contractId}/pdf/download`,
+
+  getPdfView: (contractId) =>
+    authenticatedPdfRequest(`${API_ORIGIN}/api/spk-contracts/${contractId}/pdf/view`),
+
+  getPdfDownload: (contractId) =>
+    authenticatedPdfRequest(`${API_ORIGIN}/api/spk-contracts/${contractId}/pdf/download`),
 };
