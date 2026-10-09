@@ -452,8 +452,8 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
           : 'Pilih kategori pekerjaan.');
       }
       if (projectCategories.length === 0 && !parentBvItemId && !editItem
-        && !['SIPIL', 'INTERIOR'].includes(String(disciplineLabel || '').toUpperCase())) {
-        throw new Error('Pilih kategori pekerjaan: Sipil atau Interior.');
+        && !workCategoryId) {
+        throw new Error('Proyek ini belum memiliki kategori pekerjaan aktif. Tambahkan kategori pada pengaturan proyek terlebih dahulu.');
       }
       if (canChooseCategory && workCategoryId && !isLegacyGeneralEdit) {
         const chosenCode = String(selectedProjectCategory?.workCategory?.code || '').toUpperCase();
@@ -573,27 +573,9 @@ function BvItemModal({ isOpen, onClose, projectId, groupId, parentBvItemId, pare
                   <small className={styles.inheritedHint}>Kategori ini memakai sumber harga CUSTOM.</small>
                 )}
               </div>
-            ) : projectCategories.length === 0 ? (
-              <div className={styles.disciplineChoices}>
-                {[
-                  { value: 'SIPIL', label: 'Sipil' },
-                  { value: 'INTERIOR', label: 'Interior' },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`${styles.disciplineChoice} ${disciplineLabel === option.value ? styles.disciplineChoiceActive : ''}`}
-                    onClick={() => canChooseCategory && setDisciplineLabel(option.value)}
-                    disabled={!canChooseCategory}
-                  >
-                    <span className={styles.disciplineDot} />
-                    <strong>{option.label}</strong>
-                  </button>
-                ))}
-              </div>
             ) : (
               <small className={styles.inheritedHint}>
-                Kategori General tidak dapat dipilih. Aktifkan minimal satu kategori pekerjaan pada proyek terlebih dahulu.
+                Proyek ini belum memiliki kategori pekerjaan aktif. Tambahkan kategori pada pengaturan proyek terlebih dahulu.
               </small>
             )}
           </div>
@@ -951,19 +933,14 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
       (a.workCategory?.sortOrder ?? 0) - (b.workCategory?.sortOrder ?? 0)
       || String(a.workCategory?.name || '').localeCompare(String(b.workCategory?.name || '')),
     );
-  const projectCategoryOptions = configuredProjectCategories.length > 0
-    ? configuredProjectCategories.map((entry) => ({
-        id: entry.workCategoryId,
-        workCategoryId: entry.workCategoryId,
-        code: String(entry.workCategory?.code || '').toUpperCase(),
-        name: String(entry.workCategory?.code || '').toUpperCase(),
-        grade: entry.grade || null,
-        pricingMode: entry.pricingMode || null,
-      }))
-    : [
-        { id: 'legacy-sipil', workCategoryId: null, code: 'SIPIL', name: 'SIPIL', grade: selectedProject?.sipilGrade || null },
-        { id: 'legacy-interior', workCategoryId: null, code: 'INTERIOR', name: 'INTERIOR', grade: selectedProject?.interiorGrade || null },
-      ];
+  const projectCategoryOptions = configuredProjectCategories.map((entry) => ({
+    id: entry.workCategoryId,
+    workCategoryId: entry.workCategoryId,
+    code: String(entry.workCategory?.code || '').toUpperCase(),
+    name: String(entry.workCategory?.code || '').toUpperCase(),
+    grade: entry.grade || null,
+    pricingMode: entry.pricingMode || null,
+  }));
   const categoryFilterOptions = [
     { id: ALL_CATEGORY_FILTER, workCategoryId: null, code: ALL_CATEGORY_FILTER, name: 'Semua' },
     ...projectCategoryOptions,
@@ -1620,7 +1597,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
         <div className={styles.headerTitle}>
           <span className={styles.pageEyebrow}>PERENCANAAN PROYEK</span>
           <h2>BV — BACK UP VOLUME</h2>
-          <p>{selectedProject ? `${selectedProject.name} · ${selectedProject.discipline || 'General'} · Periode ${selectedProject.hspkPeriod}` : 'Kelola group pekerjaan, uraian, dan rincian volume proyek.'}</p>
+          <p>{selectedProject ? `${selectedProject.name} · ${(selectedProject.workCategories || []).filter((entry) => entry.isActive !== false && entry.workCategory?.isActive !== false).map((entry) => String(entry.workCategory?.code || '').toUpperCase()).filter(Boolean).join(' · ') || 'Kategori belum diatur'} · Periode ${selectedProject.hspkPeriod}` : 'Kelola group pekerjaan, uraian, dan rincian volume proyek.'}</p>
         </div>
         <div className={styles.headerActions}>
           <button
@@ -1706,11 +1683,17 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
           <ProjectSelector
             projectId={selectedProjectId}
             projectList={projects.map(p => {
-              const int = p.interiorGrade || (p.discipline === 'INTERIOR' ? p.grade : null);
-              const sip = p.sipilGrade || (p.discipline === 'SIPIL' ? p.grade : null);
+              const categorySummary = (p.workCategories || [])
+                .filter((entry) => entry.isActive !== false && entry.workCategory?.isActive !== false)
+                .map((entry) => {
+                  const code = String(entry.workCategory?.code || '').toUpperCase();
+                  return entry.grade ? `${code}:${entry.grade}` : code;
+                })
+                .filter(Boolean)
+                .join(' · ');
               return {
                 ...p,
-                displayName: `${p.name} — ${p.client?.name || '-'} (${int ? `Int:${int}` : ''}${int && sip ? ' · ' : ''}${sip ? `Sip:${sip}` : ''}${!int && !sip ? 'General' : ''} ${p.hspkPeriod})`
+                displayName: `${p.name} — ${p.client?.name || '-'} (${categorySummary || 'Kategori belum diatur'} · ${p.hspkPeriod})`
               };
             })}
             loading={loadingProjects}

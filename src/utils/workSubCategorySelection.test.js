@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   getInitialWorkClassification,
   changeWorkCategory,
@@ -201,6 +202,20 @@ test('bulk RAB switch accepts one dynamic category and rejects mixed categories'
     ], ['rab-1', 'rab-2'], null),
     /kategori berbeda/i,
   );
+});
+
+test('project, BV, and RAB pages do not invent legacy SIPIL/INTERIOR choices', () => {
+  const source = (relativePath) => fs.readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8');
+  const bvPage = source('pages/BackUpVolume.jsx');
+  const rabPage = source('pages/RabBudgeting.jsx');
+  const projectBoard = source('pages/ProjectBoard.jsx');
+
+  for (const page of [bvPage, rabPage]) {
+    assert.doesNotMatch(page, /legacy-sipil|legacy-interior/);
+    assert.doesNotMatch(page, /Pilih kategori pekerjaan: Sipil atau Interior/);
+  }
+  assert.doesNotMatch(projectBoard, /project\.discipline|project\.sipilGrade|project\.interiorGrade/);
+  assert.match(projectBoard, /project\.workCategories/);
 });
 
 test('BV dynamic category omits legacy disciplineLabel while legacy row keeps it', () => {
