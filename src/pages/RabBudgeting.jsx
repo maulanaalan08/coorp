@@ -78,7 +78,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const [approvalLocked, setApprovalLocked] = useState(false);
   const [search, setSearch] = useState("");
   const [budgetMode, setBudgetMode] = useState("rap");
-  const canEditRap = ["PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
+  const canEditRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
   // Overhead (%) adalah lever margin yang juga dipegang SUPER_ADMIN di view RAB Selling.
   const canEditOverhead = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
   const canExportRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role);
@@ -1793,7 +1793,7 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, c
         )}
         <td className={styles["rab-row-actions"]}>
           {onEdit && !hasChildren && (
-            <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onEdit(item, itemNumber)} type="button" title={isSellingMode ? "Edit RAP (Perencana)" : "Edit"}><Pencil size={14} /></button>
+            <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} onClick={() => onEdit(item, itemNumber)} type="button" title={isSellingMode ? "Edit RAB" : "Edit"}><Pencil size={14} /></button>
           )}
           {onDelete && (
             <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} onClick={() => onDelete(item.id)} type="button" title="Hapus"><Trash2 size={14} /></button>
