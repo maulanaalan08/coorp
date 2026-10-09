@@ -45,13 +45,15 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
 
   // Dropdown state
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(false);
+  const [isDocumentOpen, setIsDocumentOpen] = useState(false);
   const [isPelaksanaanOpen, setIsPelaksanaanOpen] = useState(false);
   const [isFinanceOpen, setIsFinanceOpen] = useState(false);
   const [isPurchasingOpen, setIsPurchasingOpen] = useState(false);
   const [isHspkOpen, setIsHspkOpen] = useState(false);
 
   useEffect(() => {
-    if (["data-survey", "bv", "rab", "spk-contract"].includes(activeTab)) setIsPerencanaanOpen(true);
+    if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
+    if (["spk-contract"].includes(activeTab)) setIsDocumentOpen(true);
     if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking"].includes(activeTab)) setIsPelaksanaanOpen(true);
     if (["finance", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-jasa", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
     if (["po-material", "po-jasa", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
@@ -180,6 +182,26 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                   <SubNavItem icon={Map} label="Data Survey" tab="data-survey" />
                   <SubNavItem icon={ClipboardList} label="Back Up Volume" tab="bv" />
                   <SubNavItem icon={Wallet} label="RAB & Budgeting" tab="rab" />
+                </ul>
+              )}
+            </li>
+
+            {/* DROPDOWN: DOCUMENT */}
+            <li>
+              <button
+                type="button"
+                aria-expanded={isDocumentOpen}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all text-[#888] hover:bg-white/5 hover:text-white ${isDocumentOpen ? "bg-white/5 text-white" : ""}`}
+                onClick={() => setIsDocumentOpen(!isDocumentOpen)}
+              >
+                <div className="flex items-center gap-3">
+                  <FileText size={18} className={isDocumentOpen ? "text-white" : "text-[#888]"} />
+                  <span>Document</span>
+                </div>
+                {isDocumentOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+              {isDocumentOpen && (
+                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
                   <SubNavItem icon={FileText} label="SPK Client & Subcon" tab="spk-contract" />
                 </ul>
               )}
