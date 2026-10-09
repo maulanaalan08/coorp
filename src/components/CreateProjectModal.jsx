@@ -90,21 +90,9 @@ const CreateProjectModal = ({
               isActive: config.isActive !== false,
             };
           });
-        } else {
-          // Proyek legacy: migrasikan konfigurasi Sipil/Interior ke bentuk dinamis.
-          activeCats.forEach((category) => {
-            const code = String(category.code || "").toUpperCase();
-            if (code !== "SIPIL" && code !== "INTERIOR") return;
-            const legacyGrade = code === "SIPIL"
-              ? initialProject.sipilGrade
-              : initialProject.interiorGrade;
-            next[category.id] = {
-              pricingMode: legacyGrade ? "HSPK" : "CUSTOM",
-              grade: legacyGrade || "",
-              isActive: true,
-            };
-          });
         }
+        // New/edit project forms never infer SIPIL/INTERIOR. Existing dynamic
+        // configs are prefilled; otherwise the user explicitly chooses one.
         setSelectedCategories(next);
       } catch (err) {
         console.error("Gagal load kategori:", err);
@@ -269,13 +257,10 @@ const CreateProjectModal = ({
       isActive: true,
     }));
 
-    const gradeForCode = (code) => {
-      const cat = workCategories.find(
-        (item) => String(item.code).toUpperCase() === code
-      );
-      const cfg = cat ? selectedCategories[cat.id] : null;
-      return cfg?.pricingMode === "HSPK" ? cfg.grade || null : null;
-    };
+    // Legacy columns are no longer an input for project category selection.
+    // Keep them null so no caller can reintroduce mandatory SIPIL/INTERIOR.
+    const legacyInteriorGrade = null;
+    const legacySipilGrade = null;
 
     const payload = {
       name: projectName.trim(),
@@ -283,9 +268,10 @@ const CreateProjectModal = ({
       location: location.trim(),
       hspkPeriod: Number(selectedPeriod),
       categories,
-      // Legacy fields tetap disinkronkan agar pembaca lama tetap kompatibel.
-      interiorGrade: gradeForCode("INTERIOR"),
-      sipilGrade: gradeForCode("SIPIL"),
+      // Legacy fields are intentionally cleared; category configuration lives
+      // only in ProjectWorkCategory.
+      interiorGrade: legacyInteriorGrade,
+      sipilGrade: legacySipilGrade,
     };
     const savePromise = isEditMode
       ? projectService.update(initialProject.id, payload)
