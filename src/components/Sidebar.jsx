@@ -55,7 +55,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
     if (["spk-contract"].includes(activeTab)) setIsDocumentOpen(true);
     if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking", "kelola-jasa", "po-jasa"].includes(activeTab)) setIsPelaksanaanOpen(true);
-    if (["finance", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-jasa", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
+    if (["finance", "pengajuan-bayar", "permintaan-bayar", "pembayaran-supplier", "invoice-supplier", "pembayaran-jasa", "invoice-jasa", "pembayaran-finance", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
     if (["po-material", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
     if (["upload-hspk", "work-categories"].includes(activeTab)) setIsHspkOpen(true);
   }, [activeTab]);
@@ -84,7 +84,11 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
   );
 
   const SubNavItem = ({ icon: Icon, label, tab }) => {
-    const isActive = activeTab === tab || (tab === "kelola-jasa" && activeTab === "po-jasa");
+    const isActive =
+      activeTab === tab ||
+      (tab === "kelola-jasa" && activeTab === "po-jasa") ||
+      (tab === "invoice-supplier" && activeTab === "pembayaran-supplier") ||
+      (tab === "invoice-jasa" && activeTab === "pembayaran-jasa");
     return (
       <li>
         <a
@@ -274,8 +278,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                 <ul className="mt-1 flex flex-col gap-1 list-none p-0">
                   <SubNavItem icon={Wallet} label="Kebutuhan Material & Jasa" tab="finance" />
                   <SubNavItem icon={FileInput} label="Pengajuan Bayar" tab="pengajuan-bayar" />
-                  <SubNavItem icon={Banknote} label="Pembayaran Supplier" tab="pembayaran-supplier" />
-                  <SubNavItem icon={Banknote} label="Pembayaran Jasa" tab="pembayaran-jasa" />
+                  <SubNavItem icon={ReceiptText} label="Invoice Supplier" tab="invoice-supplier" />
+                  <SubNavItem icon={ReceiptText} label="Invoice Jasa" tab="invoice-jasa" />
+                  <SubNavItem icon={Banknote} label="Pembayaran Finance" tab="pembayaran-finance" />
+                  <SubNavItem icon={FileInput} label="Permintaan Bayar" tab="permintaan-bayar" />
                   <SubNavItem icon={Landmark} label="Buku Besar Kas/Bank" tab="buku-besar" />
                 </ul>
               )}

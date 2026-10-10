@@ -474,7 +474,7 @@ export default function ComplaintPage() {
                                   <td>
                                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                                       {beforePhotos.map((p, i) => (
-                                        <a key={p.id} href={`http://localhost:4000${p.url}`} target="_blank" rel="noreferrer" className="photo-link">
+                                        <a key={p.id} href={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${p.url}`} target="_blank" rel="noreferrer" className="photo-link">
                                           <Image size={12}/> F{i+1}
                                         </a>
                                       ))}
@@ -483,7 +483,7 @@ export default function ComplaintPage() {
                                   <td>
                                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                                       {afterPhotos.map((p, i) => (
-                                        <a key={p.id} href={`http://localhost:4000${p.url}`} target="_blank" rel="noreferrer" className="photo-link after">
+                                        <a key={p.id} href={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${p.url}`} target="_blank" rel="noreferrer" className="photo-link after">
                                           <Image size={12}/> F{i+1}
                                         </a>
                                       ))}
