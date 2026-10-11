@@ -401,12 +401,14 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
                   <strong className="spk-panel-value">{money(selectedValue)}</strong>
                 </div>
                 <div className="spk-panel-body">
-                  <div className="spk-payment-fields">
-                    <label className="spk-field"><span>Label kategori</span><select className="spk-input" value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setSubCategoryFilter('ALL'); }}><option value="ALL">Semua kategori</option>{categoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
-                    <label className="spk-field"><span>Label subkategori</span><select className="spk-input" value={subCategoryFilter} onChange={(event) => setSubCategoryFilter(event.target.value)}><option value="ALL">Semua subkategori</option>{subCategoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
-                  </div>
+                  {type === 'SUBCON' && (
+                    <div className="spk-payment-fields">
+                      <label className="spk-field"><span>Label kategori</span><select className="spk-input" value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setSubCategoryFilter('ALL'); }}><option value="ALL">Semua kategori</option>{categoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
+                      <label className="spk-field"><span>Label subkategori</span><select className="spk-input" value={subCategoryFilter} onChange={(event) => setSubCategoryFilter(event.target.value)}><option value="ALL">Semua subkategori</option>{subCategoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
+                    </div>
+                  )}
                   <div className="spk-scope-toolbar">
-                    <label className="spk-check-all"><input type="checkbox" checked={filteredSourceItems.length > 0 && filteredSourceItems.every((item) => selectedItemIds.includes(item.id))} onChange={toggleAllItems} /> Pilih semua hasil filter</label>
+                    <label className="spk-check-all"><input type="checkbox" checked={filteredSourceItems.length > 0 && filteredSourceItems.every((item) => selectedItemIds.includes(item.id))} onChange={toggleAllItems} /> {type === 'SUBCON' ? 'Pilih semua hasil filter' : 'Pilih semua item'}</label>
                     <span>{selectedItemsCount} dari {sourceItemsCount} item dipilih</span>
                   </div>
                   <div className="spk-scope-list">
@@ -414,12 +416,12 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
                       const checked = selectedItemIds.includes(item.id);
                       return <label key={item.id} className={`spk-scope-row${checked ? '' : ' is-off'}`}>
                         <input type="checkbox" checked={checked} onChange={() => setSelectedItemIds((ids) => checked ? ids.filter((id) => id !== item.id) : [...ids, item.id])} />
-                        <span className="spk-scope-name">{item.name}<small>{item.volume} {item.paymentUnit || ''} · {type === 'SUBCON' ? `${item.poNumber || 'PO Jasa'} · ${item.contractorName || 'Subcon'}` : 'RAB'} · {item.categoryLabel || 'Tanpa kategori'} / {item.subCategoryLabel || 'Tanpa subkategori'}</small></span>
-                        <span className="spk-scope-tag">{item.subCategoryLabel || item.categoryLabel || 'Ruang lingkup'}</span>
+                        <span className="spk-scope-name">{item.name}<small>{item.volume} {item.paymentUnit || ''} · {type === 'SUBCON' ? `${item.poNumber || 'PO Jasa'} · ${item.contractorName || 'Subcon'} · ${item.categoryLabel || 'Tanpa kategori'} / ${item.subCategoryLabel || 'Tanpa subkategori'}` : 'RAB'}</small></span>
+                        <span className="spk-scope-tag">{type === 'SUBCON' ? (item.subCategoryLabel || item.categoryLabel || 'Ruang lingkup') : 'Ruang lingkup'}</span>
                         <strong>{money(itemContractTotal(item))}</strong>
                       </label>;
                     })}
-                    {!filteredSourceItems.length && <div className="spk-inline-empty">{type === 'SUBCON' ? 'Belum ada item PO Jasa APPROVED yang cocok dengan filter.' : 'Belum ada item RAB yang cocok dengan filter.'}</div>}
+                    {!filteredSourceItems.length && <div className="spk-inline-empty">{type === 'SUBCON' ? 'Belum ada item PO Jasa APPROVED yang cocok dengan filter.' : 'Belum ada item RAB pada project ini.'}</div>}
                   </div>
                 </div>
               </section>
