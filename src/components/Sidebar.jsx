@@ -242,7 +242,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               >
                 <div className={`flex items-center ${isCollapsed ? "" : "gap-3"}`}>
                   <FileText size={18} className={`shrink-0 ${isDocumentOpen && !isCollapsed ? "text-white" : "text-[#888]"}`} />
-                  {!isCollapsed && <span>SPK</span>}
+                  {!isCollapsed && <span>Document</span>}
                   </div>
                   {!isCollapsed && (isDocumentOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
                   </button>

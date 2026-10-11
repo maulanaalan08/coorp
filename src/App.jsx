@@ -203,8 +203,8 @@ function App() {
                 }}
               />
             )}
-            {activeTab === "spk-client" && <SpkPage initialProjectId={globalProjectId} type="CLIENT" />}
-            {activeTab === "spk-subcon" && <SpkPage initialProjectId={globalProjectId} type="SUBCON" />}
+            {activeTab === "spk-client" && <SpkPage key={`client-${globalProjectId || "none"}`} initialProjectId={globalProjectId} type="CLIENT" />}
+            {activeTab === "spk-subcon" && <SpkPage key={`subcon-${globalProjectId || "none"}`} initialProjectId={globalProjectId} type="SUBCON" />}
             {activeTab === "finance" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
             {activeTab === "pembelian-siap-pakai" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
             {activeTab === "po-material" && <PurchaseOrderPage />}
