@@ -335,15 +335,15 @@ const PembayaranSupplierPage = () => {
     try {
       if (editId) {
         await purchasingService.updatePembayaran(editId, payload);
-        toast.success('Pembayaran jasa berhasil diupdate');
+        toast.success('Invoice jasa berhasil diupdate');
       } else {
         await purchasingService.createPembayaran(payload);
-        toast.success('Pembayaran jasa berhasil dibuat');
+        toast.success('Invoice jasa berhasil dibuat & masuk ke Pembayaran Finance');
       }
       setIsModalOpen(false);
       fetchPembayarans();
     } catch (err) {
-      toast.error(err.message || 'Gagal menyimpan pembayaran jasa');
+      toast.error(err.message || 'Gagal menyimpan invoice jasa');
     } finally {
       setIsSubmitting(false);
     }
@@ -356,16 +356,16 @@ const PembayaranSupplierPage = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <p className="text-[#888] text-xs uppercase tracking-wider mb-1">Finance</p>
-            <h2 className="text-2xl md:text-3xl text-[#f2ead9] font-bold">Pembayaran Jasa</h2>
+            <h2 className="text-2xl md:text-3xl text-[#f2ead9] font-bold">Invoice Jasa</h2>
             <p className="text-[#888] text-sm mt-1">
-              Daftar pembayaran jasa (status: Belum Bayar, BON, Lunas). Nomor pembayaran ter-generate saat aksi pembayaran/update.
+              Daftar invoice &amp; SPK/JO Jasa dan Subkon. Tagihan yang dicatat akan masuk ke antrean Pembayaran Finance untuk verifikasi dan persetujuan.
             </p>
           </div>
           <button
             onClick={() => openModal()}
             className="flex items-center gap-2 bg-[#d4af37] text-[#0c0b09] font-semibold px-5 py-2.5 rounded-lg hover:bg-[#e8c874] transition-colors w-fit"
           >
-            <Plus size={18} /> Buat Pembayaran Jasa
+            <Plus size={18} /> Catat Invoice Jasa
           </button>
         </div>
 

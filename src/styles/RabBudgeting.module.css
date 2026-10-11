@@ -442,10 +442,32 @@
 ========================================================= */
 .rab-tree-plate {
   padding: 18px;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-gutter: stable;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rab-tree-plate::-webkit-scrollbar {
+  height: 12px;
+}
+.rab-tree-plate::-webkit-scrollbar-track {
+  background: #12110f;
+  border-radius: 999px;
+}
+.rab-tree-plate::-webkit-scrollbar-thumb {
+  background: var(--rab-gold-dim);
+  border: 3px solid #12110f;
+  border-radius: 999px;
 }
 
 .rab-group-block {
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
   background: var(--rab-surface);
   border: 1px solid var(--rab-border);
   border-radius: 6px;
@@ -1208,9 +1230,74 @@
   cursor: pointer;
   transition: 0.2s;
 }
+.rab-oh-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+@media (max-width: 720px) {
+  .rab-oh-grid { grid-template-columns: 1fr; }
+}
+.rab-oh-inline-input {
+  width: 68px;
+  padding: 2px 4px;
+  border: 1px dashed var(--rab-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--rab-gold-bright);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  text-align: right;
+}
+.rab-oh-inline-input:focus {
+  outline: none;
+  border-color: var(--rab-gold);
+  border-style: solid;
+  background: rgba(201, 162, 75, 0.08);
+}
 .rab-oh-cell {
   background: rgba(201, 162, 75, 0.05);
   text-align: center;
+}
+.rab-oh-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.rab-oh-detail {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--rab-border);
+  border-radius: 5px;
+  color: var(--rab-gold-bright);
+  background: transparent;
+  cursor: pointer;
+}
+.rab-oh-detail:hover {
+  border-color: var(--rab-gold);
+  background: rgba(201, 162, 75, 0.08);
+}
+.rab-oh-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0;
+}
+.rab-oh-detail-table th,
+.rab-oh-detail-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rab-border);
+  text-align: left;
+}
+.rab-oh-detail-total td {
+  font-weight: 700;
+  color: var(--rab-gold-bright);
+  border-top: 2px solid var(--rab-gold);
 }
 .rab-oh-edit:hover {
   border-color: var(--rab-gold);

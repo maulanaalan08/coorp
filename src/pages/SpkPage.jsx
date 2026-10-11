@@ -56,14 +56,16 @@ const rebalanceTermsForRetention = (currentTerms, retentionValue, totalValue = 0
   });
 };
 
-export default function SpkPage({ initialProjectId = null }) {
+export default function SpkPage({ initialProjectId = null, type: initialType = 'CLIENT' }) {
   const { projects, loading: projectsLoading } = useProjects();
   const [projectId, setProjectId] = useState(initialProjectId || '');
   const [source, setSource] = useState(null);
   const [project, setProject] = useState(null);
   const [contracts, setContracts] = useState([]);
   const [selectedItemIds, setSelectedItemIds] = useState([]);
-  const [type, setType] = useState('CLIENT');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [subCategoryFilter, setSubCategoryFilter] = useState('ALL');
+  const [type, setType] = useState(initialType === 'SUBCON' ? 'SUBCON' : 'CLIENT');
   const [retentionPercent, setRetentionPercent] = useState(0);
   const [terms, setTerms] = useState([newTerm(0)]);
   const [subconPartyName, setSubconPartyName] = useState('');
@@ -79,6 +81,17 @@ export default function SpkPage({ initialProjectId = null }) {
   const selectedValue = useMemo(() => Math.round((source?.items || [])
     .filter((item) => selectedItemIds.includes(item.id))
     .reduce((sum, item) => sum + itemContractTotal(item), 0)), [source, selectedItemIds]);
+  const categoryOptions = useMemo(() => [...new Set((source?.items || [])
+    .map((item) => item.categoryLabel)
+    .filter(Boolean))].sort(), [source]);
+  const subCategoryOptions = useMemo(() => [...new Set((source?.items || [])
+    .filter((item) => categoryFilter === 'ALL' || item.categoryLabel === categoryFilter)
+    .map((item) => item.subCategoryLabel)
+    .filter(Boolean))].sort(), [source, categoryFilter]);
+  const filteredSourceItems = useMemo(() => (source?.items || []).filter((item) =>
+    (categoryFilter === 'ALL' || item.categoryLabel === categoryFilter)
+    && (subCategoryFilter === 'ALL' || item.subCategoryLabel === subCategoryFilter)),
+  [source, categoryFilter, subCategoryFilter]);
   const termsPercent = terms.reduce((sum, term) => sum + numberValue(term.percent), 0);
   const totalPercent = termsPercent + numberValue(retentionPercent);
   const retentionAmount = Math.round(selectedValue * numberValue(retentionPercent) / 100);
@@ -94,9 +107,11 @@ export default function SpkPage({ initialProjectId = null }) {
   const paymentReady = Math.abs(totalPercent - 100) < 0.01;
 
   const toggleAllItems = () => {
-    setSelectedItemIds(selectedItemsCount === sourceItemsCount
-      ? []
-      : (source?.items || []).map((item) => item.id));
+    const visibleIds = filteredSourceItems.map((item) => item.id);
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedItemIds.includes(id));
+    setSelectedItemIds((current) => allVisibleSelected
+      ? current.filter((id) => !visibleIds.includes(id))
+      : [...new Set([...current, ...visibleIds])]);
   };
 
   const loadProjectData = async (id = projectId) => {
@@ -109,8 +124,11 @@ export default function SpkPage({ initialProjectId = null }) {
     }
     setLoading(true);
     try {
+      const sourceRequest = type === 'SUBCON'
+        ? spkService.getPoJasaSource(id)
+        : spkService.getRabSource(id);
       const [nextSource, nextContracts] = await Promise.all([
-        spkService.getRabSource(id),
+        sourceRequest,
         spkService.getByProjectId(id),
       ]);
       setSource(nextSource);
@@ -125,6 +143,12 @@ export default function SpkPage({ initialProjectId = null }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Halaman SPK dipisah per tipe: prop `type` adalah sumber kebenaran.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setType(initialType === 'SUBCON' ? 'SUBCON' : 'CLIENT');
+  }, [initialType]);
 
   useEffect(() => {
     // Existing page lifecycle: mirror an externally selected project.
@@ -165,7 +189,7 @@ export default function SpkPage({ initialProjectId = null }) {
 
   const resetDraftForm = () => {
     setEditingId(null);
-    setType('CLIENT');
+    setType(initialType === 'SUBCON' ? 'SUBCON' : 'CLIENT');
     setRetentionPercent(0);
     setTerms([newTerm(0)]);
     setSubconPartyName('');
@@ -179,7 +203,7 @@ export default function SpkPage({ initialProjectId = null }) {
   const startEdit = (contract) => {
     if (contract.status !== 'DRAFT') return toast.error('Hanya SPK DRAFT yang dapat diubah.');
     setEditingId(contract.id);
-    setType(contract.type || 'CLIENT');
+    setType(initialType === 'SUBCON' ? 'SUBCON' : 'CLIENT');
     const savedRetention = numberValue(contract.retentionPercent);
     setRetentionPercent(savedRetention);
     const savedTerms = (contract.terms || []).length
@@ -192,7 +216,7 @@ export default function SpkPage({ initialProjectId = null }) {
       }))
       : [newTerm(0)];
     setTerms(rebalanceTermsForRetention(savedTerms, savedRetention, Number(contract.contractValue)));
-    if ((contract.type || 'CLIENT') === 'CLIENT') {
+    if ((initialType === 'SUBCON' ? 'SUBCON' : 'CLIENT') === 'CLIENT') {
       setClientParties(mapContractPartiesToForm(contract, project));
       setSubconPartyName('');
     } else {
@@ -210,6 +234,8 @@ export default function SpkPage({ initialProjectId = null }) {
     setSelectedItemIds((contract.snapshot?.workScope || [])
       .map((item) => item.rabItemId)
       .filter((id) => (source?.items || []).some((sourceItem) => sourceItem.id === id)));
+    setCategoryFilter('ALL');
+    setSubCategoryFilter('ALL');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -229,7 +255,9 @@ export default function SpkPage({ initialProjectId = null }) {
       const partyPayload = buildSpkPartyPayload(type, { clientParties, subconPartyName });
       const payload = {
         type,
-        rabItemIds: selectedItemIds,
+        ...(type === 'SUBCON'
+          ? { poJasaItemIds: selectedItemIds }
+          : { rabItemIds: selectedItemIds }),
         contractValue: selectedValue,
         terms: terms.map((term) => ({ ...term, percent: numberValue(term.percent), amount: Math.round(selectedValue * numberValue(term.percent) / 100) })),
         retentionPercent: numberValue(retentionPercent),
@@ -260,10 +288,11 @@ export default function SpkPage({ initialProjectId = null }) {
     setProjectId(event.target.value);
   };
 
-  const handleTypeChange = (nextType) => {
-    setType(nextType);
-    if (nextType === 'CLIENT' && !editingId) setClientParties(createClientPartyForm(project));
-  };
+  // Halaman dipisah per tipe: hanya kontrak bertipe sama yang ditampilkan.
+  const visibleContracts = useMemo(
+    () => (contracts || []).filter((contract) => (contract.type || 'CLIENT') === type),
+    [contracts, type],
+  );
 
   const updateClientParty = (partyKey, field, value) => {
     setClientParties((current) => ({
@@ -341,7 +370,7 @@ export default function SpkPage({ initialProjectId = null }) {
       <header className="spk-header">
         <div>
           <div className="spk-eyebrow">Perencanaan / Kontrak</div>
-          <h1>SPK Client &amp; Subcon</h1>
+          <h1>{type === 'SUBCON' ? 'SPK Subcon' : 'SPK Client'}</h1>
           <p>Susun ruang lingkup, para pihak, jadwal, dan termin pembayaran dalam satu alur. Draft tidak mengambil nomor resmi.</p>
         </div>
         <button type="button" className="spk-btn" onClick={() => loadProjectData()} disabled={loading}>
@@ -352,13 +381,6 @@ export default function SpkPage({ initialProjectId = null }) {
       <div className="spk-project-bar">
         <div className="spk-project-selector">
           <ProjectSelector projectList={projects} projectId={projectId} loading={projectsLoading} onChange={handleProjectChange} />
-        </div>
-        <div className="spk-type-control">
-          <span className="spk-label">Tipe kontrak</span>
-          <div className="spk-segmented" role="group" aria-label="Tipe kontrak">
-            <button type="button" aria-pressed={type === 'CLIENT'} className={type === 'CLIENT' ? 'active' : ''} onClick={() => handleTypeChange('CLIENT')}>SPK Client</button>
-            <button type="button" aria-pressed={type === 'SUBCON'} className={type === 'SUBCON' ? 'active' : ''} onClick={() => handleTypeChange('SUBCON')}>SPK Subcon</button>
-          </div>
         </div>
         {projectId && <button type="button" className="spk-btn" onClick={resetDraftForm}>Mulai draft baru</button>}
       </div>
@@ -375,25 +397,31 @@ export default function SpkPage({ initialProjectId = null }) {
             <div className="spk-form-flow">
               <section className="spk-panel">
                 <div className="spk-panel-header">
-                  <div className="spk-panel-heading"><span className="spk-step">1</span><div><h2>Ruang lingkup dari RAB</h2><p>Pilih item yang akan dibekukan sebagai snapshot kontrak.</p></div></div>
+                  <div className="spk-panel-heading"><span className="spk-step">1</span><div><h2>{type === 'SUBCON' ? 'Ruang lingkup dari PO Jasa Approved' : 'Ruang lingkup dari RAB'}</h2><p>{type === 'SUBCON' ? 'Hanya item PO Jasa yang sudah disetujui dua tingkat.' : 'Pilih item yang akan dibekukan sebagai snapshot kontrak.'}</p></div></div>
                   <strong className="spk-panel-value">{money(selectedValue)}</strong>
                 </div>
                 <div className="spk-panel-body">
+                  {type === 'SUBCON' && (
+                    <div className="spk-payment-fields">
+                      <label className="spk-field"><span>Label kategori</span><select className="spk-input" value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setSubCategoryFilter('ALL'); }}><option value="ALL">Semua kategori</option>{categoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
+                      <label className="spk-field"><span>Label subkategori</span><select className="spk-input" value={subCategoryFilter} onChange={(event) => setSubCategoryFilter(event.target.value)}><option value="ALL">Semua subkategori</option>{subCategoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
+                    </div>
+                  )}
                   <div className="spk-scope-toolbar">
-                    <label className="spk-check-all"><input type="checkbox" checked={sourceItemsCount > 0 && selectedItemsCount === sourceItemsCount} onChange={toggleAllItems} /> Pilih semua item</label>
+                    <label className="spk-check-all"><input type="checkbox" checked={filteredSourceItems.length > 0 && filteredSourceItems.every((item) => selectedItemIds.includes(item.id))} onChange={toggleAllItems} /> {type === 'SUBCON' ? 'Pilih semua hasil filter' : 'Pilih semua item'}</label>
                     <span>{selectedItemsCount} dari {sourceItemsCount} item dipilih</span>
                   </div>
                   <div className="spk-scope-list">
-                    {(source?.items || []).map((item) => {
+                    {filteredSourceItems.map((item) => {
                       const checked = selectedItemIds.includes(item.id);
                       return <label key={item.id} className={`spk-scope-row${checked ? '' : ' is-off'}`}>
                         <input type="checkbox" checked={checked} onChange={() => setSelectedItemIds((ids) => checked ? ids.filter((id) => id !== item.id) : [...ids, item.id])} />
-                        <span className="spk-scope-name">{item.name}<small>{item.volume} {item.paymentUnit || ''} · RAB</small></span>
-                        <span className="spk-scope-tag">Ruang lingkup</span>
+                        <span className="spk-scope-name">{item.name}<small>{item.volume} {item.paymentUnit || ''} · {type === 'SUBCON' ? `${item.poNumber || 'PO Jasa'} · ${item.contractorName || 'Subcon'} · ${item.categoryLabel || 'Tanpa kategori'} / ${item.subCategoryLabel || 'Tanpa subkategori'}` : 'RAB'}</small></span>
+                        <span className="spk-scope-tag">{type === 'SUBCON' ? (item.subCategoryLabel || item.categoryLabel || 'Ruang lingkup') : 'Ruang lingkup'}</span>
                         <strong>{money(itemContractTotal(item))}</strong>
                       </label>;
                     })}
-                    {!source?.items?.length && <div className="spk-inline-empty">Belum ada item RAB pada project ini.</div>}
+                    {!filteredSourceItems.length && <div className="spk-inline-empty">{type === 'SUBCON' ? 'Belum ada item PO Jasa APPROVED yang cocok dengan filter.' : 'Belum ada item RAB pada project ini.'}</div>}
                   </div>
                 </div>
               </section>
@@ -495,9 +523,9 @@ export default function SpkPage({ initialProjectId = null }) {
           </div>
 
           <section className="spk-records">
-            <div className="spk-records-header"><div><div className="spk-eyebrow">Riwayat project</div><h2>Draft &amp; SPK terbit</h2></div><span>{contracts.length} dokumen</span></div>
+            <div className="spk-records-header"><div><div className="spk-eyebrow">Riwayat project</div><h2>Draft &amp; SPK terbit</h2></div><span>{visibleContracts.length} dokumen</span></div>
             <div className="spk-record-list">
-              {contracts.map((contract) => {
+              {visibleContracts.map((contract) => {
                 const partyName = contract.type === 'CLIENT'
                   ? contract.partyData?.secondParty?.name || contract.snapshot?.partyData?.secondParty?.name || project?.clientName || 'Client'
                   : contract.partyData?.contractorName || contract.partyData?.name || contract.snapshot?.party?.name || 'Kontraktor';
@@ -515,7 +543,7 @@ export default function SpkPage({ initialProjectId = null }) {
                   </div>
                 </article>;
               })}
-              {!contracts.length && <div className="spk-inline-empty records">Belum ada draft atau SPK terbit di project ini.</div>}
+              {!visibleContracts.length && <div className="spk-inline-empty records">Belum ada draft atau SPK terbit di project ini.</div>}
             </div>
           </section>
         </>

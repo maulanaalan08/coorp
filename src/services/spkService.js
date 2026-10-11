@@ -23,6 +23,9 @@ export const spkService = {
   getRabSource: (projectId) =>
     fetchAPI(`/projects/${projectId}/spk-contracts/rab-source`),
 
+  getPoJasaSource: (projectId) =>
+    fetchAPI(`/projects/${projectId}/spk-contracts/po-jasa-source`),
+
   createDraft: (projectId, payload) =>
     fetchAPI(`/projects/${projectId}/spk-contracts`, {
       method: 'POST',

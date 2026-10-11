@@ -17,7 +17,7 @@ const KanbanBoard = ({ projectId }) => {
   const fetchBoard = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:4000/api/projects/${projectId}/kanban`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/projects/${projectId}/kanban`);
       if (!res.ok) throw new Error('Failed to fetch board');
       const data = await res.json();
       setBoardId(data.data.id);
@@ -50,7 +50,7 @@ const KanbanBoard = ({ projectId }) => {
       setBoardData({ lists: newLists });
       
       try {
-        await fetch(`http://localhost:4000/api/kanban/boards/${boardId}/reorder`, {
+        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/kanban/boards/${boardId}/reorder`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lists: newLists })
@@ -84,7 +84,7 @@ const KanbanBoard = ({ projectId }) => {
     setBoardData({ lists: newLists });
 
     try {
-      await fetch(`http://localhost:4000/api/kanban/boards/${boardId}/reorder`, {
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/kanban/boards/${boardId}/reorder`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lists: newLists })
@@ -98,7 +98,7 @@ const KanbanBoard = ({ projectId }) => {
     const title = prompt('Nama List Baru:');
     if (!title) return;
     try {
-      const res = await fetch(`http://localhost:4000/api/kanban/boards/${boardId}/lists`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/kanban/boards/${boardId}/lists`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title })
@@ -126,7 +126,7 @@ const KanbanBoard = ({ projectId }) => {
     try {
       if (taskData.id) {
         // Mode Edit
-        const res = await fetch(`http://localhost:4000/api/kanban/tasks/${taskData.id}`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/kanban/tasks/${taskData.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(taskData)
@@ -137,7 +137,7 @@ const KanbanBoard = ({ projectId }) => {
         } else throw new Error('Gagal update');
       } else {
         // Mode Tambah
-        const res = await fetch(`http://localhost:4000/api/kanban/lists/${modalListId}/tasks`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/kanban/lists/${modalListId}/tasks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(taskData)
@@ -156,7 +156,7 @@ const KanbanBoard = ({ projectId }) => {
     if (!window.confirm('Hapus tugas ini?')) return;
     try {
       toast.loading('Menghapus...', { id: 'del-task' });
-      const res = await fetch(`http://localhost:4000/api/kanban/tasks/${taskId}`, { method: 'DELETE' });
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/kanban/tasks/${taskId}`, { method: 'DELETE' });
       if (res.ok) {
         toast.success('Dihapus', { id: 'del-task' });
         fetchBoard();
@@ -170,7 +170,7 @@ const KanbanBoard = ({ projectId }) => {
     if (!window.confirm('PERINGATAN: Menghapus List ini akan menghapus SEMUA task di dalamnya secara permanen (termasuk dari Google Calendar). Anda yakin?')) return;
     try {
       toast.loading('Menghapus List...', { id: 'del-list' });
-      const res = await fetch(`http://localhost:4000/api/kanban/lists/${listId}`, { method: 'DELETE' });
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/kanban/lists/${listId}`, { method: 'DELETE' });
       if (res.ok) {
         toast.success('List dihapus', { id: 'del-list' });
         fetchBoard();

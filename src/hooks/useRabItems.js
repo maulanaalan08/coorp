@@ -59,12 +59,12 @@ export const useRabItems = (projectId, discipline = '', workCategoryId = null) =
     }
   }, [fetchItems]);
 
-  const switchJob = useCallback(async (id, newJobTypeId, customOverhead, ahspDiscipline, workCategoryId) => {
+  const switchJob = useCallback(async (id, newJobTypeId, ohBreakdown, ahspDiscipline, workCategoryId) => {
     try {
       const res = await rabService.switchJob(
         id,
         newJobTypeId,
-        customOverhead,
+        ohBreakdown,
         ahspDiscipline,
         workCategoryId,
       );
@@ -75,9 +75,9 @@ export const useRabItems = (projectId, discipline = '', workCategoryId = null) =
     }
   }, [fetchItems]);
 
-  const bulkPrice = useCallback(async (ids, rapUnitPrice, overheadPercent) => {
+  const bulkPrice = useCallback(async (ids, rapUnitPrice, ohBreakdown) => {
     try {
-      const res = await rabService.bulkPrice(ids, rapUnitPrice, overheadPercent);
+      const res = await rabService.bulkPrice(ids, rapUnitPrice, ohBreakdown);
       await fetchItems();
       return res;
     } catch (err) {
@@ -88,7 +88,7 @@ export const useRabItems = (projectId, discipline = '', workCategoryId = null) =
   const bulkSwitchJob = useCallback(async (
     ids,
     newJobTypeId,
-    customOverhead,
+    ohBreakdown,
     ahspDiscipline,
     workCategoryId,
   ) => {
@@ -96,7 +96,7 @@ export const useRabItems = (projectId, discipline = '', workCategoryId = null) =
       const res = await rabService.bulkSwitchJob(
         ids,
         newJobTypeId,
-        customOverhead,
+        ohBreakdown,
         ahspDiscipline,
         workCategoryId,
       );
