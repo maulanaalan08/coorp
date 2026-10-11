@@ -1890,14 +1890,10 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
           <td className={[styles["rab-mono"], styles["rab-oh-cell"]].join(" ")}>
             {!hasChildren ? (
               <div className={styles["rab-oh-inline"]}>
-                {canEditOverhead && onUpdateOverhead ? (
+                {canEditOverhead && onEdit ? (
                   <button
-                    className={styles["rab-oh-edit"]} title="Klik untuk edit Overhead (%) — RAB dihitung otomatis"
-                    onClick={() => {
-                      const current = item.overheadPercent ?? item.overhead ?? 0;
-                      const next = window.prompt("Overhead (%)", String(current));
-                      if (next !== null) onUpdateOverhead(item, next);
-                    }}
+                    className={styles["rab-oh-edit"]} title="Klik untuk edit OH: operasional, waste anggaran, laba"
+                    onClick={() => onEdit(item, itemNumber)}
                     type="button"
                   >
                     {Number(item.overheadPercent ?? item.overhead ?? 0).toFixed(2)}%
