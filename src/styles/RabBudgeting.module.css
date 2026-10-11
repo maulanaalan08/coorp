@@ -1212,6 +1212,45 @@
   background: rgba(201, 162, 75, 0.05);
   text-align: center;
 }
+.rab-oh-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.rab-oh-detail {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--rab-border);
+  border-radius: 5px;
+  color: var(--rab-gold-bright);
+  background: transparent;
+  cursor: pointer;
+}
+.rab-oh-detail:hover {
+  border-color: var(--rab-gold);
+  background: rgba(201, 162, 75, 0.08);
+}
+.rab-oh-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0;
+}
+.rab-oh-detail-table th,
+.rab-oh-detail-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rab-border);
+  text-align: left;
+}
+.rab-oh-detail-total td {
+  font-weight: 700;
+  color: var(--rab-gold-bright);
+  border-top: 2px solid var(--rab-gold);
+}
 .rab-oh-edit:hover {
   border-color: var(--rab-gold);
   background: rgba(201, 162, 75, 0.08);

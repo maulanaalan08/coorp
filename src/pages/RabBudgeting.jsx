@@ -13,6 +13,7 @@ import {
   Plus,
   Tag,
   History,
+  Info,
 } from "lucide-react";
 import BvRabHistoryPanel from "../components/BvRabHistoryPanel";
 import BvRabApprovalBar from "../components/BvRabApprovalBar";
@@ -209,8 +210,9 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // State untuk Tambah Group
   const [groupModal, setGroupModal] = useState(null);
 
-  // State untuk Edit Individual
+  // State untuk Edit Individual + detail breakdown OH
   const [editModal, setEditModal] = useState(null);
+  const [ohDetailItem, setOhDetailItem] = useState(null);
 
   // State untuk Hapus Massal & Checkbox
   const [selectedItemIds, setSelectedItemIds] = useState([]);
@@ -433,7 +435,9 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       item,
       pricingMode: "manual",
       rapUnitPrice: item.rapUnitPrice ?? 0,
-      overheadPercent: item.overheadPercent ?? item.overhead ?? 0,
+      operationalPercent: item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0,
+      wastePercent: item.wastePercent ?? 0,
+      profitPercent: item.profitPercent ?? 0,
       isByOwner: !!item.isByOwner,
       isStip: !!item.isStip,
       sourceJobId: "",
@@ -583,11 +587,18 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const handleSaveEdit = async () => {
     if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
     if (!editModal) return;
-    const { item, pricingMode, isByOwner, isStip, overheadPercent, rapUnitPrice, sourceJobId } = editModal;
+    const { item, pricingMode, isByOwner, isStip, rapUnitPrice, sourceJobId } = editModal;
+    const breakdownPayload = {
+      operationalPercent: Number(editModal.operationalPercent) || 0,
+      wastePercent: Number(editModal.wastePercent) || 0,
+      profitPercent: Number(editModal.profitPercent) || 0,
+    };
     if (pricingMode === "manual") {
       const updatePromise = updateRabItem(item.id, {
           rapUnitPrice: isByOwner || isStip ? 0 : Number(rapUnitPrice),
-          overheadPercent: Number(overheadPercent),
+          operationalPercent: Number(editModal.operationalPercent) || 0,
+          wastePercent: Number(editModal.wastePercent) || 0,
+          profitPercent: Number(editModal.profitPercent) || 0,
           isByOwner,
           isStip,
       }).then(() => refreshGroups());
@@ -602,7 +613,11 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     } else if (pricingMode === "ahsp") {
       if (!sourceJobId) return toast.error("Pilih Master Pekerjaan (AHSP) dari daftar!");
       const payload = { newJobTypeId: sourceJobId };
-      if (overheadPercent !== "") payload.customOverhead = Number(overheadPercent);
+      const customOverheadTotal =
+        (Number(editModal.operationalPercent) || 0) +
+        (Number(editModal.wastePercent) || 0) +
+        (Number(editModal.profitPercent) || 0);
+      if (customOverheadTotal > 0) payload.customOverhead = customOverheadTotal;
       if (item.workCategoryId) {
         payload.workCategoryId = item.workCategoryId;
       } else if (activeWorkCategoryId) {
@@ -620,7 +635,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       const switchPromise = switchJob(
         item.id,
         sourceJobId,
-        overheadPercent !== "" ? Number(overheadPercent) : undefined,
+        customOverheadTotal > 0 ? customOverheadTotal : undefined,
         switchClassification.ahspDiscipline,
         switchClassification.workCategoryId,
       ).then(() => refreshGroups());
@@ -651,7 +666,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
 
       const compPromise = updateRabItem(item.id, {
         components: rows,
-        overheadPercent: Number(overheadPercent) || 0,
+        ...breakdownPayload,
         isByOwner,
         isStip,
       }).then(() => refreshGroups());
@@ -1245,6 +1260,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                       onEditItem={canEditRap ? openEdit : null}
                       onDeleteItem={canEditRap ? deleteItem : null}
                       onUpdateOverhead={canEditOverhead ? handleUpdateOverhead : null}
+                      onShowOhDetail={setOhDetailItem}
                       canEditRap={canEditRap}
                       canEditOverhead={canEditOverhead}
                       budgetMode={budgetMode}
@@ -1281,6 +1297,96 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         </div>
       )}
 
+      {/* ================= DETAIL OH BREAKDOWN ================= */}
+      {ohDetailItem && (() => {
+        const it = ohDetailItem.item;
+        const rapUnit = Number(it.rapUnitPrice || 0);
+        const vol = Number(it.volume || 0);
+        const rapTotal = Number(it.rapTotalPrice ?? rapUnit * vol);
+        const opsPct = Number(it.operationalPercent ?? it.overheadPercent ?? it.overhead ?? 0);
+        const wastePct = Number(it.wastePercent ?? 0);
+        const profitPct = Number(it.profitPercent ?? 0);
+        const totalPct = opsPct + wastePct + profitPct;
+        const opsNom = rapTotal * (opsPct / 100);
+        const wasteNom = rapTotal * (wastePct / 100);
+        const profitNom = rapTotal * (profitPct / 100);
+        const ohNom = opsNom + wasteNom + profitNom;
+        const rabTotal = Number(it.rabTotalPrice ?? rapTotal + ohNom);
+        return (
+          <div className={styles["rab-modal-overlay"]} onClick={() => setOhDetailItem(null)}>
+            <div className={styles["rab-modal"]} onClick={(e) => e.stopPropagation()}>
+              <h3>Detail OH</h3>
+              <p className={styles["rab-edit-meta"]}>
+                {it.name} · {it.paymentUnit} · Vol: {vol.toFixed(2)}
+              </p>
+
+              <table className={styles["rab-oh-detail-table"]}>
+                <thead>
+                  <tr>
+                    <th>Komponen</th>
+                    <th style={{ textAlign: "right" }}>Persen</th>
+                    <th style={{ textAlign: "right" }}>Nominal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Operasional</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{opsPct.toFixed(2)}%</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(opsNom)}</td>
+                  </tr>
+                  <tr>
+                    <td>Waste Anggaran</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{wastePct.toFixed(2)}%</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(wasteNom)}</td>
+                  </tr>
+                  <tr>
+                    <td>Laba / Profit</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{profitPct.toFixed(2)}%</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(profitNom)}</td>
+                  </tr>
+                  <tr className={styles["rab-oh-detail-total"]}>
+                    <td>Total OH</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{totalPct.toFixed(2)}%</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(ohNom)}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <table className={styles["rab-oh-detail-table"]} style={{ marginTop: "14px" }}>
+                <tbody>
+                  <tr>
+                    <td>RAP Total</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(rapTotal)}</td>
+                  </tr>
+                  <tr className={styles["rab-oh-detail-total"]}>
+                    <td>RAB Total</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(rabTotal)}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <p className={styles["rab-form-hint"]}>
+                RAB = RAP × (1 + Total OH% ÷ 100). Waste di sini adalah waste anggaran RAB,
+                terpisah dari Waste Volume pada BV.
+              </p>
+
+              <div className={styles["rab-modal-actions"]}>
+                <button className={styles["rab-btn"]} onClick={() => setOhDetailItem(null)} type="button">Tutup</button>
+                {canEditOverhead && (
+                  <button
+                    className={[styles["rab-btn"], styles["rab-btn-primary"]].join(" ")}
+                    type="button"
+                    onClick={() => { setOhDetailItem(null); openEdit(it, ohDetailItem.itemNumber); }}
+                  >
+                    Edit OH
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ================= EDIT MODAL INDIVIDUAL ================= */}
       {editModal && (
         <div className={styles["rab-modal-overlay"]}>
@@ -1297,12 +1403,28 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
               </button>
             </div>
 
-            <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>
-              Persentase Overhead / Profit (%)
-              <input type="number" step="0.01" className={styles["rab-form-input"]} value={editModal.isByOwner || editModal.isStip ? "" : editModal.overheadPercent} disabled={editModal.isByOwner || editModal.isStip} onChange={(e) => setEditModal({ ...editModal, overheadPercent: e.target.value })} />
-            </label>
+            <div className={styles["rab-oh-grid"]}>
+              <label className={styles["rab-form-label"]}>
+                Operasional (%)
+                <input type="number" step="0.01" className={styles["rab-form-input"]} value={editModal.isByOwner || editModal.isStip ? "" : editModal.operationalPercent} disabled={editModal.isByOwner || editModal.isStip} onChange={(e) => setEditModal({ ...editModal, operationalPercent: e.target.value })} />
+              </label>
+              <label className={styles["rab-form-label"]}>
+                Waste Anggaran (%)
+                <input type="number" step="0.01" className={styles["rab-form-input"]} value={editModal.isByOwner || editModal.isStip ? "" : editModal.wastePercent} disabled={editModal.isByOwner || editModal.isStip} onChange={(e) => setEditModal({ ...editModal, wastePercent: e.target.value })} />
+              </label>
+              <label className={styles["rab-form-label"]}>
+                Laba / Profit (%)
+                <input type="number" step="0.01" className={styles["rab-form-input"]} value={editModal.isByOwner || editModal.isStip ? "" : editModal.profitPercent} disabled={editModal.isByOwner || editModal.isStip} onChange={(e) => setEditModal({ ...editModal, profitPercent: e.target.value })} />
+              </label>
+            </div>
 
-            <p className={styles["rab-form-hint"]} style={{ marginBottom: '24px' }}>Profit ini akan digunakan di Mode Manual maupun Tarik AHSP.</p>
+            <p className={styles["rab-form-hint"]} style={{ marginBottom: '24px' }}>
+              Total OH: <strong>{(
+                (Number(editModal.operationalPercent) || 0) +
+                (Number(editModal.wastePercent) || 0) +
+                (Number(editModal.profitPercent) || 0)
+              ).toFixed(2)}%</strong> — RAB dihitung otomatis dari RAP + ketiga komponen ini.
+            </p>
 
             <div className={styles["rab-mode-cards"]}>
               <div className={[styles["rab-mode-card"], editModal.pricingMode === "manual" ? styles["active"] : ""].join(" ")} onClick={() => setEditModal({ ...editModal, pricingMode: "manual" })}>
@@ -1608,6 +1730,7 @@ function RabGroupNode({
   onEditItem,
   onDeleteItem,
   onUpdateOverhead,
+  onShowOhDetail,
   canEditRap,
   canEditOverhead,
   budgetMode,
@@ -1648,6 +1771,7 @@ function RabGroupNode({
           onEdit={onEditItem}
           onDelete={onDeleteItem}
           onUpdateOverhead={onUpdateOverhead}
+          onShowOhDetail={onShowOhDetail}
           canEditRap={canEditRap}
           canEditOverhead={canEditOverhead}
           budgetMode={budgetMode}
@@ -1668,6 +1792,7 @@ function RabGroupNode({
           onEditItem={onEditItem}
           onDeleteItem={onDeleteItem}
           onUpdateOverhead={onUpdateOverhead}
+          onShowOhDetail={onShowOhDetail}
           canEditRap={canEditRap}
           canEditOverhead={canEditOverhead}
           budgetMode={budgetMode}
@@ -1680,7 +1805,7 @@ function RabGroupNode({
   );
 }
 
-function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, canEditRap, canEditOverhead, budgetMode, isSuperAdmin, selectedItemIds, onToggleSelect, visibleAllItems, onToggleAll }) {
+function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, onShowOhDetail, canEditRap, canEditOverhead, budgetMode, isSuperAdmin, selectedItemIds, onToggleSelect, visibleAllItems, onToggleAll }) {
   const parents = (items || []).filter((it) => !it.parentId);
   const childrenByParent = useMemo(() => {
     const map = new Map();
@@ -1763,20 +1888,32 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, c
         )}
         {isSellingMode && (
           <td className={[styles["rab-mono"], styles["rab-oh-cell"]].join(" ")}>
-            {!hasChildren && canEditOverhead && onUpdateOverhead ? (
-              <button
-                className={styles["rab-oh-edit"]} title="Klik untuk edit Overhead (%) — RAB dihitung otomatis"
-                onClick={() => {
-                  const current = item.overheadPercent ?? item.overhead ?? 0;
-                  const next = window.prompt("Overhead (%)", String(current));
-                  if (next !== null) onUpdateOverhead(item, next);
-                }}
-                type="button"
-              >
-                {Number(item.overheadPercent ?? item.overhead ?? 0).toFixed(2)}%
-              </button>
-            ) : !hasChildren ? (
-              `${Number(item.overheadPercent ?? item.overhead ?? 0).toFixed(2)}%`
+            {!hasChildren ? (
+              <div className={styles["rab-oh-inline"]}>
+                {canEditOverhead && onUpdateOverhead ? (
+                  <button
+                    className={styles["rab-oh-edit"]} title="Klik untuk edit Overhead (%) — RAB dihitung otomatis"
+                    onClick={() => {
+                      const current = item.overheadPercent ?? item.overhead ?? 0;
+                      const next = window.prompt("Overhead (%)", String(current));
+                      if (next !== null) onUpdateOverhead(item, next);
+                    }}
+                    type="button"
+                  >
+                    {Number(item.overheadPercent ?? item.overhead ?? 0).toFixed(2)}%
+                  </button>
+                ) : (
+                  `${Number(item.overheadPercent ?? item.overhead ?? 0).toFixed(2)}%`
+                )}
+                <button
+                  className={styles["rab-oh-detail"]}
+                  title="Lihat rincian OH: operasional, waste anggaran, laba"
+                  onClick={() => onShowOhDetail && onShowOhDetail(item, itemNumber)}
+                  type="button"
+                >
+                  <Info size={12} />
+                </button>
+              </div>
             ) : (
               ""
             )}
