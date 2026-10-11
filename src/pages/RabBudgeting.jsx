@@ -450,14 +450,19 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     });
   };
 
+  // OH kini tiga komponen. Nilai total yang diketik dibebankan ke Operasional
+  // tanpa mengubah Waste Anggaran dan Laba item tersebut.
   const handleUpdateOverhead = async (item, newValue) => {
     if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
-    const overheadPercent = Number(newValue);
-    if (!Number.isFinite(overheadPercent) || overheadPercent < 0) {
+    const totalOh = Number(newValue);
+    if (!Number.isFinite(totalOh) || totalOh < 0) {
       return toast.error("Overhead tidak valid.");
     }
+    const wastePercent = Number(item.wastePercent ?? 0);
+    const profitPercent = Number(item.profitPercent ?? 0);
+    const operationalPercent = Math.max(0, totalOh - wastePercent - profitPercent);
     toast.promise(
-      updateRabItem(item.id, { overheadPercent }).then(() => refreshGroups()),
+      updateRabItem(item.id, { operationalPercent, wastePercent, profitPercent }).then(() => refreshGroups()),
       {
         loading: "Menyimpan overhead...",
         success: "Overhead berhasil diperbarui.",
