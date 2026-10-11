@@ -56,14 +56,14 @@ const rebalanceTermsForRetention = (currentTerms, retentionValue, totalValue = 0
   });
 };
 
-export default function SpkPage({ initialProjectId = null }) {
+export default function SpkPage({ initialProjectId = null, type: initialType = 'CLIENT' }) {
   const { projects, loading: projectsLoading } = useProjects();
   const [projectId, setProjectId] = useState(initialProjectId || '');
   const [source, setSource] = useState(null);
   const [project, setProject] = useState(null);
   const [contracts, setContracts] = useState([]);
   const [selectedItemIds, setSelectedItemIds] = useState([]);
-  const [type, setType] = useState('CLIENT');
+  const [type, setType] = useState(initialType === 'SUBCON' ? 'SUBCON' : 'CLIENT');
   const [retentionPercent, setRetentionPercent] = useState(0);
   const [terms, setTerms] = useState([newTerm(0)]);
   const [subconPartyName, setSubconPartyName] = useState('');
@@ -127,6 +127,12 @@ export default function SpkPage({ initialProjectId = null }) {
   };
 
   useEffect(() => {
+    // Halaman SPK dipisah per tipe: prop `type` adalah sumber kebenaran.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setType(initialType === 'SUBCON' ? 'SUBCON' : 'CLIENT');
+  }, [initialType]);
+
+  useEffect(() => {
     // Existing page lifecycle: mirror an externally selected project.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (initialProjectId) setProjectId(initialProjectId);
@@ -165,7 +171,7 @@ export default function SpkPage({ initialProjectId = null }) {
 
   const resetDraftForm = () => {
     setEditingId(null);
-    setType('CLIENT');
+    setType(initialType === 'SUBCON' ? 'SUBCON' : 'CLIENT');
     setRetentionPercent(0);
     setTerms([newTerm(0)]);
     setSubconPartyName('');
@@ -179,7 +185,7 @@ export default function SpkPage({ initialProjectId = null }) {
   const startEdit = (contract) => {
     if (contract.status !== 'DRAFT') return toast.error('Hanya SPK DRAFT yang dapat diubah.');
     setEditingId(contract.id);
-    setType(contract.type || 'CLIENT');
+    setType(initialType === 'SUBCON' ? 'SUBCON' : 'CLIENT');
     const savedRetention = numberValue(contract.retentionPercent);
     setRetentionPercent(savedRetention);
     const savedTerms = (contract.terms || []).length
@@ -192,7 +198,7 @@ export default function SpkPage({ initialProjectId = null }) {
       }))
       : [newTerm(0)];
     setTerms(rebalanceTermsForRetention(savedTerms, savedRetention, Number(contract.contractValue)));
-    if ((contract.type || 'CLIENT') === 'CLIENT') {
+    if ((initialType === 'SUBCON' ? 'SUBCON' : 'CLIENT') === 'CLIENT') {
       setClientParties(mapContractPartiesToForm(contract, project));
       setSubconPartyName('');
     } else {
@@ -260,10 +266,11 @@ export default function SpkPage({ initialProjectId = null }) {
     setProjectId(event.target.value);
   };
 
-  const handleTypeChange = (nextType) => {
-    setType(nextType);
-    if (nextType === 'CLIENT' && !editingId) setClientParties(createClientPartyForm(project));
-  };
+  // Halaman dipisah per tipe: hanya kontrak bertipe sama yang ditampilkan.
+  const visibleContracts = useMemo(
+    () => (contracts || []).filter((contract) => (contract.type || 'CLIENT') === type),
+    [contracts, type],
+  );
 
   const updateClientParty = (partyKey, field, value) => {
     setClientParties((current) => ({
@@ -341,7 +348,7 @@ export default function SpkPage({ initialProjectId = null }) {
       <header className="spk-header">
         <div>
           <div className="spk-eyebrow">Perencanaan / Kontrak</div>
-          <h1>SPK Client &amp; Subcon</h1>
+          <h1>{type === 'SUBCON' ? 'SPK Subcon' : 'SPK Client'}</h1>
           <p>Susun ruang lingkup, para pihak, jadwal, dan termin pembayaran dalam satu alur. Draft tidak mengambil nomor resmi.</p>
         </div>
         <button type="button" className="spk-btn" onClick={() => loadProjectData()} disabled={loading}>
@@ -352,13 +359,6 @@ export default function SpkPage({ initialProjectId = null }) {
       <div className="spk-project-bar">
         <div className="spk-project-selector">
           <ProjectSelector projectList={projects} projectId={projectId} loading={projectsLoading} onChange={handleProjectChange} />
-        </div>
-        <div className="spk-type-control">
-          <span className="spk-label">Tipe kontrak</span>
-          <div className="spk-segmented" role="group" aria-label="Tipe kontrak">
-            <button type="button" aria-pressed={type === 'CLIENT'} className={type === 'CLIENT' ? 'active' : ''} onClick={() => handleTypeChange('CLIENT')}>SPK Client</button>
-            <button type="button" aria-pressed={type === 'SUBCON'} className={type === 'SUBCON' ? 'active' : ''} onClick={() => handleTypeChange('SUBCON')}>SPK Subcon</button>
-          </div>
         </div>
         {projectId && <button type="button" className="spk-btn" onClick={resetDraftForm}>Mulai draft baru</button>}
       </div>
@@ -495,9 +495,9 @@ export default function SpkPage({ initialProjectId = null }) {
           </div>
 
           <section className="spk-records">
-            <div className="spk-records-header"><div><div className="spk-eyebrow">Riwayat project</div><h2>Draft &amp; SPK terbit</h2></div><span>{contracts.length} dokumen</span></div>
+            <div className="spk-records-header"><div><div className="spk-eyebrow">Riwayat project</div><h2>Draft &amp; SPK terbit</h2></div><span>{visibleContracts.length} dokumen</span></div>
             <div className="spk-record-list">
-              {contracts.map((contract) => {
+              {visibleContracts.map((contract) => {
                 const partyName = contract.type === 'CLIENT'
                   ? contract.partyData?.secondParty?.name || contract.snapshot?.partyData?.secondParty?.name || project?.clientName || 'Client'
                   : contract.partyData?.contractorName || contract.partyData?.name || contract.snapshot?.party?.name || 'Kontraktor';
@@ -515,7 +515,7 @@ export default function SpkPage({ initialProjectId = null }) {
                   </div>
                 </article>;
               })}
-              {!contracts.length && <div className="spk-inline-empty records">Belum ada draft atau SPK terbit di project ini.</div>}
+              {!visibleContracts.length && <div className="spk-inline-empty records">Belum ada draft atau SPK terbit di project ini.</div>}
             </div>
           </section>
         </>

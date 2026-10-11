@@ -77,7 +77,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
 
   useEffect(() => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
-    if (["spk-contract"].includes(activeTab)) setIsDocumentOpen(true);
+    if (["spk-client", "spk-subcon"].includes(activeTab)) setIsDocumentOpen(true);
     if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking", "kelola-jasa", "po-jasa"].includes(activeTab)) setIsPelaksanaanOpen(true);
     if (["finance", "pengajuan-bayar", "pembayaran-supplier", "pembayaran-jasa", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
     if (["po-material", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
@@ -242,15 +242,16 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               >
                 <div className={`flex items-center ${isCollapsed ? "" : "gap-3"}`}>
                   <FileText size={18} className={`shrink-0 ${isDocumentOpen && !isCollapsed ? "text-white" : "text-[#888]"}`} />
-                  {!isCollapsed && <span>Document</span>}
-                </div>
-                {!isCollapsed && (isDocumentOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
-              </button>
-              {isDocumentOpen && !isCollapsed && (
-                <ul className="mt-1 flex flex-col gap-1 list-none p-0">
-                  <SubNavItem icon={FileText} label="SPK Client & Subcon" tab="spk-contract" />
-                </ul>
-              )}
+                  {!isCollapsed && <span>SPK</span>}
+                  </div>
+                  {!isCollapsed && (isDocumentOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                  </button>
+                  {isDocumentOpen && !isCollapsed && (
+                  <ul className="mt-1 flex flex-col gap-1 list-none p-0">
+                    <SubNavItem icon={FileText} label="SPK Client" tab="spk-client" />
+                    <SubNavItem icon={FileText} label="SPK Subcon" tab="spk-subcon" />
+                  </ul>
+                  )}
             </li>
 
             {/* DROPDOWN: PELAKSANAAN */}

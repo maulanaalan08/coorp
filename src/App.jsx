@@ -60,7 +60,7 @@ function App() {
     const tabFromPath = path.split('/')[0];
     const validTabs = [
       'dashboard', 'project-board', 'project-detail', 'upload-hspk', 'data-survey',
-      'bv', 'backup-volume', 'rab', 'spk-contract', 'finance', 'pembelian-siap-pakai', 'po-material', 'po-jasa', 'kelola-jasa',
+      'bv', 'backup-volume', 'rab', 'spk-client', 'spk-subcon', 'finance', 'pembelian-siap-pakai', 'po-material', 'po-jasa', 'kelola-jasa',
       'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'pembayaran-jasa', 'invoice-penagihan',
       'laporan-harian', 'global-schedule', 'time-schedule', 'join-opname', 'bast', 'complain',
       'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories'
@@ -203,7 +203,8 @@ function App() {
                 }}
               />
             )}
-            {activeTab === "spk-contract" && <SpkPage initialProjectId={globalProjectId} />}
+            {activeTab === "spk-client" && <SpkPage initialProjectId={globalProjectId} type="CLIENT" />}
+            {activeTab === "spk-subcon" && <SpkPage initialProjectId={globalProjectId} type="SUBCON" />}
             {activeTab === "finance" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
             {activeTab === "pembelian-siap-pakai" && <FinancePage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
             {activeTab === "po-material" && <PurchaseOrderPage />}
