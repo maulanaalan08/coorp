@@ -465,6 +465,9 @@
 }
 
 .rab-group-block {
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
   background: var(--rab-surface);
   border: 1px solid var(--rab-border);
   border-radius: 6px;
