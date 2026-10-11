@@ -449,6 +449,9 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       item,
       pricingMode: "manual",
       rapUnitPrice: item.rapUnitPrice ?? 0,
+      // RAP Costing: perencana mengisi satu OH total.
+      // RAB Billing: admin memecahnya menjadi operasional, waste, laba.
+      ohTotalPercent: item.overheadPercent ?? item.overhead ?? 0,
       operationalPercent: item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0,
       wastePercent: item.wastePercent ?? 0,
       profitPercent: item.profitPercent ?? 0,
@@ -464,8 +467,30 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     });
   };
 
-  // OH kini tiga komponen. Nilai total yang diketik dibebankan ke Operasional
-  // tanpa mengubah Waste Anggaran dan Laba item tersebut.
+  // OH = tiga komponen dan bisa diedit langsung dari tabel, baik di mode
+  // RAP Costing maupun RAB Billing. Satu field diubah, dua lainnya dipertahankan.
+  const handleUpdateOhComponent = async (item, field, rawValue) => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    const value = Number(rawValue);
+    if (!Number.isFinite(value) || value < 0) {
+      return toast.error("Nilai OH tidak valid.");
+    }
+    const payload = {
+      operationalPercent: Number(item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0),
+      wastePercent: Number(item.wastePercent ?? 0),
+      profitPercent: Number(item.profitPercent ?? 0),
+      [field]: value,
+    };
+    toast.promise(
+      updateRabItem(item.id, payload).then(() => refreshGroups()),
+      {
+        loading: "Menyimpan OH...",
+        success: "OH tersimpan.",
+        error: "Gagal menyimpan OH.",
+      },
+    ).catch((e) => console.error(e));
+  };
+
   const handleUpdateOverhead = async (item, newValue) => {
     if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
     const totalOh = Number(newValue);
@@ -1306,6 +1331,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                       onEditItem={canEditRap ? openEdit : null}
                       onDeleteItem={canEditRap ? deleteItem : null}
                       onUpdateOverhead={canEditOverhead ? handleUpdateOverhead : null}
+                      onUpdateOhComponent={canEditOverhead ? handleUpdateOhComponent : null}
                       onShowOhDetail={(it, num) => setOhDetailItem({ item: it, itemNumber: num })}
                       canEditRap={canEditRap}
                       canEditOverhead={canEditOverhead}
@@ -1810,6 +1836,7 @@ function RabGroupNode({
   onEditItem,
   onDeleteItem,
   onUpdateOverhead,
+  onUpdateOhComponent,
   onShowOhDetail,
   canEditRap,
   canEditOverhead,
@@ -1851,6 +1878,7 @@ function RabGroupNode({
           onEdit={onEditItem}
           onDelete={onDeleteItem}
           onUpdateOverhead={onUpdateOverhead}
+          onUpdateOhComponent={onUpdateOhComponent}
           onShowOhDetail={onShowOhDetail}
           canEditRap={canEditRap}
           canEditOverhead={canEditOverhead}
@@ -1872,6 +1900,7 @@ function RabGroupNode({
           onEditItem={onEditItem}
           onDeleteItem={onDeleteItem}
           onUpdateOverhead={onUpdateOverhead}
+          onUpdateOhComponent={onUpdateOhComponent}
           onShowOhDetail={onShowOhDetail}
           canEditRap={canEditRap}
           canEditOverhead={canEditOverhead}
@@ -1885,7 +1914,7 @@ function RabGroupNode({
   );
 }
 
-function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, onShowOhDetail, canEditRap, canEditOverhead, budgetMode, isSuperAdmin, selectedItemIds, onToggleSelect, visibleAllItems, onToggleAll }) {
+function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, onUpdateOhComponent, onShowOhDetail, canEditRap, canEditOverhead, budgetMode, isSuperAdmin, selectedItemIds, onToggleSelect, visibleAllItems, onToggleAll }) {
   const parents = (items || []).filter((it) => !it.parentId);
   const childrenByParent = useMemo(() => {
     const map = new Map();
@@ -1967,33 +1996,69 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
           </>
         )}
         {isSellingMode && (
-          <td className={[styles["rab-mono"], styles["rab-oh-cell"]].join(" ")}>
-            {!hasChildren ? (
-              <div className={styles["rab-oh-inline"]}>
-                {canEditOverhead && onEdit ? (
+          <>
+            {[
+              ["operationalPercent", "Operasional"],
+              ["wastePercent", "Waste"],
+              ["profitPercent", "Laba"],
+            ].map(([field, label]) => (
+              <td key={field} className={[styles["rab-mono"], styles["rab-oh-cell"]].join(" ")}>
+                {!hasChildren && (
+                  canEditOverhead && onUpdateOhComponent ? (
+                    <input
+                      className={styles["rab-oh-inline-input"]}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={Number(
+                        field === "operationalPercent"
+                          ? (item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0)
+                          : (item[field] ?? 0),
+                      )}
+                      key={`${item.id}-${field}-${item[field] ?? item.overheadPercent ?? 0}`}
+                      aria-label={`${label} (%) untuk ${item.name}`}
+                      title={`${label} (%) — Enter atau pindah fokus untuk menyimpan`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                      }}
+                      onBlur={(e) => {
+                        const previous = Number(
+                          field === "operationalPercent"
+                            ? (item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0)
+                            : (item[field] ?? 0),
+                        );
+                        const next = Number(e.currentTarget.value);
+                        if (Number.isFinite(next) && next !== previous) {
+                          onUpdateOhComponent(item, field, next);
+                        }
+                      }}
+                    />
+                  ) : (
+                    `${Number(
+                      field === "operationalPercent"
+                        ? (item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0)
+                        : (item[field] ?? 0),
+                    ).toFixed(2)}%`
+                  )
+                )}
+              </td>
+            ))}
+            <td className={[styles["rab-mono"], styles["rab-oh-cell"]].join(" ")}>
+              {!hasChildren && (
+                <div className={styles["rab-oh-inline"]}>
+                  <strong>{Number(item.overheadPercent ?? item.overhead ?? 0).toFixed(2)}%</strong>
                   <button
-                    className={styles["rab-oh-edit"]} title="Klik untuk edit OH: operasional, waste anggaran, laba"
-                    onClick={() => onEdit(item, itemNumber)}
+                    className={styles["rab-oh-detail"]}
+                    title="Lihat rincian OH"
+                    onClick={() => onShowOhDetail && onShowOhDetail(item, itemNumber)}
                     type="button"
                   >
-                    {Number(item.overheadPercent ?? item.overhead ?? 0).toFixed(2)}%
+                    <Info size={12} />
                   </button>
-                ) : (
-                  `${Number(item.overheadPercent ?? item.overhead ?? 0).toFixed(2)}%`
-                )}
-                <button
-                  className={styles["rab-oh-detail"]}
-                  title="Lihat rincian OH: operasional, waste anggaran, laba"
-                  onClick={() => onShowOhDetail && onShowOhDetail(item, itemNumber)}
-                  type="button"
-                >
-                  <Info size={12} />
-                </button>
-              </div>
-            ) : (
-              ""
-            )}
-          </td>
+                </div>
+              )}
+            </td>
+          </>
         )}
         <td className={[styles["rab-mono"], emptyPrice ? styles["rab-empty-price"] : ""].join(" ")}>
           {hasChildren ? "" : emptyPrice ? "-" : fmtRp(unitPriceDisplay)}
@@ -2032,7 +2097,10 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
             <>
               <th style={{ width: "10%" }}>RAP Satuan</th>
               <th style={{ width: "10%" }}>RAP Total</th>
-              <th style={{ width: "7%" }}>OH %</th>
+              <th style={{ width: "7%" }}>Ops %</th>
+              <th style={{ width: "7%" }}>Waste %</th>
+              <th style={{ width: "7%" }}>Laba %</th>
+              <th style={{ width: "8%" }} title="Total ketiga komponen OH">OH %</th>
             </>
           )}
           <th style={{ width: "10%" }}>{budgetMode === "rab" && isSuperAdmin ? "RAB Satuan" : "RAP Satuan"}</th>
