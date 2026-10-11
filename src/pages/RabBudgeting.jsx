@@ -1306,7 +1306,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                       onEditItem={canEditRap ? openEdit : null}
                       onDeleteItem={canEditRap ? deleteItem : null}
                       onUpdateOverhead={canEditOverhead ? handleUpdateOverhead : null}
-                      onShowOhDetail={setOhDetailItem}
+                      onShowOhDetail={(it, num) => setOhDetailItem({ item: it, itemNumber: num })}
                       canEditRap={canEditRap}
                       canEditOverhead={canEditOverhead}
                       budgetMode={budgetMode}
@@ -2037,7 +2037,7 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
           )}
           <th style={{ width: "10%" }}>{budgetMode === "rab" && isSuperAdmin ? "RAB Satuan" : "RAP Satuan"}</th>
           <th style={{ width: "10%" }}>{budgetMode === "rab" && isSuperAdmin ? "RAB Total" : "RAP Total"}</th>
-          {budgetMode === "rab" && isSuperAdmin && <th style={{ width: "8%" }}>Margin</th>}
+          {budgetMode === "rab" && isSuperAdmin && <th style={{ width: "8%" }} title="Selisih RAB - RAP = operasional + waste anggaran + laba">Total OH</th>}
           <th style={{ width: "60px" }}></th>
         </tr>
       </thead>
