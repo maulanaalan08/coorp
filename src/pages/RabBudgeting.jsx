@@ -281,6 +281,20 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const marginPercent = totalRab > 0 ? (margin / totalRab) * 100 : 0;
   const selectedMode = budgetMode === "rab" && isSuperAdmin ? "RAB Selling" : "RAP Costing";
 
+  // Nominal tiap komponen OH, sama seperti backend: nominal = RAP total x persen / 100.
+  // (RAB - RAP) selalu sama dengan total OH ketiga komponen.
+  const sumOhComponent = (field) =>
+    visibleAllItems.reduce((sum, item) => {
+      const rapTotal = Number(item.rapTotalPrice || 0);
+      const pct = Number(item[field] ?? 0);
+      return sum + rapTotal * (pct / 100);
+    }, 0);
+  const totalOperational = sumOhComponent("operationalPercent");
+  const totalWasteBudget = sumOhComponent("wastePercent");
+  const totalProfit = sumOhComponent("profitPercent");
+  const totalOh = totalOperational + totalWasteBudget + totalProfit;
+  const showRabBreakdown = budgetMode === "rab" && isSuperAdmin;
+
   const filledItemCount = visibleAllItems.filter((it) => {
     if (it.isByOwner || it.isStip) return true;
     return Number(it.rapUnitPrice || 0) > 0;
@@ -1206,24 +1220,56 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                 </div>
               )}
 
-              {/* Stats berdasarkan tab aktif */}
+              {/* Ringkasan Billing: tampilkan alokasi OH saat mode RAB Selling. */}
               <div className={styles["rab-stats-grid"]}>
                 <div className={styles["rab-plate"]}>
                   <div className={styles["rab-stat-header"]}><ClipboardList size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Total RAP</span></div>
                   <div className={[styles["rab-stat-value"], styles["gold"]].join(" ")}>{fmtRp(totalRap)}</div>
                   <div className={styles["rab-stat-desc"]}>Modal pelaksanaan murni</div>
                 </div>
-                <div className={styles["rab-plate"]}>
-                  <div className={styles["rab-stat-header"]}><TrendingUp size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Progres Pengisian</span></div>
-                  <div className={styles["rab-stat-value"]}>{progressPercent}%</div>
-                  <div className={styles["rab-pbar"]}><div style={{ width: `${progressPercent}%` }} /></div>
-                  <div className={styles["rab-stat-desc"]}>{filledItemCount} dari {visibleAllItems.length} item sudah punya harga</div>
-                </div>
-                <div className={styles["rab-plate"]}>
-                  <div className={styles["rab-stat-header"]}><Wallet size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Item Khusus</span></div>
-                  <div className={styles["rab-stat-value"]}>{specialCount}</div>
-                  <div className={styles["rab-stat-desc"]}>{byOwnerCount} By Owner · {stipCount} Stip</div>
-                </div>
+                {showRabBreakdown ? (
+                  <>
+                    <div className={styles["rab-plate"]}>
+                      <div className={styles["rab-stat-header"]}><Wallet size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Operasional</span></div>
+                      <div className={styles["rab-stat-value"]}>{fmtRp(totalOperational)}</div>
+                      <div className={styles["rab-stat-desc"]}>Budget biaya operasional</div>
+                    </div>
+                    <div className={styles["rab-plate"]}>
+                      <div className={styles["rab-stat-header"]}><Scale size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Waste Anggaran</span></div>
+                      <div className={styles["rab-stat-value"]}>{fmtRp(totalWasteBudget)}</div>
+                      <div className={styles["rab-stat-desc"]}>Cadangan risiko biaya</div>
+                    </div>
+                    <div className={styles["rab-plate"]}>
+                      <div className={styles["rab-stat-header"]}><TrendingUp size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Laba Rencana</span></div>
+                      <div className={styles["rab-stat-value"]}>{fmtRp(totalProfit)}</div>
+                      <div className={styles["rab-stat-desc"]}>Target laba, bukan pengeluaran</div>
+                    </div>
+                    <div className={styles["rab-plate"]}>
+                      <div className={styles["rab-stat-header"]}><Scale size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Total OH</span></div>
+                      <div className={styles["rab-stat-value"]}>{fmtRp(totalOh)}</div>
+                      <div className={styles["rab-stat-desc"]}>Operasional + waste + laba</div>
+                    </div>
+                    <div className={styles["rab-plate"]}>
+                      <div className={styles["rab-stat-header"]}><Wallet size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Total RAB Billing</span></div>
+                      <div className={[styles["rab-stat-value"], styles["gold"]].join(" ")}>{fmtRp(totalRab)}</div>
+                      <div className={styles["rab-stat-desc"]}>RAP + Total OH</div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles["rab-plate"]}>
+                      <div className={styles["rab-stat-header"]}><TrendingUp size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Progres Pengisian</span></div>
+                      <div className={styles["rab-stat-value"]}>{progressPercent}%</div>
+                      <div className={styles["rab-pbar"]}><div style={{ width: `${progressPercent}%` }} /></div>
+                      <div className={styles["rab-stat-desc"]}>{filledItemCount} dari {visibleAllItems.length} item sudah punya harga</div>
+                    </div>
+                    <div className={styles["rab-plate"]}>
+                      <div className={styles["rab-stat-header"]}><Wallet size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Item Khusus</span></div>
+                      <div className={styles["rab-stat-value"]}>{specialCount}</div>
+                      <div className={styles["rab-stat-desc"]}>{byOwnerCount} By Owner · {stipCount} Stip</div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Legend */}
