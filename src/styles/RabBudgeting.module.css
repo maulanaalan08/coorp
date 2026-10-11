@@ -1208,6 +1208,15 @@
   cursor: pointer;
   transition: 0.2s;
 }
+.rab-oh-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+@media (max-width: 720px) {
+  .rab-oh-grid { grid-template-columns: 1fr; }
+}
 .rab-oh-cell {
   background: rgba(201, 162, 75, 0.05);
   text-align: center;

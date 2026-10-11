@@ -612,19 +612,6 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       }).catch(err => console.error(err));
     } else if (pricingMode === "ahsp") {
       if (!sourceJobId) return toast.error("Pilih Master Pekerjaan (AHSP) dari daftar!");
-      const payload = { newJobTypeId: sourceJobId };
-      const customOverheadTotal =
-        (Number(editModal.operationalPercent) || 0) +
-        (Number(editModal.wastePercent) || 0) +
-        (Number(editModal.profitPercent) || 0);
-      if (customOverheadTotal > 0) payload.customOverhead = customOverheadTotal;
-      if (item.workCategoryId) {
-        payload.workCategoryId = item.workCategoryId;
-      } else if (activeWorkCategoryId) {
-        payload.workCategoryId = activeWorkCategoryId;
-      } else if (activeDiscipline && activeDiscipline !== ALL_CATEGORY_FILTER) {
-        payload.ahspDiscipline = activeDiscipline;
-      }
 
       const switchClassification = buildRabSwitchClassification({
         itemWorkCategoryId: item.workCategoryId,
@@ -635,7 +622,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       const switchPromise = switchJob(
         item.id,
         sourceJobId,
-        customOverheadTotal > 0 ? customOverheadTotal : undefined,
+        breakdownPayload,
         switchClassification.ahspDiscipline,
         switchClassification.workCategoryId,
       ).then(() => refreshGroups());
@@ -688,12 +675,16 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
     if (!bulkPriceModal) return;
     if (!canEditRap && !isSuperAdmin) return toast.error("Akses edit tidak tersedia untuk role ini.");
-    if (!bulkPriceModal.rapUnitPrice && !bulkPriceModal.overheadPercent) return toast.error("Isi salah satu nilai!");
-    
+    if (!bulkPriceModal.rapUnitPrice && !bulkPriceModal.operationalPercent && !bulkPriceModal.wastePercent && !bulkPriceModal.profitPercent) return toast.error("Isi salah satu nilai!");
+
     const bulkPricePromise = bulkPrice(
         selectedItemIds,
         bulkPriceModal.rapUnitPrice !== "" ? Number(bulkPriceModal.rapUnitPrice) : undefined,
-        bulkPriceModal.overheadPercent !== "" ? Number(bulkPriceModal.overheadPercent) : undefined
+        {
+          operationalPercent: bulkPriceModal.operationalPercent !== "" ? Number(bulkPriceModal.operationalPercent) : undefined,
+          wastePercent: bulkPriceModal.wastePercent !== "" ? Number(bulkPriceModal.wastePercent) : undefined,
+          profitPercent: bulkPriceModal.profitPercent !== "" ? Number(bulkPriceModal.profitPercent) : undefined,
+        },
     ).then(() => refreshGroups());
     
     toast.promise(bulkPricePromise, {
@@ -767,7 +758,11 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     const bulkSwitchPromise = bulkSwitchJob(
         selectedItemIds,
         bulkSwitchModal.sourceJobId,
-        bulkSwitchModal.overheadPercent !== "" ? Number(bulkSwitchModal.overheadPercent) : undefined,
+        {
+          operationalPercent: bulkSwitchModal.operationalPercent !== "" ? Number(bulkSwitchModal.operationalPercent) : undefined,
+          wastePercent: bulkSwitchModal.wastePercent !== "" ? Number(bulkSwitchModal.wastePercent) : undefined,
+          profitPercent: bulkSwitchModal.profitPercent !== "" ? Number(bulkSwitchModal.profitPercent) : undefined,
+        },
         switchClassification.ahspDiscipline,
         switchClassification.workCategoryId,
     ).then(() => refreshGroups());
@@ -1013,7 +1008,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                   <span className={styles["rab-count"]}>{selectedItemIds.length} item terpilih</span>
                   <button
                     className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
-                    onClick={() => selectedItemIds.length ? setBulkPriceModal({ rapUnitPrice: "", overheadPercent: "" }) : toast.error("Pilih baris yang akan diedit harganya terlebih dahulu!")}
+                    onClick={() => selectedItemIds.length ? setBulkPriceModal({ rapUnitPrice: "", operationalPercent: "", wastePercent: "", profitPercent: "" }) : toast.error("Pilih baris yang akan diedit harganya terlebih dahulu!")}
                     disabled={selectedItemIds.length === 0}
                     type="button"
                   >
@@ -1021,7 +1016,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                   </button>
                   <button
                     className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-success"]].join(" ")}
-                    onClick={() => selectedItemIds.length ? setBulkSwitchModal({ sourceJobId: "", switchQuery: "", switchResults: [], overheadPercent: "" }) : toast.error("Pilih baris yang akan disuntik AHSP terlebih dahulu!")}
+                    onClick={() => selectedItemIds.length ? setBulkSwitchModal({ sourceJobId: "", switchQuery: "", switchResults: [], operationalPercent: "", wastePercent: "", profitPercent: "" }) : toast.error("Pilih baris yang akan disuntik AHSP terlebih dahulu!")}
                     disabled={selectedItemIds.length === 0}
                     type="button"
                   >
@@ -1595,7 +1590,11 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                     <strong>{fmtRp((editModal.components || []).reduce((s, c) => s + compLineTotal(c), 0))}</strong>
                     {" "}· Harga jual: <strong>{fmtRp(
                       (editModal.components || []).reduce((s, c) => s + compLineTotal(c), 0) *
-                      (1 + (Number(editModal.overheadPercent) || 0) / 100)
+                      (1 + (
+                        (Number(editModal.operationalPercent) || 0) +
+                        (Number(editModal.wastePercent) || 0) +
+                        (Number(editModal.profitPercent) || 0)
+                      ) / 100)
                     )}</strong>
                   </span>
                 </div>
@@ -1618,9 +1617,24 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
             <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Harga Baru (RAP Satuan)
               <input type="text" className={styles["rab-form-input"]} placeholder="Kosongkan jika tidak ingin ubah" value={formatInputNumber(bulkPriceModal.rapUnitPrice)} onChange={(e) => setBulkPriceModal({ ...bulkPriceModal, rapUnitPrice: parseInputNumber(e.target.value) })} />
             </label>
-            <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Overhead Baru (%)
-              <input type="number" className={styles["rab-form-input"]} placeholder="Kosongkan jika tidak ingin ubah" value={bulkPriceModal.overheadPercent} onChange={(e) => setBulkPriceModal({ ...bulkPriceModal, overheadPercent: e.target.value })} />
-            </label>
+            <div className={styles["rab-oh-grid"]} style={{ marginTop: '16px' }}>
+              <label className={styles["rab-form-label"]}>Operasional (%)
+                <input type="number" step="0.01" className={styles["rab-form-input"]} placeholder="Kosongkan bila tidak diubah" value={bulkPriceModal.operationalPercent} onChange={(e) => setBulkPriceModal({ ...bulkPriceModal, operationalPercent: e.target.value })} />
+              </label>
+              <label className={styles["rab-form-label"]}>Waste Anggaran (%)
+                <input type="number" step="0.01" className={styles["rab-form-input"]} placeholder="Kosongkan bila tidak diubah" value={bulkPriceModal.wastePercent} onChange={(e) => setBulkPriceModal({ ...bulkPriceModal, wastePercent: e.target.value })} />
+              </label>
+              <label className={styles["rab-form-label"]}>Laba / Profit (%)
+                <input type="number" step="0.01" className={styles["rab-form-input"]} placeholder="Kosongkan bila tidak diubah" value={bulkPriceModal.profitPercent} onChange={(e) => setBulkPriceModal({ ...bulkPriceModal, profitPercent: e.target.value })} />
+              </label>
+            </div>
+            <p className={styles["rab-form-hint"]}>
+              Total OH: <strong>{(
+                (Number(bulkPriceModal.operationalPercent) || 0) +
+                (Number(bulkPriceModal.wastePercent) || 0) +
+                (Number(bulkPriceModal.profitPercent) || 0)
+              ).toFixed(2)}%</strong> — kolom yang dikosongkan memakai nilai item masing-masing.
+            </p>
             <div className={styles["rab-modal-actions"]} style={{ marginTop: '24px' }}>
               <button className={styles["rab-btn"]} onClick={() => setBulkPriceModal(null)}>Batal</button>
               <button className={[styles["rab-btn"], styles["rab-btn-primary"]].join(" ")} onClick={handleSaveBulkPrice}>Update Massal</button>
@@ -1647,9 +1661,24 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                 </select>
               )}
             </div>
-            <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Custom Overhead (%)
-              <input type="number" className={styles["rab-form-input"]} placeholder="Kosongkan untuk pakai default" value={bulkSwitchModal.overheadPercent} onChange={(e) => setBulkSwitchModal({ ...bulkSwitchModal, overheadPercent: e.target.value })} />
-            </label>
+            <div className={styles["rab-oh-grid"]} style={{ marginTop: '16px' }}>
+              <label className={styles["rab-form-label"]}>Operasional (%)
+                <input type="number" step="0.01" className={styles["rab-form-input"]} placeholder="Kosongkan untuk pakai default" value={bulkSwitchModal.operationalPercent} onChange={(e) => setBulkSwitchModal({ ...bulkSwitchModal, operationalPercent: e.target.value })} />
+              </label>
+              <label className={styles["rab-form-label"]}>Waste Anggaran (%)
+                <input type="number" step="0.01" className={styles["rab-form-input"]} placeholder="Kosongkan untuk pakai default" value={bulkSwitchModal.wastePercent} onChange={(e) => setBulkSwitchModal({ ...bulkSwitchModal, wastePercent: e.target.value })} />
+              </label>
+              <label className={styles["rab-form-label"]}>Laba / Profit (%)
+                <input type="number" step="0.01" className={styles["rab-form-input"]} placeholder="Kosongkan untuk pakai default" value={bulkSwitchModal.profitPercent} onChange={(e) => setBulkSwitchModal({ ...bulkSwitchModal, profitPercent: e.target.value })} />
+              </label>
+            </div>
+            <p className={styles["rab-form-hint"]}>
+              Total OH: <strong>{(
+                (Number(bulkSwitchModal.operationalPercent) || 0) +
+                (Number(bulkSwitchModal.wastePercent) || 0) +
+                (Number(bulkSwitchModal.profitPercent) || 0)
+              ).toFixed(2)}%</strong> — dikosongkan berarti memakai default Master AHSP / nilai item.
+            </p>
             <div className={styles["rab-modal-actions"]} style={{ marginTop: '24px' }}>
               <button className={styles["rab-btn"]} onClick={() => setBulkSwitchModal(null)}>Batal</button>
               <button className={[styles["rab-btn"], styles["rab-btn-success"]].join(" ")} onClick={handleSaveBulkSwitch}>Suntik Massal</button>
