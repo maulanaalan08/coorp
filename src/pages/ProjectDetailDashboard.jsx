@@ -11,7 +11,7 @@ const ProjectDetailDashboard = ({ projectId, onBack }) => {
     const fetchProjectDetails = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:4000/api/projects/${projectId}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/projects/${projectId}`);
         if (!response.ok) throw new Error('Gagal memuat detail proyek');
         const projectData = await response.json();
         

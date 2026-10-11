@@ -28,8 +28,10 @@ const PurchaseOrderPage = lazy(() => import("./pages/PurchaseOrderPage"));
 const PurchaseOrderJasaPage = lazy(() => import("./pages/PurchaseOrderJasaPage"));
 const ReturPembelianPage = lazy(() => import("./pages/ReturPembelianPage"));
 const PengajuanBayarPage = lazy(() => import("./pages/PengajuanBayarPage"));
+const PermintaanBayarPage = lazy(() => import("./pages/PermintaanBayarPage"));
 const PembayaranSupplierPage = lazy(() => import("./pages/PembayaranSupplierPage"));
 const PembayaranMaterialPage = lazy(() => import("./pages/PembayaranMaterialPage"));
+const PembayaranFinancePage = lazy(() => import("./pages/PembayaranFinancePage"));
 const InvoicePenagihanPage = lazy(() => import("./pages/InvoicePenagihanPage"));
 const LaporanHarianPage = lazy(() => import("./pages/LaporanHarianPage"));
 const ComplaintPage = lazy(() => import("./pages/ComplaintPage"));
@@ -61,7 +63,7 @@ function App() {
     const validTabs = [
       'dashboard', 'project-board', 'project-detail', 'upload-hspk', 'data-survey',
       'bv', 'backup-volume', 'rab', 'spk-client', 'spk-subcon', 'finance', 'pembelian-siap-pakai', 'po-material', 'po-jasa', 'kelola-jasa',
-      'retur-pembelian', 'pengajuan-bayar', 'pembayaran-supplier', 'pembayaran-jasa', 'invoice-penagihan',
+      'retur-pembelian', 'pengajuan-bayar', 'permintaan-bayar', 'pembayaran-supplier', 'invoice-supplier', 'pembayaran-jasa', 'invoice-jasa', 'pembayaran-finance', 'invoice-penagihan',
       'laporan-harian', 'global-schedule', 'time-schedule', 'join-opname', 'bast', 'complain',
       'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories'
     ];
@@ -210,9 +212,21 @@ function App() {
             {activeTab === "po-material" && <PurchaseOrderPage />}
             {(activeTab === "po-jasa" || activeTab === "kelola-jasa") && <PurchaseOrderJasaPage />}
             {activeTab === "retur-pembelian" && <ReturPembelianPage />}
-            {activeTab === "pengajuan-bayar" && <PengajuanBayarPage key={globalProjectId || "none"} initialProjectId={globalProjectId} />}
-            {activeTab === "pembayaran-supplier" && <PembayaranMaterialPage />}
-            {activeTab === "pembayaran-jasa" && <PembayaranSupplierPage />}
+            {activeTab === "pengajuan-bayar" && (
+              <PengajuanBayarPage key={globalProjectId || "none"} initialProjectId={globalProjectId} />
+            )}
+            {activeTab === "permintaan-bayar" && (
+              <PermintaanBayarPage />
+            )}
+            {(activeTab === "pembayaran-supplier" || activeTab === "invoice-supplier") && (
+              <PembayaranMaterialPage />
+            )}
+            {(activeTab === "pembayaran-jasa" || activeTab === "invoice-jasa") && (
+              <PembayaranSupplierPage />
+            )}
+            {activeTab === "pembayaran-finance" && (
+              <PembayaranFinancePage />
+            )}
             {activeTab === "invoice-penagihan" && <InvoicePenagihanPage />}
             {activeTab === "laporan-harian" && <LaporanHarianPage />}
             {activeTab === "global-schedule" && <GlobalSchedulePage />}

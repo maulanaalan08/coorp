@@ -233,10 +233,10 @@ const PembayaranMaterialPage = () => {
     try {
       if (editId) {
         await purchasingService.updatePembayaran(editId, payload);
-        toast.success('Pembayaran berhasil diupdate');
+        toast.success('Invoice supplier berhasil diupdate');
       } else {
         await purchasingService.createPembayaran(payload);
-        toast.success('Pembayaran berhasil dibuat');
+        toast.success('Invoice supplier berhasil dibuat & masuk ke Pembayaran Finance');
       }
       setIsModalOpen(false);
       fetchPembayarans();
@@ -272,16 +272,16 @@ const PembayaranMaterialPage = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <p className="text-[#888] text-xs uppercase tracking-wider mb-1">Finance</p>
-            <h2 className="text-2xl md:text-3xl text-[#f2ead9] font-bold">Pembayaran Supplier</h2>
+            <h2 className="text-2xl md:text-3xl text-[#f2ead9] font-bold">Invoice Supplier</h2>
             <p className="text-[#888] text-sm mt-1">
-              Daftar pembayaran supplier material &amp; alat. Nomor pembayaran ter-generate saat aksi pembayaran.
+              Daftar invoice &amp; tagihan supplier material &amp; alat. Tagihan yang dicatat akan masuk ke antrean Pembayaran Finance untuk verifikasi dan persetujuan.
             </p>
           </div>
           <button
             onClick={() => openModal()}
             className="flex items-center gap-2 bg-[#d4af37] text-[#0c0b09] font-semibold px-5 py-2.5 rounded-lg hover:bg-[#e8c874] transition-colors w-fit"
           >
-            <Plus size={18} /> Buat Pembayaran
+            <Plus size={18} /> Catat Invoice Tagihan
           </button>
         </div>
 

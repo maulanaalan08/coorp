@@ -101,8 +101,37 @@ export const purchasingService = {
       body: JSON.stringify({ reason }),
     });
   },
+  // Monitoring Budget RAP vs PO & Over Budget
+  getBudgetMonitoring: (projectId) => {
+    const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    return fetchAPI(`/pengajuan-bayar/budget-monitoring${qs}`, { headers: getAuthHeaders() });
+  },
+  // Keputusan Approval/Reject di tingkat item (Opsi B)
+  processItemDecisions: (id, decisions, generalRejectReason = '') => {
+    return fetchAPI(`/pengajuan-bayar/${id}/item-decision`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ decisions, generalRejectReason }),
+    });
+  },
+  // Bulk approve banyak pengajuan
+  bulkApprovePengajuan: (ids) => {
+    return fetchAPI('/pengajuan-bayar/bulk-approve', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ ids }),
+    });
+  },
+  // Bulk reject banyak pengajuan
+  bulkRejectPengajuan: (ids, reason) => {
+    return fetchAPI('/pengajuan-bayar/bulk-reject', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ ids, reason }),
+    });
+  },
 
-  // ===== PEMBAYARAN SUPPLIER =====
+  // ===== PEMBAYARAN SUPPLIER & FINANCE =====
   getPembayaranSupplier: () => {
     return fetchAPI('/pembayaran-supplier', { headers: getAuthHeaders() });
   },
@@ -121,6 +150,48 @@ export const purchasingService = {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
+    });
+  },
+  approveFinancePembayaran: (id) => {
+    return fetchAPI(`/pembayaran-supplier/${id}/approve-finance`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({}),
+    });
+  },
+  approveAtasanPembayaran: (id) => {
+    return fetchAPI(`/pembayaran-supplier/${id}/approve-atasan`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({}),
+    });
+  },
+  kirimKasBankPembayaran: (id, data = {}) => {
+    return fetchAPI(`/pembayaran-supplier/${id}/kirim-kas-bank`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+  },
+  rejectPembayaran: (id, reason) => {
+    return fetchAPI(`/pembayaran-supplier/${id}/reject`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ reason }),
+    });
+  },
+  bulkApproveAtasanPembayaran: (ids) => {
+    return fetchAPI('/pembayaran-supplier/bulk-approve-atasan', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ ids }),
+    });
+  },
+  bulkRejectPembayaran: (ids, reason) => {
+    return fetchAPI('/pembayaran-supplier/bulk-reject', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ ids, reason }),
     });
   },
 
