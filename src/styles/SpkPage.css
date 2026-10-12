@@ -276,6 +276,15 @@
 }
 
 .spk-input:focus { border-color: var(--spk-gold); box-shadow: 0 0 0 3px rgba(201, 162, 75, 0.08); }
+/* Tema gelap: paksa kontrol form bawaan browser (ikon kalender, spinner)
+   ikut gelap, lalu ikon kalender di-invert supaya terbaca di latar hitam. */
+.spk-input { color-scheme: dark; }
+.spk-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.6);
+  opacity: 0.85;
+  cursor: pointer;
+}
+.spk-input::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 textarea.spk-input { min-height: 76px; resize: vertical; }
 .spk-readonly { color: var(--spk-muted); background: #11100d; line-height: 1.4; }
 .spk-notice { padding: 10px 12px; border-left: 2px solid var(--spk-gold); background: rgba(201, 162, 75, 0.055); color: #b9ad95; font-size: 10px; line-height: 1.5; }

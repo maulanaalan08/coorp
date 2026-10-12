@@ -3,18 +3,62 @@ export const FIRST_PARTY_DEFAULTS = Object.freeze({
   position: '',
   companyName: 'PT. Dives Jaya Perkasa',
   address: 'Jl. Bulak Rukem Timur I No. 160, Surabaya',
+  nik: '',
+  phone: '',
   signatureUrl: null,
 });
 
 export const SECOND_PARTY_DEFAULT_POSITION = 'Client / Pemberi Tugas';
 
-const normalizeParty = (party = {}, defaults = {}) => ({
-  name: String(party.name ?? defaults.name ?? '').trim(),
-  position: String(party.position ?? defaults.position ?? '').trim(),
-  companyName: String(party.companyName ?? defaults.companyName ?? '').trim(),
-  address: String(party.address ?? defaults.address ?? '').trim(),
-  signatureUrl: party.signatureUrl || defaults.signatureUrl || null,
+const normalizeParty = (party = {}, defaults = {}) => {
+  const normalized = {
+    name: String(party.name ?? defaults.name ?? '').trim(),
+    position: String(party.position ?? defaults.position ?? '').trim(),
+    companyName: String(party.companyName ?? defaults.companyName ?? '').trim(),
+    address: String(party.address ?? defaults.address ?? '').trim(),
+    signatureUrl: party.signatureUrl || defaults.signatureUrl || null,
+  };
+  const nik = String(party.nik ?? party.idNumber ?? defaults.nik ?? '').trim();
+  const phone = String(party.phone ?? defaults.phone ?? '').trim();
+  if (nik) normalized.nik = nik;
+  if (phone) normalized.phone = phone;
+  return normalized;
+};
+
+export const createSubconPartyForm = (project = {}) => ({
+  firstParty: normalizeParty({
+    position: 'Direktur',
+    companyName: 'PT. Dives Jaya Perkasa',
+    address: 'Jl. Bulak Rukem Timur I No. 160, Surabaya',
+  }),
+  secondParty: normalizeParty({
+    position: 'Penyedia Jasa',
+    address: project?.location || '',
+  }),
 });
+
+export const mapSubconPartiesToForm = (contract = {}, project = {}) => {
+  const defaults = createSubconPartyForm(project);
+  const stored = storedPartyData(contract);
+  const firstParty = stored.firstParty || {
+    name: stored.internalName,
+    position: stored.internalPosition,
+    companyName: stored.companyName,
+    address: stored.internalAddress,
+    nik: stored.internalNik,
+  };
+  const secondParty = stored.secondParty || {
+    name: stored.contractorName || stored.name || contract.snapshot?.party?.name,
+    position: stored.contractorPosition,
+    address: stored.address || contract.snapshot?.projectLocation,
+    nik: stored.contractorNik || stored.nik,
+    phone: stored.contractorPhone || stored.phone,
+  };
+  return {
+    firstParty: normalizeParty(firstParty, defaults.firstParty),
+    secondParty: normalizeParty(secondParty, defaults.secondParty),
+  };
+};
 
 export const createClientPartyForm = (project = {}) => ({
   firstParty: normalizeParty({}, FIRST_PARTY_DEFAULTS),
@@ -82,7 +126,20 @@ export const validateClientSchedule = ({ workDurationDays, startDate, endDate } 
   return errors;
 };
 
-export const buildSpkPartyPayload = (type, { clientParties, subconPartyName = '' } = {}) => {
+export const validateSubconPartyForm = ({ firstParty = {}, secondParty = {} } = {}) => {
+  const errors = [];
+  if (!String(firstParty.name || '').trim()) errors.push('Nama Pihak Pertama wajib diisi.');
+  if (!String(firstParty.position || '').trim()) errors.push('Jabatan Pihak Pertama wajib diisi.');
+  if (!String(firstParty.nik || '').trim()) errors.push('No. KTP Pihak Pertama wajib diisi.');
+  if (!String(firstParty.address || '').trim()) errors.push('Alamat Pihak Pertama wajib diisi.');
+  if (!String(secondParty.name || '').trim()) errors.push('Nama subcon wajib diisi.');
+  if (!String(secondParty.position || '').trim()) errors.push('Jabatan subcon wajib diisi.');
+  if (!String(secondParty.nik || '').trim()) errors.push('No. KTP subcon wajib diisi.');
+  if (!String(secondParty.address || '').trim()) errors.push('Alamat subcon wajib diisi.');
+  return errors;
+};
+
+export const buildSpkPartyPayload = (type, { clientParties, subconParties, subconPartyName = '' } = {}) => {
   if (type === 'CLIENT') {
     const firstParty = normalizeParty(clientParties?.firstParty, FIRST_PARTY_DEFAULTS);
     const secondParty = normalizeParty(clientParties?.secondParty, { position: SECOND_PARTY_DEFAULT_POSITION });
@@ -93,9 +150,25 @@ export const buildSpkPartyPayload = (type, { clientParties, subconPartyName = ''
     };
   }
 
-  const partyName = String(subconPartyName || '').trim();
+  const partyName = String(
+    subconParties?.secondParty?.name || subconPartyName || '',
+  ).trim();
+  if (!subconParties) {
+    return {
+      partyName,
+      partyData: { contractorName: partyName },
+    };
+  }
+  const subconDefaults = createSubconPartyForm();
+  const firstParty = normalizeParty(subconParties?.firstParty, subconDefaults.firstParty);
+  const secondParty = normalizeParty(
+    { ...subconParties?.secondParty, name: partyName },
+    subconDefaults.secondParty,
+  );
   return {
     partyName,
-    partyData: { contractorName: partyName },
+    firstParty,
+    secondParty,
+    partyData: { contractorName: partyName, firstParty, secondParty },
   };
 };
