@@ -114,6 +114,19 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
   const scheduleReady = validateClientSchedule({ workDurationDays, startDate, endDate }).length === 0;
   const paymentReady = Math.abs(totalPercent - 100) < 0.01;
 
+  const handleCategoryFilterChange = (value) => {
+    setCategoryFilter(value);
+    setSubCategoryFilter('ALL');
+    // Filter Subcon adalah scope pemilihan. Ganti scope = mulai pilih ulang.
+    if (type === 'SUBCON') setSelectedItemIds([]);
+  };
+
+  const handleSubCategoryFilterChange = (value) => {
+    setSubCategoryFilter(value);
+    // Jangan bawa centang dari sub/kategori sebelumnya ke SPK baru.
+    if (type === 'SUBCON') setSelectedItemIds([]);
+  };
+
   const toggleAllItems = () => {
     const visibleIds = filteredSourceItems.map((item) => item.id);
     const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedItemIds.includes(id));
@@ -437,8 +450,8 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
                 <div className="spk-panel-body">
                   {type === 'SUBCON' && (
                     <div className="spk-payment-fields">
-                      <label className="spk-field"><span>Label kategori</span><select className="spk-input" value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setSubCategoryFilter('ALL'); }}><option value="ALL">Semua kategori</option>{categoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
-                      <label className="spk-field"><span>Label subkategori</span><select className="spk-input" value={subCategoryFilter} onChange={(event) => setSubCategoryFilter(event.target.value)}><option value="ALL">Semua subkategori</option>{subCategoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
+                      <label className="spk-field"><span>Label kategori</span><select className="spk-input" value={categoryFilter} onChange={(event) => handleCategoryFilterChange(event.target.value)}><option value="ALL">Semua kategori</option>{categoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
+                      <label className="spk-field"><span>Label subkategori</span><select className="spk-input" value={subCategoryFilter} onChange={(event) => handleSubCategoryFilterChange(event.target.value)}><option value="ALL">Semua subkategori</option>{subCategoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
                     </div>
                   )}
                   <div className="spk-scope-toolbar">
