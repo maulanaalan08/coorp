@@ -7,9 +7,12 @@ import { spkService } from '../services/spkService';
 import {
   buildSpkPartyPayload,
   createClientPartyForm,
+  createSubconPartyForm,
   mapContractPartiesToForm,
+  mapSubconPartiesToForm,
   validateClientPartyForm,
   validateClientSchedule,
+  validateSubconPartyForm,
 } from '../utils/spkPartyForm';
 import '../styles/SpkPage.css';
 
@@ -25,7 +28,11 @@ const dateInput = (value) => {
   return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
 };
 
+let termSeq = 0;
 const newTerm = (index = 0) => ({
+  // id tetap: dipakai sebagai React key. Key tidak boleh ikut berubah saat
+  // mengetik, kalau tidak input kehilangan fokus tiap 1 huruf.
+  id: `term-${Date.now().toString(36)}-${(termSeq += 1)}`,
   label: `Termin ${index + 1}`,
   percent: index === 0 ? 100 : 0,
   amount: 0,
@@ -69,6 +76,7 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
   const [retentionPercent, setRetentionPercent] = useState(0);
   const [terms, setTerms] = useState([newTerm(0)]);
   const [subconPartyName, setSubconPartyName] = useState('');
+  const [subconParties, setSubconParties] = useState(() => createSubconPartyForm());
   const [clientParties, setClientParties] = useState(() => createClientPartyForm());
   const [workDurationDays, setWorkDurationDays] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -101,10 +109,23 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
   const selectedProjectLocation = project?.location || clientParties.secondParty.address || 'Lokasi project belum tersedia';
   const partyReady = type === 'CLIENT'
     ? validateClientPartyForm(clientParties).length === 0
-    : Boolean(subconPartyName.trim());
-  const scheduleReady = type !== 'CLIENT'
-    || validateClientSchedule({ workDurationDays, startDate, endDate }).length === 0;
+    : validateSubconPartyForm(subconParties).length === 0;
+  // Jadwal wajib di kedua tipe: Pasal 2 SPK Subcon juga memakai durasi + tanggal.
+  const scheduleReady = validateClientSchedule({ workDurationDays, startDate, endDate }).length === 0;
   const paymentReady = Math.abs(totalPercent - 100) < 0.01;
+
+  const handleCategoryFilterChange = (value) => {
+    setCategoryFilter(value);
+    setSubCategoryFilter('ALL');
+    // Filter Subcon adalah scope pemilihan. Ganti scope = mulai pilih ulang.
+    if (type === 'SUBCON') setSelectedItemIds([]);
+  };
+
+  const handleSubCategoryFilterChange = (value) => {
+    setSubCategoryFilter(value);
+    // Jangan bawa centang dari sub/kategori sebelumnya ke SPK baru.
+    if (type === 'SUBCON') setSelectedItemIds([]);
+  };
 
   const toggleAllItems = () => {
     const visibleIds = filteredSourceItems.map((item) => item.id);
@@ -135,7 +156,10 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
       setContracts(nextContracts.contracts || []);
       const loadedProject = nextContracts.project || nextSource.project || null;
       setProject(loadedProject);
-      if (!editingId && type === 'CLIENT') setClientParties(createClientPartyForm(loadedProject));
+      if (!editingId) {
+        if (type === 'CLIENT') setClientParties(createClientPartyForm(loadedProject));
+        else setSubconParties(createSubconPartyForm(loadedProject));
+      }
       setSelectedItemIds((nextSource.items || []).map((item) => item.id));
     } catch (error) {
       toast.error(error.message || 'Gagal memuat sumber RAB/SPK.');
@@ -182,6 +206,30 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
     }));
   };
 
+  // Tanggal selesai = tanggal mulai + (durasi - 1) hari kalender.
+  // Inklusif: mulai 1 Jan + 10 hari -> selesai 10 Jan.
+  const syncEndDate = (nextStart, nextDuration) => {
+    const duration = numberValue(nextDuration);
+    if (!nextStart || duration < 1) return;
+    const start = new Date(`${nextStart}T00:00:00`);
+    if (Number.isNaN(start.getTime())) return;
+    start.setDate(start.getDate() + (Math.round(duration) - 1));
+    const year = start.getFullYear();
+    const month = String(start.getMonth() + 1).padStart(2, '0');
+    const day = String(start.getDate()).padStart(2, '0');
+    setEndDate(`${year}-${month}-${day}`);
+  };
+
+  const handleStartDateChange = (value) => {
+    setStartDate(value);
+    syncEndDate(value, workDurationDays);
+  };
+
+  const handleDurationChange = (value) => {
+    setWorkDurationDays(value);
+    syncEndDate(startDate, value);
+  };
+
   const updateRetention = (value) => {
     setRetentionPercent(value);
     setTerms((current) => rebalanceTermsForRetention(current, value, selectedValue));
@@ -193,6 +241,7 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
     setRetentionPercent(0);
     setTerms([newTerm(0)]);
     setSubconPartyName('');
+    setSubconParties(createSubconPartyForm(project));
     setClientParties(createClientPartyForm(project));
     setWorkDurationDays('');
     setStartDate('');
@@ -220,12 +269,9 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
       setClientParties(mapContractPartiesToForm(contract, project));
       setSubconPartyName('');
     } else {
-      setSubconPartyName(
-        contract.partyData?.contractorName
-        || contract.partyData?.name
-        || contract.snapshot?.party?.name
-        || '',
-      );
+      const mapped = mapSubconPartiesToForm(contract, project);
+      setSubconParties(mapped);
+      setSubconPartyName(mapped.secondParty.name);
     }
     setWorkDurationDays(contract.workDurationDays ? String(contract.workDurationDays) : '');
     setStartDate(dateInput(contract.startDate));
@@ -245,14 +291,15 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
     if (type === 'CLIENT') {
       const partyErrors = validateClientPartyForm(clientParties);
       if (partyErrors.length) return toast.error(partyErrors[0]);
-      const scheduleErrors = validateClientSchedule({ workDurationDays, startDate, endDate });
-      if (scheduleErrors.length) return toast.error(scheduleErrors[0]);
-    } else if (!subconPartyName.trim()) {
-      return toast.error('Nama pihak/kontraktor wajib diisi.');
+    } else {
+      const partyErrors = validateSubconPartyForm(subconParties);
+      if (partyErrors.length) return toast.error(partyErrors[0]);
     }
+    const scheduleErrors = validateClientSchedule({ workDurationDays, startDate, endDate });
+    if (scheduleErrors.length) return toast.error(scheduleErrors[0]);
     setSaving(true);
     try {
-      const partyPayload = buildSpkPartyPayload(type, { clientParties, subconPartyName });
+      const partyPayload = buildSpkPartyPayload(type, { clientParties, subconParties, subconPartyName });
       const payload = {
         type,
         ...(type === 'SUBCON'
@@ -403,8 +450,8 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
                 <div className="spk-panel-body">
                   {type === 'SUBCON' && (
                     <div className="spk-payment-fields">
-                      <label className="spk-field"><span>Label kategori</span><select className="spk-input" value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setSubCategoryFilter('ALL'); }}><option value="ALL">Semua kategori</option>{categoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
-                      <label className="spk-field"><span>Label subkategori</span><select className="spk-input" value={subCategoryFilter} onChange={(event) => setSubCategoryFilter(event.target.value)}><option value="ALL">Semua subkategori</option>{subCategoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
+                      <label className="spk-field"><span>Label kategori</span><select className="spk-input" value={categoryFilter} onChange={(event) => handleCategoryFilterChange(event.target.value)}><option value="ALL">Semua kategori</option>{categoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
+                      <label className="spk-field"><span>Label subkategori</span><select className="spk-input" value={subCategoryFilter} onChange={(event) => handleSubCategoryFilterChange(event.target.value)}><option value="ALL">Semua subkategori</option>{subCategoryOptions.map((label) => <option key={label} value={label}>{label}</option>)}</select></label>
                     </div>
                   )}
                   <div className="spk-scope-toolbar">
@@ -453,9 +500,26 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
                       </div>
                     </div>
                   ) : (
-                    <div className="spk-subcon-grid">
-                      <label className="spk-field"><span>Nama pihak / kontraktor</span><input className="spk-input" value={subconPartyName} onChange={(event) => setSubconPartyName(event.target.value)} placeholder="Nama pihak / kontraktor" /></label>
-                      <div className="spk-field"><span>Alamat project · otomatis</span><div className="spk-input spk-readonly">{project?.location || 'Otomatis dari alamat project'}</div></div>
+                    <div className="spk-party-grid">
+                      <div className="spk-party-card">
+                        <div className="spk-party-heading"><strong>Pihak pertama</strong><span>PT Dives / pemberi tugas</span></div>
+                        <div className="spk-field-grid">
+                          <label className="spk-field"><span>Nama perwakilan *</span><input className="spk-input" value={subconParties.firstParty.name} onChange={(event) => setSubconParties((current) => ({ ...current, firstParty: { ...current.firstParty, name: event.target.value } }))} placeholder="Nama Direktur / perwakilan" /></label>
+                          <label className="spk-field"><span>No. KTP *</span><input className="spk-input" value={subconParties.firstParty.nik || ''} onChange={(event) => setSubconParties((current) => ({ ...current, firstParty: { ...current.firstParty, nik: event.target.value } }))} placeholder="Nomor KTP" /></label>
+                          <label className="spk-field"><span>Jabatan *</span><input className="spk-input" value={subconParties.firstParty.position} onChange={(event) => setSubconParties((current) => ({ ...current, firstParty: { ...current.firstParty, position: event.target.value } }))} /></label>
+                          <label className="spk-field full"><span>Alamat perusahaan *</span><textarea className="spk-input" value={subconParties.firstParty.address} onChange={(event) => setSubconParties((current) => ({ ...current, firstParty: { ...current.firstParty, address: event.target.value } }))} /></label>
+                        </div>
+                      </div>
+                      <div className="spk-party-card">
+                        <div className="spk-party-heading"><strong>Pihak kedua</strong><span>Subcon / penyedia jasa</span></div>
+                        <div className="spk-field-grid">
+                          <label className="spk-field"><span>Nama subcon *</span><input className="spk-input" value={subconParties.secondParty.name} onChange={(event) => { const value = event.target.value; setSubconPartyName(value); setSubconParties((current) => ({ ...current, secondParty: { ...current.secondParty, name: value } })); }} placeholder="Nama kontraktor / subcon" /></label>
+                          <label className="spk-field"><span>No. KTP *</span><input className="spk-input" value={subconParties.secondParty.nik || ''} onChange={(event) => setSubconParties((current) => ({ ...current, secondParty: { ...current.secondParty, nik: event.target.value } }))} placeholder="Nomor KTP" /></label>
+                          <label className="spk-field"><span>Telepon</span><input className="spk-input" value={subconParties.secondParty.phone || ''} onChange={(event) => setSubconParties((current) => ({ ...current, secondParty: { ...current.secondParty, phone: event.target.value } }))} placeholder="Contoh: +62 812..." /></label>
+                          <label className="spk-field"><span>Jabatan *</span><input className="spk-input" value={subconParties.secondParty.position} onChange={(event) => setSubconParties((current) => ({ ...current, secondParty: { ...current.secondParty, position: event.target.value } }))} /></label>
+                          <label className="spk-field full"><span>Alamat subcon *</span><textarea className="spk-input" value={subconParties.secondParty.address} onChange={(event) => setSubconParties((current) => ({ ...current, secondParty: { ...current.secondParty, address: event.target.value } }))} placeholder="Alamat penyedia jasa" /></label>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -468,7 +532,7 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
                 </div>
                 <div className="spk-panel-body">
                   <div className="spk-payment-fields">
-                    <label className="spk-field"><span>Durasi pekerjaan (hari){type === 'CLIENT' ? ' *' : ''}</span><input type="number" min="1" required={type === 'CLIENT'} className="spk-input" value={workDurationDays} onChange={(event) => setWorkDurationDays(event.target.value)} /></label>
+                    <label className="spk-field"><span>Durasi pekerjaan (hari kalender) *</span><input type="number" min="1" required className="spk-input" value={workDurationDays} onChange={(event) => handleDurationChange(event.target.value)} /></label>
                     <label className="spk-field"><span>Retensi (%)</span><input type="number" min="0" max="100" step="0.01" className="spk-input" value={retentionPercent} onChange={(event) => updateRetention(event.target.value)} /></label>
                     <div className="spk-field"><span>Nilai retensi</span><div className="spk-input spk-readonly">{money(retentionAmount)}</div></div>
                   </div>
@@ -476,7 +540,7 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
                   <div className="spk-table-scroll">
                     <table className="spk-term-table">
                       <thead><tr><th>Termin</th><th>Persen</th><th>Nominal</th><th>Jatuh tempo / milestone</th><th /></tr></thead>
-                      <tbody>{terms.map((term, index) => <tr key={`${index}-${term.label}`}>
+                      <tbody>{terms.map((term, index) => <tr key={term.id || `term-${index}`}>
                         <td><input className="spk-input" value={term.label} onChange={(event) => updateTerm(index, 'label', event.target.value)} /></td>
                         <td><input type="number" min="0" max="100" step="0.01" className="spk-input" value={term.percent} onChange={(event) => updateTerm(index, 'percent', event.target.value)} /></td>
                         <td className="spk-term-money">{money(term.amount)}</td>
@@ -492,11 +556,11 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
 
                   <div className="spk-divider" />
                   <div className="spk-schedule-grid">
-                    <label className="spk-field"><span>Tanggal mulai{type === 'CLIENT' ? ' *' : ''}</span><input type="date" required={type === 'CLIENT'} className="spk-input" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
-                    <label className="spk-field"><span>Tanggal selesai{type === 'CLIENT' ? ' *' : ''}</span><input type="date" required={type === 'CLIENT'} className="spk-input" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+                    <label className="spk-field"><span>Tanggal mulai *</span><input type="date" required className="spk-input" value={startDate} onChange={(event) => handleStartDateChange(event.target.value)} /></label>
+                    <label className="spk-field"><span>Tanggal selesai *</span><input type="date" required className="spk-input" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
                     <div className="spk-field"><span>Status nomor</span><div className="spk-input spk-readonly">{editingId ? 'Mengubah draft tanpa nomor' : 'Belum dialokasikan (Draft)'}</div></div>
                   </div>
-                  {type === 'CLIENT' && <p className="spk-helper">Durasi dan tanggal wajib diisi; tanggal selesai tidak boleh lebih awal dari tanggal mulai.</p>}
+                  <p className="spk-helper">Durasi dan tanggal wajib diisi; tanggal selesai otomatis dihitung dari tanggal mulai + durasi (hari kalender), dan tetap boleh diubah manual.</p>
                   <label className="spk-field spk-notes"><span>Catatan kontrak</span><textarea className="spk-input" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan khusus draft SPK" /></label>
                   <div className="spk-save-bar">
                     <span><i className="spk-ready-dot" /> Draft masih dapat diubah sebelum diterbitkan.</span>
@@ -511,7 +575,7 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
                 <div className="spk-summary-label">Ringkasan kontrak</div>
                 <h3>{selectedProjectName}</h3><p>{selectedProjectLocation}</p>
                 <div className="spk-divider" />
-                <dl><div><dt>Tipe</dt><dd>{type === 'CLIENT' ? 'SPK Client' : 'SPK Subcon'}</dd></div><div><dt>Ruang lingkup</dt><dd>{selectedItemsCount} item RAB</dd></div><div><dt>Durasi</dt><dd>{workDurationDays ? `${workDurationDays} hari kerja` : 'Belum diisi'}</dd></div><div><dt>Termin + retensi</dt><dd className={paymentReady ? 'ready' : ''}>{totalPercent.toFixed(2)}%</dd></div></dl>
+                <dl><div><dt>Tipe</dt><dd>{type === 'CLIENT' ? 'SPK Client' : 'SPK Subcon'}</dd></div><div><dt>Ruang lingkup</dt><dd>{selectedItemsCount} item RAB</dd></div><div><dt>Durasi</dt><dd>{workDurationDays ? `${workDurationDays} hari kalender` : 'Belum diisi'}</dd></div><div><dt>Termin + retensi</dt><dd className={paymentReady ? 'ready' : ''}>{totalPercent.toFixed(2)}%</dd></div></dl>
                 <div className="spk-grand-total"><span>Nilai kontrak</span><strong>{money(selectedValue)}</strong></div>
               </div>
               <div className="spk-summary-card">
@@ -528,14 +592,14 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
               {visibleContracts.map((contract) => {
                 const partyName = contract.type === 'CLIENT'
                   ? contract.partyData?.secondParty?.name || contract.snapshot?.partyData?.secondParty?.name || project?.clientName || 'Client'
-                  : contract.partyData?.contractorName || contract.partyData?.name || contract.snapshot?.party?.name || 'Kontraktor';
+                  : contract.partyData?.secondParty?.name || contract.partyData?.contractorName || contract.partyData?.name || contract.snapshot?.party?.name || 'Kontraktor';
                 return <article key={contract.id} className="spk-record">
                   <div><span className="spk-record-type">SPK {contract.type === 'CLIENT' ? 'Client' : 'Subcon'}</span><strong>{contract.spkNumber || 'DRAFT / belum bernomor'}</strong></div>
                   <div><strong>{partyName}</strong><span>{money(contract.contractValue)} · {contract.snapshot?.workScope?.length || 0} item ruang lingkup</span></div>
                   <span className={`spk-status status-${String(contract.status).toLowerCase()}`}>{contract.status}</span>
                   <div className="spk-record-actions">
-                    {contract.type === 'CLIENT' && <button type="button" className="spk-btn" onClick={() => viewPdf(contract)}><Eye size={14} /> {contract.status === 'DRAFT' ? 'Preview PDF' : 'Lihat PDF'}</button>}
-                    {contract.type === 'CLIENT' && <button type="button" className="spk-btn" onClick={() => downloadPdf(contract)}><Download size={14} /> Unduh PDF</button>}
+                    <button type="button" className="spk-btn" onClick={() => viewPdf(contract)}><Eye size={14} /> {contract.status === 'DRAFT' ? 'Preview PDF' : 'Lihat PDF'}</button>
+                    <button type="button" className="spk-btn" onClick={() => downloadPdf(contract)}><Download size={14} /> Unduh PDF</button>
                     {contract.status === 'DRAFT' && <button type="button" className="spk-btn" onClick={() => startEdit(contract)}><FileText size={14} /> Edit</button>}
                     {contract.status === 'DRAFT' && <button type="button" className="spk-btn primary" onClick={() => issue(contract.id)}><Send size={14} /> Terbitkan</button>}
                     {contract.status === 'TERBIT' && <button type="button" className="spk-btn" onClick={() => sign(contract.id)}><ShieldCheck size={14} /> Tandai ditandatangani</button>}
