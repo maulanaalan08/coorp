@@ -244,6 +244,9 @@
 .spk-scope-row:last-child { border-bottom: 0; }
 .spk-scope-row:hover { background: #1a1711; }
 .spk-scope-row.is-off { opacity: 0.46; }
+.spk-scope-row.is-locked { opacity: 0.6; cursor: not-allowed; }
+.spk-scope-row.is-locked:hover { background: transparent; }
+.spk-scope-locked { display: block; margin-top: 4px; color: #d8a13a; font-size: 10px; font-style: normal; font-weight: 600; }
 .spk-scope-name { min-width: 0; font-size: 12px; font-weight: 700; }
 .spk-scope-name small { display: block; margin-top: 3px; color: var(--spk-muted); font-size: 10px; font-weight: 500; }
 .spk-scope-tag { justify-self: start; padding: 4px 7px; border: 1px solid #4a3f2b; border-radius: 4px; background: #211d15; color: #cdbd9b; font-family: "JetBrains Mono", monospace; font-size: 8px; font-weight: 700; text-transform: uppercase; }

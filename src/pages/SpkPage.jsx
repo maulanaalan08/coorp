@@ -128,7 +128,7 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
   };
 
   const toggleAllItems = () => {
-    const visibleIds = filteredSourceItems.map((item) => item.id);
+    const visibleIds = filteredSourceItems.filter((item) => !item.locked).map((item) => item.id);
     const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedItemIds.includes(id));
     setSelectedItemIds((current) => allVisibleSelected
       ? current.filter((id) => !visibleIds.includes(id))
@@ -160,7 +160,8 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
         if (type === 'CLIENT') setClientParties(createClientPartyForm(loadedProject));
         else setSubconParties(createSubconPartyForm(loadedProject));
       }
-      setSelectedItemIds((nextSource.items || []).map((item) => item.id));
+      // Item yang sudah dipakai SPK subcon aktif tidak ikut terpilih otomatis.
+      setSelectedItemIds((nextSource.items || []).filter((item) => !item.locked).map((item) => item.id));
     } catch (error) {
       toast.error(error.message || 'Gagal memuat sumber RAB/SPK.');
     } finally {
@@ -455,15 +456,16 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
                     </div>
                   )}
                   <div className="spk-scope-toolbar">
-                    <label className="spk-check-all"><input type="checkbox" checked={filteredSourceItems.length > 0 && filteredSourceItems.every((item) => selectedItemIds.includes(item.id))} onChange={toggleAllItems} /> {type === 'SUBCON' ? 'Pilih semua hasil filter' : 'Pilih semua item'}</label>
+                    <label className="spk-check-all"><input type="checkbox" checked={filteredSourceItems.length > 0 && filteredSourceItems.every((item) => item.locked || selectedItemIds.includes(item.id))} onChange={toggleAllItems} /> {type === 'SUBCON' ? 'Pilih semua hasil filter' : 'Pilih semua item'}</label>
                     <span>{selectedItemsCount} dari {sourceItemsCount} item dipilih</span>
                   </div>
                   <div className="spk-scope-list">
                     {filteredSourceItems.map((item) => {
                       const checked = selectedItemIds.includes(item.id);
-                      return <label key={item.id} className={`spk-scope-row${checked ? '' : ' is-off'}`}>
-                        <input type="checkbox" checked={checked} onChange={() => setSelectedItemIds((ids) => checked ? ids.filter((id) => id !== item.id) : [...ids, item.id])} />
-                        <span className="spk-scope-name">{item.name}<small>{item.volume} {item.paymentUnit || ''} · {type === 'SUBCON' ? `${item.poNumber || 'PO Jasa'} · ${item.contractorName || 'Subcon'} · ${item.categoryLabel || 'Tanpa kategori'} / ${item.subCategoryLabel || 'Tanpa subkategori'}` : 'RAB'}</small></span>
+                      const locked = Boolean(item.locked);
+                      return <label key={item.id} className={`spk-scope-row${checked ? '' : ' is-off'}${locked ? ' is-locked' : ''}`}>
+                        <input type="checkbox" checked={checked} disabled={locked} onChange={() => setSelectedItemIds((ids) => checked ? ids.filter((id) => id !== item.id) : [...ids, item.id])} />
+                        <span className="spk-scope-name">{item.name}<small>{item.volume} {item.paymentUnit || ''} · {type === 'SUBCON' ? `${item.poNumber || 'PO Jasa'} · ${item.contractorName || 'Subcon'} · ${item.categoryLabel || 'Tanpa kategori'} / ${item.subCategoryLabel || 'Tanpa subkategori'}` : 'RAB'}</small>{locked && <em className="spk-scope-locked">Sudah dibuatkan SPK Subcon{item.lockedBySpkNumber ? ` ${item.lockedBySpkNumber}` : ''} · {item.lockedByStatus === 'DITANDATANGANI' ? 'ditandatangani' : 'terbit'}</em>}</span>
                         <span className="spk-scope-tag">{type === 'SUBCON' ? (item.subCategoryLabel || item.categoryLabel || 'Ruang lingkup') : 'Ruang lingkup'}</span>
                         <strong>{money(itemContractTotal(item))}</strong>
                       </label>;
