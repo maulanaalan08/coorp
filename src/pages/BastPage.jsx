@@ -4,6 +4,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useBast } from '../hooks/useBast';
 import { bastService } from '../services/bastService';
 import BastModal from '../components/BastModal';
+import Header from '../components/Header';
 import { Plus, Eye, Download, Pencil, Trash2, AlertCircle } from 'lucide-react';
 import styles from '../styles/BastPage.module.css';
 import toast from 'react-hot-toast';
@@ -72,8 +73,10 @@ const BastPage = () => {
   };
 
   return (
-    <div className={styles.pageContainer}>
-      <div className={styles.pageHeader}>
+    <div className="flex flex-col min-h-screen bg-[#0c0b09] text-white">
+      <Header />
+      <div className={styles.pageContainer} style={{ flex: 1, width: '100%', paddingTop: '8px' }}>
+        <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>Berita Acara (BAST)</h1>
           <p className={styles.pageSubtitle}>Kelola dan cetak Berita Acara Serah Terima Pekerjaan</p>
@@ -209,6 +212,7 @@ const BastPage = () => {
         isSubmitting={isSubmitting}
         clientSpks={clientSpks}
       />
+      </div>
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { joinOpnameService } from "../services/joinOpnameService";
 import { CalendarDays, X } from "lucide-react";
 import styles from "../styles/GlobalSchedulePage.module.css";
 import toast from "react-hot-toast";
+import Header from "../components/Header";
 
 const GlobalSchedulePage = () => {
   const [allProjects, setAllProjects] = useState([]);
@@ -218,8 +219,10 @@ const GlobalSchedulePage = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
+    <div className="flex flex-col min-h-screen bg-[#0c0b09] text-white">
+      <Header />
+      <div className={styles.container} style={{ height: "auto", flex: 1 }}>
+        <div className={styles.header}>
         <h1 className={styles.title}>
           <CalendarDays size={28} color="#d4af37" /> Global Schedule
         </h1>
@@ -363,6 +366,7 @@ const GlobalSchedulePage = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

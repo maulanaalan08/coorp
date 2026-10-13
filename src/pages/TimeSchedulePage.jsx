@@ -4,6 +4,7 @@ import { timeScheduleService } from "../services/timeScheduleService";
 import TimeScheduleTable from "../components/TimeScheduleTable";
 import TimeScheduleCalendar from "../components/TimeScheduleCalendar";
 import ProjectSelector from "../components/ProjectSelector";
+import Header from "../components/Header";
 import "../styles/TimeSchedulePage.css";
 import toast from "react-hot-toast";
 
@@ -129,19 +130,24 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
 
   if (!loadingProjects && projectList.length === 0 && projectError) {
     return (
-      <div className="tsp-page">
-        <div className="tsp-card tsp-empty-state tsp-error-state">
-          <h2>Gagal Memuat Project</h2>
-          <p>{projectError}</p>
-          <button className="tsp-btn tsp-btn-primary" onClick={fetchProjects}>Coba Lagi</button>
+      <div className="flex flex-col min-h-screen bg-[#0c0b09] text-white">
+        <Header />
+        <div className="tsp-page" style={{ flex: 1, minHeight: 'auto', paddingTop: '8px' }}>
+          <div className="tsp-card tsp-empty-state tsp-error-state">
+            <h2>Gagal Memuat Project</h2>
+            <p>{projectError}</p>
+            <button className="tsp-btn tsp-btn-primary" onClick={fetchProjects}>Coba Lagi</button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="tsp-page">
-      <header className="tsp-header">
+    <div className="flex flex-col min-h-screen bg-[#0c0b09] text-white">
+      <Header />
+      <div className="tsp-page" style={{ flex: 1, minHeight: 'auto', paddingTop: '8px' }}>
+        <header className="tsp-header">
         <div>
           <h1 className="tsp-title">RAP Time Schedule Proyek</h1>
           <p className="tsp-subtitle">Kelola jadwal pelaksanaan dan pantau progres melalui Kurva S.</p>
@@ -331,6 +337,7 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

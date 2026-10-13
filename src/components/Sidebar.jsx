@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   KanbanSquare,
+  CheckSquare,
   Wallet,
   FileText,
   Plus,
@@ -187,6 +188,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
           <ul className="flex flex-col gap-1 m-0 p-0 list-none">
             <NavItem icon={LayoutDashboard} label="Dashboard" tab="dashboard" />
             <NavItem icon={KanbanSquare} label="Project Board" tab="project-board" />
+            <NavItem icon={CheckSquare} label="Papan Tugas" tab="task-board" />
 
             {/* DROPDOWN: HSPK */}
             <li>

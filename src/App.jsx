@@ -14,7 +14,7 @@ import { NavContext } from "./contexts/NavContext";
 // --- Halaman di-lazy-load per route: tidak semua data dimuat saat buka app ---
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const ProjectBoard = lazy(() => import("./pages/ProjectBoard"));
-const ProjectDetailDashboard = lazy(() => import("./pages/ProjectDetailDashboard"));
+const TaskBoardPage = lazy(() => import("./pages/TaskBoardPage"));
 const UploadHspk = lazy(() => import("./pages/UploadHspk"));
 const BackUpVolume = lazy(() => import("./pages/BackUpVolume"));
 const DataSurvey = lazy(() => import("./pages/DataSurvey"));
@@ -61,7 +61,7 @@ function App() {
     const path = window.location.pathname.replace(/^\//, '').replace(/\/$/, '') || 'dashboard';
     const tabFromPath = path.split('/')[0];
     const validTabs = [
-      'dashboard', 'project-board', 'project-detail', 'upload-hspk', 'data-survey',
+      'dashboard', 'project-board', 'task-board', 'upload-hspk', 'data-survey',
       'bv', 'backup-volume', 'rab', 'spk-client', 'spk-subcon', 'finance', 'pembelian-siap-pakai', 'po-material', 'po-jasa', 'kelola-jasa',
       'retur-pembelian', 'pengajuan-bayar', 'permintaan-bayar', 'pembayaran-supplier', 'invoice-supplier', 'pembayaran-jasa', 'invoice-jasa', 'pembayaran-finance', 'invoice-penagihan',
       'laporan-harian', 'global-schedule', 'time-schedule', 'join-opname', 'bast', 'complain',
@@ -169,16 +169,11 @@ function App() {
               <ProjectBoard
                 onProjectClick={(projectId) => {
                   setGlobalProjectId(projectId);
-                  setActiveTab("project-detail");
+                  setActiveTab("bv");
                 }}
               />
             )}
-            {activeTab === "project-detail" && (
-              <ProjectDetailDashboard
-                projectId={globalProjectId}
-                onBack={() => setActiveTab("project-board")}
-              />
-            )}
+            {activeTab === "task-board" && <TaskBoardPage />}
             {activeTab === "upload-hspk" && <UploadHspk />}
             {activeTab === "work-categories" && <WorkCategoriesPage />}
             {activeTab === "data-survey" && <DataSurvey initialProjectId={globalProjectId} />}
