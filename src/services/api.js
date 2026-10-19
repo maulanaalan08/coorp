@@ -1,5 +1,5 @@
 // src/services/api.js
-const API_BASE_URL = import.meta.env.VITE_API_URL
+export const API_BASE_URL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
   : 'http://localhost:4000/api';
 
@@ -25,7 +25,7 @@ export const fetchAPI = async (endpoint, options = {}) => {
     if (token && !headers['Authorization'] && !headers['authorization']) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-  } catch (e) {
+  } catch {
     // localStorage mungkin tidak tersedia di environment tertentu
   }
 
@@ -66,4 +66,44 @@ export const fetchAPI = async (endpoint, options = {}) => {
   }
 
   return response.json();
+};
+
+export const fetchAPIBlob = async (endpoint, options = {}) => {
+  const headers = { ...options.headers };
+
+  try {
+    const token = localStorage.getItem('token');
+    if (token && !headers['Authorization'] && !headers['authorization']) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch {
+    // ignore
+  }
+
+  const config = {
+    ...options,
+    headers,
+  };
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      if (!_authExpiredDispatched) {
+        _authExpiredDispatched = true;
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.dispatchEvent(new CustomEvent('auth-expired'));
+        setTimeout(() => {
+          _authExpiredDispatched = false;
+        }, 1000);
+      }
+      throw new Error('Sesi login telah berakhir. Silakan login kembali.');
+    }
+
+    const text = await response.text().catch(() => '');
+    throw new Error(text || `HTTP Error: ${response.status}`);
+  }
+
+  return response.blob();
 };

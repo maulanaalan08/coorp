@@ -1,4 +1,4 @@
-import { fetchAPI } from "./api";
+import { fetchAPI, fetchAPIBlob } from "./api";
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
@@ -111,6 +111,39 @@ const glBankService = {
     }),
   deleteTransaksi: (id) =>
     fetchAPI(`/gl-bank/transaksi/${id}`, { method: "DELETE", headers: getAuthHeaders() }),
+
+  // TRANSFER ANTAR BANK
+  transferBank: (payload) =>
+    fetchAPI("/gl-bank/transfer-bank", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }),
+  getRiwayatTransfer: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") qs.append(k, v);
+    });
+    return fetchAPI(`/gl-bank/transfer-bank?${qs.toString()}`, { headers: getAuthHeaders() });
+  },
+
+  // LAPORAN LABA RUGI PROYEK
+  getLaporanLaba: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") qs.append(k, v);
+    });
+    return fetchAPI(`/gl-bank/laporan-laba?${qs.toString()}`, { headers: getAuthHeaders() });
+  },
+  exportExcelLabaRugiBlob: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") qs.append(k, v);
+    });
+    return fetchAPIBlob(`/gl-bank/laporan-laba/export-excel?${qs.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+  },
 };
 
 export default glBankService;

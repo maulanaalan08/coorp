@@ -28,6 +28,8 @@ import {
   ReceiptText,
   CalendarDays,
   Landmark,
+  ArrowLeftRight,
+  TrendingUp,
   LogOut,
   Menu,
   X,
@@ -80,7 +82,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
     if (["spk-client", "spk-subcon"].includes(activeTab)) setIsDocumentOpen(true);
     if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking", "kelola-jasa", "po-jasa"].includes(activeTab)) setIsPelaksanaanOpen(true);
-    if (["finance", "pengajuan-bayar", "permintaan-bayar", "pembayaran-supplier", "invoice-supplier", "pembayaran-jasa", "invoice-jasa", "pembayaran-finance", "buku-besar"].includes(activeTab)) setIsFinanceOpen(true);
+    if (["finance", "pengajuan-bayar", "permintaan-bayar", "pembayaran-supplier", "invoice-supplier", "pembayaran-jasa", "invoice-jasa", "pembayaran-finance", "invoice-penjualan", "invoice-operasional", "buku-besar", "transfer-bank", "laporan-laba"].includes(activeTab)) setIsFinanceOpen(true);
     if (["po-material", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
     if (["upload-hspk", "work-categories"].includes(activeTab)) setIsHspkOpen(true);
   }, [activeTab]);
@@ -333,8 +335,12 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                   <SubNavItem icon={ReceiptText} label="Invoice Supplier" tab="invoice-supplier" />
                   <SubNavItem icon={ReceiptText} label="Invoice Jasa" tab="invoice-jasa" />
                   <SubNavItem icon={Banknote} label="Pembayaran Finance" tab="pembayaran-finance" />
+                  <SubNavItem icon={ReceiptText} label="Invoice Penjualan" tab="invoice-penjualan" />
+                  <SubNavItem icon={ReceiptText} label="Invoice Operasional" tab="invoice-operasional" />
                   <SubNavItem icon={FileInput} label="Permintaan Bayar" tab="permintaan-bayar" />
                   <SubNavItem icon={Landmark} label="Buku Besar Kas/Bank" tab="buku-besar" />
+                  <SubNavItem icon={ArrowLeftRight} label="Transfer Antar Bank" tab="transfer-bank" />
+                  <SubNavItem icon={TrendingUp} label="Laporan Laba Rugi" tab="laporan-laba" />
                 </ul>
               )}
             </li>

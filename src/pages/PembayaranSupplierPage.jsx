@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Banknote, Plus, Search, Save, X, Edit2, Wrench } from 'lucide-react';
 import Header from '../components/Header';
 import { purchasingService } from '../services/purchasingService';
@@ -37,6 +37,37 @@ const statusLabel = (status) => {
   if (status === 'PARTIAL') return 'Sebagian / Tempo';
   if (status === 'PAID') return 'Lunas';
   return status || '-';
+};
+
+const normalizeApprovalStatus = (status) => {
+  const s = String(status || '').toUpperCase();
+  if (s === 'PENDING' || s === 'MENUNGGU_FINANCE') return 'PENDING';
+  if (s === 'APPROVED_FINANCE') return 'APPROVED_FINANCE';
+  if (s === 'APPROVED' || s === 'APPROVED_ATASAN') return 'APPROVED';
+  if (s === 'REJECTED') return 'REJECTED';
+  return s;
+};
+
+const approvalBadge = (approvalStatus, isPostedKasBank) => {
+  if (isPostedKasBank) return 'bg-emerald-500/10 text-emerald-300 border-emerald-500/40';
+  const map = {
+    PENDING: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30',
+    APPROVED_FINANCE: 'bg-blue-500/10 text-blue-300 border-blue-500/30',
+    APPROVED: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/40',
+    REJECTED: 'bg-red-500/10 text-red-300 border-red-500/30',
+  };
+  const normalized = normalizeApprovalStatus(approvalStatus);
+  return map[normalized] || 'bg-gray-500/10 text-gray-300 border-gray-500/30';
+};
+
+const approvalLabel = (approvalStatus, isPostedKasBank) => {
+  if (isPostedKasBank) return 'Terkirim Kas/Bank';
+  const normalized = normalizeApprovalStatus(approvalStatus);
+  if (normalized === 'PENDING') return 'Menunggu Finance';
+  if (normalized === 'APPROVED_FINANCE') return 'Menunggu Atasan';
+  if (normalized === 'APPROVED') return 'Disetujui Atasan (Siap Kirim)';
+  if (normalized === 'REJECTED') return 'Ditolak';
+  return normalized || '-';
 };
 
 const METODE_BAYAR = ['TRANSFER', 'CASH', 'CEK', 'GIRO', 'TEMPO'];
@@ -88,9 +119,7 @@ const PembayaranSupplierPage = () => {
   const [filterProject, setFilterProject] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [suppliers, setSuppliers] = useState([]);
   const [jasaList, setJasaList] = useState([]);
-  const [pengajuans, setPengajuans] = useState([]);
   const [pos, setPOs] = useState([]);
   const [rekeningBanks, setRekeningBanks] = useState([]);
   const [tipeRekeningList, setTipeRekeningList] = useState([]);
@@ -130,18 +159,13 @@ const PembayaranSupplierPage = () => {
 
   const fetchMasters = useCallback(async () => {
     try {
-      const [supData, jasaData, pjData, poData, rekeningRes, tipeRekeningRes] =
-        await Promise.all([
-          poService.getSuppliers(),
-          poService.getJasa({ onlyActive: true }),
-          purchasingService.getPengajuanBayar(),
-          poService.getPOs(),
-          glBankService.getRekeningBank({ activeOnly: 1 }),
-          glBankService.getTipeRekening({ isActive: 1 }),
-        ]);
-      setSuppliers(Array.isArray(supData) ? supData : []);
+      const [jasaData, poData, rekeningRes, tipeRekeningRes] = await Promise.all([
+        poService.getJasa({ onlyActive: true }),
+        poService.getPOs(),
+        glBankService.getRekeningBank({ activeOnly: 1 }),
+        glBankService.getTipeRekening({ isActive: 1 }),
+      ]);
       setJasaList(Array.isArray(jasaData) ? jasaData : []);
-      setPengajuans(Array.isArray(pjData) ? pjData : []);
       setPOs(Array.isArray(poData) ? poData : []);
       setRekeningBanks(Array.isArray(rekeningRes?.data) ? rekeningRes.data : []);
       setTipeRekeningList(
@@ -153,6 +177,7 @@ const PembayaranSupplierPage = () => {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPembayarans();
     fetchMasters();
   }, [fetchPembayarans, fetchMasters]);
@@ -281,6 +306,7 @@ const PembayaranSupplierPage = () => {
 
   useEffect(() => {
     if (!selectedPo) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFormData((prev) => ({
       ...prev,
       jasaId: prev.jasaId || selectedPo.jasaId || '',
@@ -405,18 +431,19 @@ const PembayaranSupplierPage = () => {
                   <th className="px-4 py-3 font-semibold text-right whitespace-nowrap">Total Tagihan</th>
                   <th className="px-4 py-3 font-semibold text-right whitespace-nowrap">Total Terbayar</th>
                   <th className="px-4 py-3 font-semibold text-right whitespace-nowrap">Sisa</th>
-                  <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Status Approval</th>
+                  <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Status Bayar</th>
                   <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-10 text-[#888]">Memuat data...</td>
+                    <td colSpan={11} className="text-center py-10 text-[#888]">Memuat data...</td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-10 text-[#888]">Belum ada data pembayaran</td>
+                    <td colSpan={11} className="text-center py-10 text-[#888]">Belum ada data pembayaran</td>
                   </tr>
                 ) : (
                   filtered.map((p) => (
@@ -459,6 +486,13 @@ const PembayaranSupplierPage = () => {
                       <td className="px-4 py-3 text-right text-[#ccc] font-mono whitespace-nowrap">{fmtRp(p.totalTagihan || 0)}</td>
                       <td className="px-4 py-3 text-right text-[#d4af37] font-mono whitespace-nowrap">{fmtRp(p.totalTerbayar ?? p.jumlahBayar ?? 0)}</td>
                       <td className="px-4 py-3 text-right text-[#ccc] font-mono whitespace-nowrap">{fmtRp(p.sisaBayar ?? 0)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${approvalBadge(p.approvalStatus || 'PENDING', p.isPostedKasBank)}`}
+                        >
+                          {approvalLabel(p.approvalStatus || 'PENDING', p.isPostedKasBank)}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge(p.status)}`}>
                           {statusLabel(p.status)}

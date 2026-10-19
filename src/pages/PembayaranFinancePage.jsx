@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Landmark,
   Search,
@@ -12,18 +12,15 @@ import {
   Wrench,
   Package,
   Calendar,
-  Wallet,
-  ArrowRight,
-  TrendingUp,
   FileText,
   DollarSign,
-  AlertTriangle,
   RefreshCw,
   Info,
 } from 'lucide-react';
 import Header from '../components/Header';
 import { purchasingService } from '../services/purchasingService';
 import glBankService from '../services/glBankService';
+import invoicePenjualanService from '../services/invoicePenjualanService';
 import toast from 'react-hot-toast';
 
 const fmtRp = (n) =>
@@ -38,12 +35,21 @@ const fmtTgl = (d) =>
       })
     : '-';
 
+const normalizeApprovalStatus = (status) => {
+  const s = String(status || '').toUpperCase();
+  if (s === 'PENDING' || s === 'MENUNGGU_FINANCE') return 'MENUNGGU_FINANCE';
+  if (s === 'APPROVED_FINANCE') return 'APPROVED_FINANCE';
+  if (s === 'APPROVED' || s === 'APPROVED_ATASAN') return 'APPROVED';
+  if (s === 'REJECTED') return 'REJECTED';
+  return s;
+};
+
 const PembayaranFinancePage = () => {
   const [pembayarans, setPembayarans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('ALL'); // ALL, MATERIAL, JASA
-  const [filterStatus, setFilterStatus] = useState('ALL'); // ALL, MENUNGGU_FINANCE, APPROVED_FINANCE, APPROVED_ATASAN, POSTED, REJECTED
+  const [filterType, setFilterType] = useState('ALL'); // ALL, MATERIAL, JASA, OPERASIONAL
+  const [filterStatus, setFilterStatus] = useState('ALL'); // ALL, MENUNGGU_FINANCE, APPROVED_FINANCE, APPROVED, POSTED, REJECTED
 
   const [rekeningBanks, setRekeningBanks] = useState([]);
   const [tipeRekeningList, setTipeRekeningList] = useState([]);
@@ -68,8 +74,43 @@ const PembayaranFinancePage = () => {
   const fetchPembayarans = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await purchasingService.getPembayaranSupplier();
-      setPembayarans(Array.isArray(data) ? data : []);
+      const [supplierData, operasionalData] = await Promise.all([
+        purchasingService.getPembayaranSupplier().catch(() => []),
+        invoicePenjualanService.listOperasional().catch(() => []),
+      ]);
+
+      const mappedOperasional = (Array.isArray(operasionalData) ? operasionalData : []).map((row) => ({
+        id: row.id,
+        isOperasional: true,
+        noPembayaran: row.noInvoice,
+        tanggal: row.tanggal,
+        tanggalBayar: row.tanggal,
+        totalTagihan: Number(row.jumlahTagihan || row.jumlahDibayar || 0),
+        jumlahBayar: Number(row.jumlahDibayar || 0),
+        totalTerbayar: Number(row.jumlahDibayar || 0),
+        sisaBayar: Number(row.sisaTagihan || 0),
+        approvalStatus: row.approvalStatus || 'PENDING',
+        financeApprovedAt: row.verifiedAt,
+        atasanApprovedAt: row.approvedAt,
+        isPostedKasBank: Boolean(row.postedToGl),
+        kategoriPembayaran: 'OPERASIONAL',
+        jenisPembayaran: 'OPERASIONAL',
+        keterangan: row.keterangan || row.jenisBiaya || 'Biaya Operasional',
+        project: row.project,
+        rekeningBankId: row.rekeningBankId,
+        tipeRekeningId: row.tipeRekeningId,
+        rekeningBank: row.rekeningBank,
+        tipeRekening: row.tipeRekening,
+        supplier: { name: row.jenisBiaya || 'Operasional' },
+        pihak: row.project?.client?.name || row.project?.name || 'Operasional',
+        rawOperasional: row,
+      }));
+
+      const combined = [
+        ...(Array.isArray(supplierData) ? supplierData : []),
+        ...mappedOperasional,
+      ];
+      setPembayarans(combined);
     } catch (err) {
       toast.error('Gagal memuat data pembayaran finance: ' + (err.message || ''));
     } finally {
@@ -93,6 +134,7 @@ const PembayaranFinancePage = () => {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPembayarans();
     fetchMasters();
   }, [fetchPembayarans, fetchMasters]);
@@ -111,18 +153,19 @@ const PembayaranFinancePage = () => {
 
     pembayarans.forEach((p) => {
       const nom = Number(p.jumlahBayar || p.totalTerbayar || p.totalTagihan || 0);
+      const approvalStatus = normalizeApprovalStatus(p.approvalStatus);
       totalNominal += nom;
 
       if (p.isPostedKasBank) {
         countPosted++;
         nominalPosted += nom;
-      } else if (p.approvalStatus === 'MENUNGGU_FINANCE') {
+      } else if (approvalStatus === 'MENUNGGU_FINANCE') {
         countMenungguFinance++;
         nominalMenungguFinance += nom;
-      } else if (p.approvalStatus === 'APPROVED_FINANCE') {
+      } else if (approvalStatus === 'APPROVED_FINANCE') {
         countMenungguAtasan++;
         nominalMenungguAtasan += nom;
-      } else if (p.approvalStatus === 'APPROVED_ATASAN') {
+      } else if (approvalStatus === 'APPROVED') {
         countSiapKirim++;
         nominalSiapKirim += nom;
       }
@@ -144,29 +187,50 @@ const PembayaranFinancePage = () => {
   // Filtering list
   const filteredList = useMemo(() => {
     return pembayarans.filter((p) => {
-      const isJasa = Boolean(p.jasaId || p.jasa || p.purchaseOrder?.kategoriPO === 'JASA');
-      if (filterType === 'MATERIAL' && isJasa) return false;
+      const kategori = String(
+        p.jenisPembayaran ||
+          p.kategoriPembayaran ||
+          p.purchaseOrder?.kategoriPO ||
+          (p.jasaId || p.jasa ? 'JASA' : 'MATERIAL'),
+      ).toUpperCase();
+      const isOperasional = kategori === 'OPERASIONAL';
+      const isJasa = kategori === 'JASA';
+      const isMaterial = !isOperasional && !isJasa;
+
+      if (filterType === 'MATERIAL' && !isMaterial) return false;
       if (filterType === 'JASA' && !isJasa) return false;
+      if (filterType === 'OPERASIONAL' && !isOperasional) return false;
+
+      const approvalStatus = normalizeApprovalStatus(p.approvalStatus);
 
       if (filterStatus === 'MENUNGGU_FINANCE') {
-        if (p.isPostedKasBank || p.approvalStatus !== 'MENUNGGU_FINANCE') return false;
+        if (p.isPostedKasBank || approvalStatus !== 'MENUNGGU_FINANCE') return false;
       } else if (filterStatus === 'APPROVED_FINANCE') {
-        if (p.isPostedKasBank || p.approvalStatus !== 'APPROVED_FINANCE') return false;
-      } else if (filterStatus === 'APPROVED_ATASAN') {
-        if (p.isPostedKasBank || p.approvalStatus !== 'APPROVED_ATASAN') return false;
+        if (p.isPostedKasBank || approvalStatus !== 'APPROVED_FINANCE') return false;
+      } else if (filterStatus === 'APPROVED') {
+        if (p.isPostedKasBank || approvalStatus !== 'APPROVED') return false;
       } else if (filterStatus === 'POSTED') {
         if (!p.isPostedKasBank) return false;
       } else if (filterStatus === 'REJECTED') {
-        if (p.approvalStatus !== 'REJECTED') return false;
+        if (approvalStatus !== 'REJECTED') return false;
       }
 
       if (search.trim()) {
         const q = search.toLowerCase();
         const noPmt = (p.noPembayaran || '').toLowerCase();
         const ket = (p.keterangan || '').toLowerCase();
-        const pihak = (p.supplier?.name || p.jasa?.nama || '').toLowerCase();
+        const pihak = (
+          p.supplier?.name ||
+          p.jasa?.nama ||
+          p.project?.name ||
+          ''
+        ).toLowerCase();
         const poNum = (p.purchaseOrder?.poNumber || '').toLowerCase();
-        const projName = (p.purchaseOrder?.project?.name || '').toLowerCase();
+        const projName = (
+          p.purchaseOrder?.project?.name ||
+          p.project?.name ||
+          ''
+        ).toLowerCase();
         if (
           !noPmt.includes(q) &&
           !ket.includes(q) &&
@@ -194,7 +258,11 @@ const PembayaranFinancePage = () => {
 
     setActionLoadingId(item.id);
     try {
-      await purchasingService.approveFinancePembayaran(item.id);
+      if (item.isOperasional) {
+        await invoicePenjualanService.approveFinanceOperasional(item.id);
+      } else {
+        await purchasingService.approveFinancePembayaran(item.id);
+      }
       toast.success(
         'Tagihan disetujui Finance. Menunggu approval Atasan di Permintaan Bayar.',
       );
@@ -215,7 +283,11 @@ const PembayaranFinancePage = () => {
 
     setActionLoadingId(item.id);
     try {
-      await purchasingService.rejectPembayaran(item.id, reason.trim());
+      if (item.isOperasional) {
+        await invoicePenjualanService.rejectOperasional(item.id, reason.trim());
+      } else {
+        await purchasingService.rejectPembayaran(item.id, reason.trim());
+      }
       toast.success('Tagihan berhasil ditolak');
       fetchPembayarans();
     } catch (err) {
@@ -257,14 +329,25 @@ const PembayaranFinancePage = () => {
 
     setIsSubmitting(true);
     try {
-      await purchasingService.kirimKasBankPembayaran(selectedPembayaran.id, {
-        nominal: nom,
-        rekeningBankId: postingData.rekeningBankId || null,
-        tipeRekeningId: postingData.tipeRekeningId || null,
-        tipeAkunKasBank: postingData.tipeAkunKasBank,
-        tanggalBayar: postingData.tanggalBayar,
-        keterangan: postingData.keterangan,
-      });
+      if (selectedPembayaran.isOperasional) {
+        await invoicePenjualanService.postGlOperasional(selectedPembayaran.id, {
+          nominal: nom,
+          rekeningBankId: postingData.rekeningBankId || null,
+          tipeRekeningId: postingData.tipeRekeningId || null,
+          tipeAkun: postingData.tipeAkunKasBank,
+          tanggal: postingData.tanggalBayar,
+          keterangan: postingData.keterangan || undefined,
+        });
+      } else {
+        await purchasingService.kirimKasBankPembayaran(selectedPembayaran.id, {
+          nominal: nom,
+          rekeningBankId: postingData.rekeningBankId || null,
+          tipeRekeningId: postingData.tipeRekeningId || null,
+          tipeAkunKasBank: postingData.tipeAkunKasBank,
+          tanggalBayar: postingData.tanggalBayar,
+          keterangan: postingData.keterangan,
+        });
+      }
 
       toast.success(
         'Pembayaran berhasil dikirim dan diposting ke Buku Kas/Bank!',
@@ -300,7 +383,7 @@ const PembayaranFinancePage = () => {
               Pembayaran Finance
             </h1>
             <p className="text-[#888] text-sm mt-1 max-w-3xl">
-              Antrean verifikasi pembayaran tagihan invoice material &amp; jasa.
+              Antrean verifikasi pembayaran tagihan invoice material, jasa, dan operasional.
               Tagihan diverifikasi Finance, divalidasi Atasan pada Permintaan
               Bayar, lalu tombol disbursement Kas/Bank aktif.
             </p>
@@ -452,6 +535,16 @@ const PembayaranFinancePage = () => {
               <Wrench size={13} />
               Jasa
             </button>
+            <button
+              onClick={() => setFilterType('OPERASIONAL')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                filterType === 'OPERASIONAL'
+                  ? 'bg-[#d4af37] text-[#0c0b09] font-bold shadow-sm'
+                  : 'text-[#888] hover:text-white'
+              }`}
+            >
+              Operasional
+            </button>
           </div>
 
           {/* Filter Status Selector */}
@@ -465,7 +558,7 @@ const PembayaranFinancePage = () => {
               <option value="ALL">Semua Status</option>
               <option value="MENUNGGU_FINANCE">Menunggu Approve Finance</option>
               <option value="APPROVED_FINANCE">Menunggu Approval Atasan</option>
-              <option value="APPROVED_ATASAN">Disetujui Atasan (Siap Kirim)</option>
+              <option value="APPROVED">Disetujui Atasan (Siap Kirim)</option>
               <option value="POSTED">Terkirim ke Kas/Bank</option>
               <option value="REJECTED">Ditolak</option>
             </select>
@@ -505,19 +598,23 @@ const PembayaranFinancePage = () => {
                 </thead>
                 <tbody className="divide-y divide-[#1e1c18]">
                   {filteredList.map((item) => {
-                    const isJasa = Boolean(
-                      item.jasaId ||
-                        item.jasa ||
-                        item.purchaseOrder?.kategoriPO === 'JASA',
-                    );
+                    const kategori = String(
+                      item.jenisPembayaran ||
+                        item.kategoriPembayaran ||
+                        item.purchaseOrder?.kategoriPO ||
+                        (item.jasaId || item.jasa ? 'JASA' : 'MATERIAL'),
+                    ).toUpperCase();
+                    const isOperasional = kategori === 'OPERASIONAL';
+                    const isJasa = kategori === 'JASA';
                     const pihakName =
                       item.supplier?.name ||
                       item.jasa?.nama ||
                       item.purchaseOrder?.supplier?.name ||
                       item.purchaseOrder?.jasa?.nama ||
+                      item.project?.name ||
                       '-';
                     const projectName =
-                      item.purchaseOrder?.project?.name || '-';
+                      item.purchaseOrder?.project?.name || item.project?.name || '-';
                     const nominal = Number(
                       item.jumlahBayar ||
                         item.totalTerbayar ||
@@ -525,14 +622,14 @@ const PembayaranFinancePage = () => {
                         0,
                     );
                     const isPosted = Boolean(item.isPostedKasBank);
-                    const approvalStatus = item.approvalStatus;
+                    const approvalStatus = normalizeApprovalStatus(item.approvalStatus);
 
                     const isMenungguFinance =
                       !isPosted && approvalStatus === 'MENUNGGU_FINANCE';
                     const isMenungguAtasan =
                       !isPosted && approvalStatus === 'APPROVED_FINANCE';
                     const isSiapKirim =
-                      !isPosted && approvalStatus === 'APPROVED_ATASAN';
+                      !isPosted && approvalStatus === 'APPROVED';
                     const isRejected = approvalStatus === 'REJECTED';
 
                     return (
@@ -565,12 +662,14 @@ const PembayaranFinancePage = () => {
                           <div className="flex items-center gap-1.5 mb-1">
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                isJasa
-                                  ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
-                                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                                isOperasional
+                                  ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30'
+                                  : isJasa
+                                    ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
+                                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
                               }`}
                             >
-                              {isJasa ? 'JASA / SUBCON' : 'MATERIAL'}
+                              {isOperasional ? 'OPERASIONAL' : isJasa ? 'JASA / SUBCON' : 'MATERIAL'}
                             </span>
                           </div>
                           <div className="font-medium text-[#f2ead9]">

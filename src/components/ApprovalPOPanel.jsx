@@ -10,6 +10,15 @@ const fmtRp = (n) =>
 const fmtTanggal = (d) =>
   d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
+const getKeteranganToneClass = (txt) => {
+  const val = String(txt || '').toLowerCase();
+  if (!val) return 'text-[#888]';
+  if (val.includes('over')) return 'text-red-400';
+  if (val.includes('under')) return 'text-amber-400';
+  if (val.includes('sesuai')) return 'text-green-400';
+  return 'text-[#ccc]';
+};
+
 /**
  * Panel approval PO untuk Finance (tingkat 1).
  * PO status BELUM_APPROVE -> aksi Verifikasi (lanjut ke atasan) / Tolak.
@@ -200,14 +209,12 @@ const ApprovalPOPanel = ({ projectId = null, refreshKey = 0, onChanged }) => {
                         
                         let volStatus = null;
                         if (ketVol) {
-                          const isOver = ketVol.toLowerCase().includes("over");
-                          volStatus = <span className={`font-medium ml-1 text-[11px] ${isOver ? 'text-red-400' : 'text-green-400'}`}>({ketVol})</span>;
+                          volStatus = <span className={`font-medium ml-1 text-[11px] ${getKeteranganToneClass(ketVol)}`}>({ketVol})</span>;
                         }
 
                         let hrgStatus = null;
                         if (ketHrg) {
-                          const isOver = ketHrg.toLowerCase().includes("over");
-                          hrgStatus = <span className={`font-medium ml-1 text-[11px] ${isOver ? 'text-red-400' : 'text-green-400'}`}>({ketHrg})</span>;
+                          hrgStatus = <span className={`font-medium ml-1 text-[11px] ${getKeteranganToneClass(ketHrg)}`}>({ketHrg})</span>;
                         }
 
                         return (

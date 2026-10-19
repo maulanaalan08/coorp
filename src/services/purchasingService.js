@@ -1,4 +1,4 @@
-import { fetchAPI } from './api';
+import { fetchAPI, API_BASE_URL } from './api';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
@@ -151,6 +151,23 @@ export const purchasingService = {
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
+  },
+  getInvoiceSupplierPdfBlob: async (id, entryIndex) => {
+    const token = localStorage.getItem('token');
+    const q = entryIndex !== undefined && entryIndex !== null ? `?entryIndex=${entryIndex}` : '';
+    const res = await fetch(`${API_BASE_URL}/pembayaran-supplier/${id}/invoice-pdf${q}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || err.message || `Gagal mengunduh invoice PDF (${res.status})`);
+    }
+    return res.blob();
+  },
+  printInvoiceSupplier: async (id, entryIndex) => {
+    const blob = await purchasingService.getInvoiceSupplierPdfBlob(id, entryIndex);
+    const fileURL = URL.createObjectURL(blob);
+    window.open(fileURL, '_blank');
   },
   approveFinancePembayaran: (id) => {
     return fetchAPI(`/pembayaran-supplier/${id}/approve-finance`, {

@@ -32,7 +32,8 @@ const PermintaanBayarPage = lazy(() => import("./pages/PermintaanBayarPage"));
 const PembayaranSupplierPage = lazy(() => import("./pages/PembayaranSupplierPage"));
 const PembayaranMaterialPage = lazy(() => import("./pages/PembayaranMaterialPage"));
 const PembayaranFinancePage = lazy(() => import("./pages/PembayaranFinancePage"));
-const InvoicePenagihanPage = lazy(() => import("./pages/InvoicePenagihanPage"));
+const InvoicePenjualanPage = lazy(() => import("./pages/InvoicePenjualanPage"));
+const InvoiceOperasionalPage = lazy(() => import("./pages/InvoiceOperasionalPage"));
 const LaporanHarianPage = lazy(() => import("./pages/LaporanHarianPage"));
 const ComplaintPage = lazy(() => import("./pages/ComplaintPage"));
 const PrintPOPage = lazy(() => import("./pages/PrintPOPage"));
@@ -41,6 +42,8 @@ const ItemTrackingPage = lazy(() => import("./pages/ItemTrackingPage"));
 const RiwayatHabisPakaiPage = lazy(() => import("./pages/RiwayatHabisPakaiPage"));
 const BukuBesarPage = lazy(() => import("./pages/BukuBesarPage"));
 const WorkCategoriesPage = lazy(() => import("./pages/WorkCategoriesPage"));
+const TransferBankPage = lazy(() => import("./pages/TransferBankPage"));
+const LaporanLabaRugiPage = lazy(() => import("./pages/LaporanLabaRugiPage"));
 
 function RouteLoader() {
   return (
@@ -63,9 +66,9 @@ function App() {
     const validTabs = [
       'dashboard', 'project-board', 'task-board', 'upload-hspk', 'data-survey',
       'bv', 'backup-volume', 'rab', 'spk-client', 'spk-subcon', 'finance', 'pembelian-siap-pakai', 'po-material', 'po-jasa', 'kelola-jasa',
-      'retur-pembelian', 'pengajuan-bayar', 'permintaan-bayar', 'pembayaran-supplier', 'invoice-supplier', 'pembayaran-jasa', 'invoice-jasa', 'pembayaran-finance', 'invoice-penagihan',
+      'retur-pembelian', 'pengajuan-bayar', 'permintaan-bayar', 'pembayaran-supplier', 'invoice-supplier', 'pembayaran-jasa', 'invoice-jasa', 'pembayaran-finance', 'invoice-penjualan', 'invoice-operasional',
       'laporan-harian', 'global-schedule', 'time-schedule', 'join-opname', 'bast', 'complain',
-      'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories'
+      'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories', 'transfer-bank', 'laporan-laba'
     ];
     if (validTabs.includes(tabFromPath)) {
       setActiveTab(tabFromPath);
@@ -222,7 +225,8 @@ function App() {
             {activeTab === "pembayaran-finance" && (
               <PembayaranFinancePage />
             )}
-            {activeTab === "invoice-penagihan" && <InvoicePenagihanPage />}
+            {activeTab === "invoice-penjualan" && <InvoicePenjualanPage />}
+            {activeTab === "invoice-operasional" && <InvoiceOperasionalPage />}
             {activeTab === "laporan-harian" && <LaporanHarianPage />}
             {activeTab === "global-schedule" && <GlobalSchedulePage />}
             {activeTab === "time-schedule" && <TimeSchedulePage />}
@@ -232,6 +236,8 @@ function App() {
             {activeTab === "item-tracking" && <ItemTrackingPage onNavigate={setActiveTab} />}
             {activeTab === "habis-pakai" && <RiwayatHabisPakaiPage />}
             {activeTab === "buku-besar" && <BukuBesarPage />}
+            {activeTab === "transfer-bank" && <TransferBankPage />}
+            {activeTab === "laporan-laba" && <LaporanLabaRugiPage />}
           </Suspense>
         </main>
       </div>

@@ -80,8 +80,8 @@ const POJasaModal = ({ selectedItems, projectId, onClose, onSuccess }) => {
           items: groupItems.map(it => {
             // Recalculate notes if qty or price deviates from RAP
             let itemNotes = it.notes || "";
-            const diffQty = Number(it.qtyBeli) - Number(it.rapQty || 0);
-            if (diffQty !== 0) itemNotes += ` (Over/Under Qty: ${fmtNum(diffQty)})`;
+            const diffQty = Math.round((Number(it.qtyBeli) - Number(it.rapQty || 0)) * 100) / 100;
+            if (Math.abs(diffQty) >= 0.01) itemNotes += ` (Over/Under Qty: ${fmtNum(diffQty)})`;
             
             return {
               rabItemId: it.rabItemId, // this could be RabItem or RabItemComponent id
@@ -176,9 +176,9 @@ const POJasaModal = ({ selectedItems, projectId, onClose, onSuccess }) => {
                         {item.rapQty > 0 && (
                           <div style={{ marginTop: '4px', fontSize: '11px', textAlign: 'center' }}>
                             {(() => {
-                              const diff = Number(item.qtyBeli) - Number(item.rapQty);
-                              if (diff === 0) return <span style={{ color: '#888' }}>Sesuai RAP</span>;
-                              if (diff > 0) return <span style={{ color: '#ef4444' }}>▲ Over {fmtNum(diff)}</span>;
+                              const diff = Math.round((Number(item.qtyBeli) - Number(item.rapQty)) * 100) / 100;
+                              if (Math.abs(diff) < 0.01) return <span style={{ color: '#888' }}>Sesuai RAP</span>;
+                              if (diff >= 0.01) return <span style={{ color: '#ef4444' }}>▲ Over {fmtNum(diff)}</span>;
                               return <span style={{ color: '#22c55e' }}>▼ Under {fmtNum(Math.abs(diff))}</span>;
                             })()}
                           </div>
