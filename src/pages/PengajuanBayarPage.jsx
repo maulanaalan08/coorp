@@ -30,7 +30,7 @@ import toast from 'react-hot-toast';
 const fmtRp = (n) =>
   'Rp ' + Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
 const fmtNum = (n) =>
-  Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 4 });
+  Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 });
 
 const statusBadge = (status) => {
   const map = {

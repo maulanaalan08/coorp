@@ -43,6 +43,12 @@ const statusLabel = (status) => {
   return 'Belum Approve';
 };
 
+const getVolumeTone = (orderedQty, rapQty) => {
+  if (orderedQty > rapQty) return '#ef4444';
+  if (orderedQty < rapQty) return '#f59e0b';
+  return '#22c55e';
+};
+
 const PurchaseOrderJasaPage = () => {
   const [activeTab, setActiveTab] = useState('buat-po');
   const [projectId, setProjectId] = useState(null);
@@ -114,11 +120,11 @@ const PurchaseOrderJasaPage = () => {
 
       const orderedQty = histories.reduce((sum, h) => sum + Number(h.qty || 0), 0);
       const rapQty = Number(rap.rapQty || 0);
-      const diff = orderedQty - rapQty;
+      const diff = Math.round((orderedQty - rapQty) * 100) / 100;
       let overUnderNotes = rap.notes || null;
-      if (diff > 0) overUnderNotes = `${overUnderNotes ? `${overUnderNotes}; ` : ''}Over volume ${fmtNum(diff)} ${rap.unit || ''}`;
-      if (diff < 0) overUnderNotes = `${overUnderNotes ? `${overUnderNotes}; ` : ''}Under volume ${fmtNum(diff)} ${rap.unit || ''}`;
-      if (diff === 0 && !overUnderNotes) overUnderNotes = 'Sesuai RAP';
+      if (diff >= 0.01) overUnderNotes = `${overUnderNotes ? `${overUnderNotes}; ` : ''}Over volume +${fmtNum(diff)} ${rap.unit || ''}`;
+      if (diff <= -0.01) overUnderNotes = `${overUnderNotes ? `${overUnderNotes}; ` : ''}Under volume ${fmtNum(Math.abs(diff))} ${rap.unit || ''}`;
+      if (Math.abs(diff) < 0.01 && !overUnderNotes) overUnderNotes = 'Sesuai RAP';
 
       return {
         ...rap,
@@ -411,11 +417,11 @@ const PurchaseOrderJasaPage = () => {
                                                       </td>
                                                       <td>{row.unit || '-'}</td>
                                                       <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtNum(row.rapQty)}</td>
-                                                      <td className={`${styles.cellMono} ${styles.cellRight}`} style={{ color: row.orderedQty > row.rapQty ? '#ef4444' : '#eab308' }}>
+                                                      <td className={`${styles.cellMono} ${styles.cellRight}`} style={{ color: getVolumeTone(row.orderedQty, row.rapQty) }}>
                                                         {fmtNum(row.orderedQty)}
                                                       </td>
                                                       <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(row.rapPrice)}</td>
-                                                      <td style={{ fontSize: 11, color: row.orderedQty > row.rapQty ? '#ef4444' : '#f59e0b' }}>
+                                                      <td style={{ fontSize: 11, color: getVolumeTone(row.orderedQty, row.rapQty) }}>
                                                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                                           <AlertCircle size={10} /> {row.overUnderNotes || '-'}
                                                         </span>

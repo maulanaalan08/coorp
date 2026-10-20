@@ -4,6 +4,7 @@ import { formatPercent, formatDate, formatNumber, toInputDate } from "../service
 import { joinOpnameService } from "../services/joinOpnameService";
 import JoinOpnameTable from "../components/JoinOpnameTable";
 import ProjectSelector from "../components/ProjectSelector";
+import Header from "../components/Header";
 import { Image } from "lucide-react";
 import "../styles/JoinOpname.css";
 import "../styles/TimeSchedulePage.css";
@@ -50,8 +51,10 @@ function JoinOpnamePage({ initialProjectId = null }) {
   }, [selectedDate, days]);
 
   return (
-    <div className="join-opname-page">
-      <div className="join-opname-header">
+    <div className="flex flex-col min-h-screen bg-[#0c0b09] text-white">
+      <Header />
+      <div className="join-opname-page" style={{ flex: 1, minHeight: 'auto', paddingTop: '8px' }}>
+        <div className="join-opname-header">
         <div>
           <h1>RAP Join Opname</h1>
           <p>Input progress aktual pekerjaan lapangan beserta foto dokumentasi.</p>
@@ -356,6 +359,7 @@ function JoinOpnamePage({ initialProjectId = null }) {
 
         </>
       )}
+      </div>
     </div>
   );
 }

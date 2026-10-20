@@ -10,6 +10,18 @@ const fmtVol = (n) => {
   return isNaN(num) ? '0' : parseFloat(num.toFixed(2)).toString();
 };
 
+const normalizeQty2 = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 100;
+};
+
+const normalizeMrId = (v) => {
+  if (!v || v === '' || v === 'null' || v === 'undefined') return null;
+  if (String(v).startsWith('php_')) return null;
+  return String(v);
+};
+
 const fmtRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 });
 
 const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems, onConfirmReceipt, initialSupplierId, kategoriPO, sumberPo, alasanHabisPakai, permintaanHabisPakaiId, onClose, onSuccess }) => {
@@ -116,7 +128,7 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
             description2: item.description2 || '',
             estVol: mr ? `${fmtVol(estVol)} ${item.unit || mr.unit || ''}` : '-',
             sisa: mr ? `${fmtVol(sisaVal)} ${item.unit || mr.unit || ''}` : '-',
-            qty: item.qty,
+            qty: normalizeQty2(item.qty),
             unit: item.unit || '',
             unitPrice: item.unitPrice || 0,
             estimasiRAB: mr?.pricePerUnit || item.unitPrice || 0,
@@ -193,7 +205,17 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
 
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
-    newItems[index][field] = value;
+    if (field === 'qty') {
+      const clean = String(value ?? '').replace(',', '.');
+      if (clean === '') {
+        newItems[index][field] = '';
+      } else if (/^\d*\.?\d*$/.test(clean)) {
+        const [whole, decimal = ''] = clean.split('.');
+        newItems[index][field] = decimal.length > 2 ? `${whole}.${decimal.slice(0, 2)}` : clean;
+      }
+    } else {
+      newItems[index][field] = value;
+    }
     setItems(newItems);
   };
 
@@ -256,6 +278,32 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
     }
 
     setLoading(true);
+    const payloadItems = calculatedItems.map((item) => {
+      const qty = normalizeQty2(item.qty);
+      const unitPrice = Number(item.unitPrice || 0);
+      const disc1Percent = Number(item.disc1Percent || 0);
+      const disc2Percent = Number(item.disc2Percent || 0);
+      const disc2Nominal = Number(item.disc2Nominal || 0);
+      const totalRaw = qty * unitPrice * (1 - disc1Percent / 100) * (1 - disc2Percent / 100) - disc2Nominal;
+
+      return {
+        ...item,
+        materialRequestId: normalizeMrId(item.materialRequestId),
+        qty,
+        unitPrice,
+        disc1Percent,
+        disc2Percent,
+        disc2Nominal,
+        total: Number(Math.max(0, totalRaw).toFixed(2)),
+      };
+    });
+
+    if (payloadItems.some((item) => item.qty <= 0)) {
+      toast.error('Qty beli harus lebih dari 0 dan maksimal 2 angka desimal');
+      setLoading(false);
+      return;
+    }
+
     const payload = {
       ...formData,
       projectId: editingPo ? editingPo.projectId : projectId,
@@ -267,7 +315,7 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
       globalDiscount: globalDiscount,
       taxNominal: taxNominal,
       grandTotal: grandTotal,
-      items: calculatedItems
+      items: payloadItems
     };
 
     const actionPromise = editingPo
@@ -583,8 +631,9 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                               className={styles.smallInput}
                               value={item.qty}
                               onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
+                              onBlur={(e) => handleItemChange(index, 'qty', normalizeQty2(e.target.value))}
                               min="0"
-                              step="any"
+                              step="0.01"
                               required
                             />
                           </td>

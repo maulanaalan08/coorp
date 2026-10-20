@@ -90,9 +90,9 @@ const POItemDetail = ({ po, compact = false, showHeader = true }) => {
                       ) : (() => {
                         const rap = po.kategoriPO === 'HABIS_PAKAI' ? (it.estimatedVolume || 0) : (it.materialRequest?.estimatedVolume || 0);
                         if (!rap) return null;
-                        const diff = Number(it.qty || 0) - Number(rap);
-                        if (diff > 0) return <div className="text-[10px] text-red-400 mt-1 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Vol: Over +{fmtNum(diff)} {it.unit}</div>;
-                        if (diff < 0) return <div className="text-[10px] text-amber-400 mt-1 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Vol: Under {fmtNum(diff)} {it.unit}</div>;
+                        const diff = Math.round((Number(it.qty || 0) - Number(rap)) * 100) / 100;
+                        if (diff >= 0.01) return <div className="text-[10px] text-red-400 mt-1 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Vol: Over +{fmtNum(diff)} {it.unit}</div>;
+                        if (diff <= -0.01) return <div className="text-[10px] text-amber-400 mt-1 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Vol: Under {fmtNum(Math.abs(diff))} {it.unit}</div>;
                         return <div className="text-[10px] text-green-400 mt-1 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Vol: Sesuai</div>;
                       })()}
                       {it.keteranganHarga ? (
@@ -102,9 +102,9 @@ const POItemDetail = ({ po, compact = false, showHeader = true }) => {
                       ) : (() => {
                         const rapP = po.kategoriPO === 'HABIS_PAKAI' ? (it.pricePerUnit || 0) : (it.materialRequest?.pricePerUnit || 0);
                         if (!rapP) return null;
-                        const diff = Number(it.unitPrice || 0) - Number(rapP);
+                        const diff = Math.round(Number(it.unitPrice || 0) - Number(rapP));
                         if (diff > 0) return <div className="text-[10px] text-red-400 mt-0.5 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Harga: Over +{fmtRp(diff)}</div>;
-                        if (diff < 0) return <div className="text-[10px] text-amber-400 mt-0.5 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Harga: Under {fmtRp(diff)}</div>;
+                        if (diff < 0) return <div className="text-[10px] text-amber-400 mt-0.5 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Harga: Under {fmtRp(Math.abs(diff))}</div>;
                         return <div className="text-[10px] text-green-400 mt-0.5 font-semibold flex items-center gap-1"><AlertCircle size={10} /> Ket. Harga: Sesuai</div>;
                       })()}
                     </td>

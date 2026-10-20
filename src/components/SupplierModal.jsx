@@ -8,6 +8,9 @@ import toast from 'react-hot-toast';
 const fmtRp = (n) =>
   'Rp ' + Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
 
+const onlyDigits = (v) => String(v ?? '').replace(/[^0-9]/g, '');
+const parseRupiahInput = (v) => Number(onlyDigits(v) || 0);
+
 const SupplierModal = ({ onClose, onSuccess, isInline, masterMode = 'supplier' }) => {
   const isJasaMode = masterMode === 'jasa';
 
@@ -112,7 +115,12 @@ const SupplierModal = ({ onClose, onSuccess, isInline, masterMode = 'supplier' }
   };
 
   const handleItemChange = (e) => {
-    setItemForm({ ...itemForm, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'currentPrice') {
+      setItemForm({ ...itemForm, currentPrice: onlyDigits(value) });
+      return;
+    }
+    setItemForm({ ...itemForm, [name]: value });
   };
 
   // -- SUBMIT SUPPLIER --
@@ -167,11 +175,17 @@ const SupplierModal = ({ onClose, onSuccess, isInline, masterMode = 'supplier' }
     }
     setLoading(true);
     try {
+      const parsedPrice = parseRupiahInput(itemForm.currentPrice);
+      if (parsedPrice <= 0) {
+        toast.error('Harga satuan harus lebih dari 0');
+        return;
+      }
+
       const payload = {
         supplierId: itemForm.supplierId,
         itemName: itemForm.itemName,
         unit: itemForm.unit,
-        price: parseFloat(itemForm.currentPrice),
+        price: parsedPrice,
         kategori: itemForm.kategori || undefined,
       };
 
@@ -441,7 +455,7 @@ const SupplierModal = ({ onClose, onSuccess, isInline, masterMode = 'supplier' }
 
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Harga Satuan *</label>
-                <input type="number" name="currentPrice" value={itemForm.currentPrice} onChange={handleItemChange} className={styles.formInput} placeholder="Misal: 65000" required />
+                <input type="text" inputMode="numeric" name="currentPrice" value={itemForm.currentPrice} onChange={handleItemChange} className={styles.formInput} placeholder="Misal: 65000" required />
               </div>
             </div>
 
@@ -830,7 +844,7 @@ const SupplierModal = ({ onClose, onSuccess, isInline, masterMode = 'supplier' }
                                     supplierId: item.supplierId || '',
                                     itemName: item.itemName || '',
                                     unit: item.unit || '',
-                                    currentPrice: item.currentPrice || '',
+                                    currentPrice: Number(item.currentPrice || 0) > 0 ? String(Number(item.currentPrice || 0)) : '',
                                     kategori: item.kategori || ''
                                   });
                                   setShowItemForm(true);

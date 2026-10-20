@@ -20,6 +20,8 @@ const fmtVol = (n) => {
   return isNaN(num) ? '0' : parseFloat(num.toFixed(2)).toString();
 };
 
+const getSelectionKey = (item) => String(item?.mrItemId || item?.id || '');
+
 const PurchaseOrderPage = () => {
   const [activeTab, setActiveTab] = useState('buat-po');
   const [search, setSearch] = useState('');
@@ -223,9 +225,10 @@ const PurchaseOrderPage = () => {
       return;
     }
     setSelectedItems(prev => {
-      const isSelected = prev.some(i => i.id === item.id);
+      const key = getSelectionKey(item);
+      const isSelected = prev.some(i => getSelectionKey(i) === key);
       if (isSelected) {
-        return prev.filter(i => i.id !== item.id);
+        return prev.filter(i => getSelectionKey(i) !== key);
       } else {
         return [...prev, { ...item, orderedQty: item.orderedVolume || 0 }];
       }
@@ -400,7 +403,8 @@ const PurchaseOrderPage = () => {
                           // Hitung selected berdasarkan 'sisa' item
                           const gSelected = allGroupMaterials.filter(matItems => {
                             const sisaItem = matItems.find(i => i.poItemId === null || i.supplierName === '⏳ Belum di-PO') || matItems[0];
-                            return selectedItems.some(s => s.id === sisaItem.id);
+                            const key = getSelectionKey(sisaItem);
+                            return selectedItems.some(s => getSelectionKey(s) === key);
                           }).length;
                           const gPct = gTotal > 0 ? (gCompleted / gTotal) * 100 : 0;
 
@@ -449,7 +453,8 @@ const PurchaseOrderPage = () => {
                                 const jTotal = allJobMaterials.length;
                                 const jSelected = allJobMaterials.filter(matItems => {
                                   const sisaItem = matItems.find(i => i.poItemId === null || i.supplierName === '⏳ Belum di-PO') || matItems[0];
-                                  return selectedItems.some(s => s.id === sisaItem.id);
+                                  const key = getSelectionKey(sisaItem);
+                                  return selectedItems.some(s => getSelectionKey(s) === key);
                                 }).length;
                                 const jPct = jTotal > 0 ? (jCompleted / jTotal) * 100 : 0;
 
@@ -520,7 +525,8 @@ const PurchaseOrderPage = () => {
                                                   const firstItem = matItems[0];
 
                                                   // Hitung total dari seluruh split item
-                                                  const totalEstVol = firstItem.estimatedVolume || 0;
+                                                  const rapTargetVol = Number(firstItem.rapVolume ?? firstItem.estimatedVolume ?? 0);
+                                                  const totalEstVol = rapTargetVol > 0 ? rapTargetVol : matItems.reduce((sum, curr) => sum + (curr.estimatedVolume || 0), 0);
                                                   const totalOrdered = matItems.reduce((sum, curr) => sum + (curr.orderedVolume || 0), 0);
                                                   const totalReceivedVol = matItems.reduce((sum, curr) => sum + (curr.receivedVolume || 0), 0);
                                                   const pct = totalEstVol > 0 ? Math.min((totalOrdered / totalEstVol) * 100, 100) : 0;
@@ -528,7 +534,8 @@ const PurchaseOrderPage = () => {
 
                                                   // Ambil item sisa (belum di-PO) untuk menjadi target checkbox
                                                   const sisaItem = matItems.find(i => i.poItemId === null || i.supplierName === '⏳ Belum di-PO') || firstItem;
-                                                  const isSelected = selectedItems.some(i => i.id === sisaItem.id);
+                                                  const selectedKey = getSelectionKey(sisaItem);
+                                                  const isSelected = selectedItems.some(i => getSelectionKey(i) === selectedKey);
 
                                                   const poItemsOnly = matItems.filter(i => i.poNumber && i.poNumber !== '-');
                                                   const hasPOs = poItemsOnly.length > 0;
@@ -726,9 +733,9 @@ const PurchaseOrderPage = () => {
                                                                           <td style={{ padding: '6px', fontSize: '11px', color: '#ef4444', maxWidth: '120px' }}>
                                                                             {(() => {
                                                                               if (totalEstVol <= 0) return <span style={{ color: '#444' }}>-</span>;
-                                                                              const diffVol = totalOrdered - totalEstVol;
-                                                                              if (diffVol > 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={10} style={{ shrink: 0 }} />Over-volume +{fmtVol(diffVol)}</span>;
-                                                                              if (diffVol < 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f59e0b' }}><AlertCircle size={10} style={{ shrink: 0 }} />Under-volume {fmtVol(diffVol)}</span>;
+                                                                              const diffVol = Math.round((totalOrdered - totalEstVol) * 100) / 100;
+                                                                              if (diffVol >= 0.01) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={10} style={{ shrink: 0 }} />Over-volume +{fmtVol(diffVol)}</span>;
+                                                                              if (diffVol <= -0.01) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f59e0b' }}><AlertCircle size={10} style={{ shrink: 0 }} />Under-volume {fmtVol(Math.abs(diffVol))}</span>;
                                                                               return <span style={{ color: '#22c55e' }}>Sesuai RAP</span>;
                                                                             })()}
                                                                           </td>
@@ -737,9 +744,9 @@ const PurchaseOrderPage = () => {
                                                                               if (!firstItem.pricePerUnit || fullPoItem?.unitPrice == null) return <span style={{ color: '#444' }}>-</span>;
                                                                               const estP = Number(firstItem.pricePerUnit);
                                                                               const curP = Number(fullPoItem.unitPrice);
-                                                                              const diffP = curP - estP;
+                                                                              const diffP = Math.round(curP - estP);
                                                                               if (diffP > 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={10} style={{ shrink: 0 }} />Over-price +{fmtRp(diffP)}</span>;
-                                                                              if (diffP < 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f59e0b' }}><AlertCircle size={10} style={{ shrink: 0 }} />Under-price {fmtRp(diffP)}</span>;
+                                                                              if (diffP < 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f59e0b' }}><AlertCircle size={10} style={{ shrink: 0 }} />Under-price {fmtRp(Math.abs(diffP))}</span>;
                                                                               return <span style={{ color: '#22c55e' }}>Sesuai RAP</span>;
                                                                             })()}
                                                                           </td>

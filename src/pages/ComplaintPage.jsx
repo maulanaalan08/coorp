@@ -7,6 +7,7 @@ import ComplaintAddHeaderModal from "../components/ComplaintAddHeaderModal";
 import ComplaintEditItemModal from "../components/ComplaintEditItemModal";
 import Bast2Modal from "../components/Bast2Modal";
 import ProjectSelector from "../components/ProjectSelector";
+import Header from "../components/Header";
 import { spkService } from "../services/spkService";
 import toast from 'react-hot-toast';
 import { Image, FileText, CheckCircle, Clock } from 'lucide-react';
@@ -280,8 +281,10 @@ export default function ComplaintPage() {
   );
 
   return (
-    <div className="complaint-container">
-      <div className="complaint-header">
+    <div className="flex flex-col min-h-screen bg-[#0c0b09] text-white">
+      <Header />
+      <div className="complaint-container" style={{ flex: 1, paddingTop: '8px' }}>
+        <div className="complaint-header">
         <div>
           <h1 className="page-title">Manajemen Complain</h1>
           <p className="page-subtitle">Kelola laporan defect list dan berita acara serah terima perbaikan (BAST).</p>
@@ -627,6 +630,7 @@ export default function ComplaintPage() {
         isSubmitting={false}
         clientSpks={clientSpks}
       />
+      </div>
     </div>
   );
 }

@@ -1304,16 +1304,6 @@ export default function BukuBesarPage() {
                   onChange={(e) => setRekeningForm({ ...rekeningForm, namaBank: e.target.value })}
                   className="bg-[#0c0b09] border border-[#333] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#d4af37]"
                 />
-                <select
-                  value={rekeningForm.tipeRekeningId}
-                  onChange={(e) => setRekeningForm({ ...rekeningForm, tipeRekeningId: e.target.value })}
-                  className="bg-[#0c0b09] border border-[#333] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#d4af37]"
-                >
-                  <option value="">-- Pilih Tipe Rekening --</option>
-                  {tipeRekeningList.map((t) => (
-                    <option key={t.id} value={t.id}>{t.namaTipe}</option>
-                  ))}
-                </select>
                 <label className="flex items-center gap-2 text-sm text-[#ccc]">
                   <input
                     type="checkbox"
@@ -1334,7 +1324,6 @@ export default function BukuBesarPage() {
                     <th className="p-3 text-left">Nama Rekening</th>
                     <th className="p-3 text-left">Bank</th>
                     <th className="p-3 text-left">No Rekening</th>
-                    <th className="p-3 text-left">Tipe Rekening</th>
                     <th className="p-3 text-center">Default</th>
                     <th className="p-3 text-center">Aksi</th>
                   </tr>
@@ -1345,7 +1334,6 @@ export default function BukuBesarPage() {
                       <td className="p-3 text-white">{r.namaRekening}</td>
                       <td className="p-3 text-[#888]">{r.namaBank || '-'}</td>
                       <td className="p-3 text-[#888]">{r.nomorRekening}</td>
-                      <td className="p-3 text-[#888]">{r.tipeRekening?.namaTipe || '-'}</td>
                       <td className="p-3 text-center text-[#888]">{r.isDefault ? 'Ya' : 'Tidak'}</td>
                       <td className="p-3 text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -1380,7 +1368,7 @@ export default function BukuBesarPage() {
                   ))}
                   {rekeningBankList.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="p-6 text-center text-[#888]">Belum ada rekening bank.</td>
+                      <td colSpan={5} className="p-6 text-center text-[#888]">Belum ada rekening bank.</td>
                     </tr>
                   )}
                 </tbody>

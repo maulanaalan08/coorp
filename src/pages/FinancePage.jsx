@@ -445,9 +445,9 @@ const [busyPoId, setBusyPoId] = useState(null);
                                                   const rapData = getRapForJasa(it);
                                                   const rap = it.materialRequest?.estimatedVolume || it.estimatedVolume || rapData?.volume || 0;
                                                   if (!rap) return <span style={{ color: '#444' }}>-</span>;
-                                                  const diff = Number(it.qty || 0) - Number(rap);
-                                                  if (diff > 0) return <span>Over +{fmtVol(diff)}</span>;
-                                                  if (diff < 0) return <span style={{ color: '#f59e0b' }}>Under {fmtVol(diff)}</span>;
+                                                  const diff = Math.round((Number(it.qty || 0) - Number(rap)) * 100) / 100;
+                                                  if (diff >= 0.01) return <span>Over +{fmtVol(diff)}</span>;
+                                                  if (diff <= -0.01) return <span style={{ color: '#f59e0b' }}>Under {fmtVol(Math.abs(diff))}</span>;
                                                   return <span style={{ color: '#22c55e' }}>Sesuai</span>;
                                                 })()}
                                           </td>
@@ -458,9 +458,9 @@ const [busyPoId, setBusyPoId] = useState(null);
                                                   const rapData = getRapForJasa(it);
                                                   const rapP = it.materialRequest?.pricePerUnit || it.pricePerUnit || rapData?.rapUnitPrice || 0;
                                                   if (!rapP) return <span style={{ color: '#444' }}>-</span>;
-                                                  const diff = Number(it.unitPrice || 0) - Number(rapP);
+                                                  const diff = Math.round(Number(it.unitPrice || 0) - Number(rapP));
                                                   if (diff > 0) return <span>Over +{fmtRp(diff)}</span>;
-                                                  if (diff < 0) return <span style={{ color: '#f59e0b' }}>Under {fmtRp(diff)}</span>;
+                                                  if (diff < 0) return <span style={{ color: '#f59e0b' }}>Under {fmtRp(Math.abs(diff))}</span>;
                                                   return <span style={{ color: '#22c55e' }}>Sesuai</span>;
                                                 })()}
                                           </td>
