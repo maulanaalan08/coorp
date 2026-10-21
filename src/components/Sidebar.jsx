@@ -368,9 +368,13 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               className={`${isCollapsed ? "p-2 mb-3 justify-center" : "p-3 mb-4"} flex items-center bg-[#161513] rounded-xl border border-[#2a2a2a] gap-3`}
               title={isCollapsed ? `${user.name} — ${user.role}` : undefined}
             >
-              <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-[#d4af37] to-[#a8862a] flex items-center justify-center text-[#0c0b09] font-bold text-sm shadow-md">
-                {getInitials(user.name)}
-              </div>
+              {user.photoUrl ? (
+                <img src={`${import.meta.env.VITE_API_URL || "http://localhost:4000"}${user.photoUrl}`} alt="Foto profil" className="w-10 h-10 shrink-0 rounded-full object-cover border border-[#d4af37] shadow-md" />
+              ) : (
+                <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-[#d4af37] to-[#a8862a] flex items-center justify-center text-[#0c0b09] font-bold text-sm shadow-md">
+                  {getInitials(user.name)}
+                </div>
+              )}
               {!isCollapsed && (
                 <div className="flex-1 min-w-0">
                   <div className="text-white text-sm font-bold truncate">{user.name}</div>
@@ -382,9 +386,9 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
 
           <ul className="flex flex-col gap-1 m-0 p-0 list-none">
             <li>
-              <a href="#settings" title={isCollapsed ? "Profile Settings" : undefined} className={`flex items-center gap-3 rounded-lg text-[#888] hover:text-white hover:bg-white/5 transition-all text-sm font-medium ${isCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2"}`} onClick={(e) => e.preventDefault()}>
+              <a href="#settings" title={isCollapsed ? "Setting" : undefined} className={`flex items-center gap-3 rounded-lg transition-all text-sm font-medium ${isCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2"} ${activeTab === "settings" ? "bg-[#d4af37]/10 text-[#d4af37]" : "text-[#888] hover:text-white hover:bg-white/5"}`} onClick={(e) => handleNavigation(e, "settings")}>
                 <Settings size={18} className="shrink-0" />
-                {!isCollapsed && <span>Profile Settings</span>}
+                {!isCollapsed && <span>Setting</span>}
               </a>
             </li>
             <li>

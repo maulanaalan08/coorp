@@ -44,6 +44,7 @@ const BukuBesarPage = lazy(() => import("./pages/BukuBesarPage"));
 const WorkCategoriesPage = lazy(() => import("./pages/WorkCategoriesPage"));
 const TransferBankPage = lazy(() => import("./pages/TransferBankPage"));
 const LaporanLabaRugiPage = lazy(() => import("./pages/LaporanLabaRugiPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
 function RouteLoader() {
   return (
@@ -55,7 +56,7 @@ function RouteLoader() {
 }
 
 function App() {
-  const { isAuthenticated, loginAuth, logoutAuth, user, isLoading } = useAuth();
+  const { isAuthenticated, loginAuth, logoutAuth, updateUser, user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [globalProjectId, setGlobalProjectId] = useState(null);
 
@@ -68,7 +69,7 @@ function App() {
       'bv', 'backup-volume', 'rab', 'spk-client', 'spk-subcon', 'finance', 'pembelian-siap-pakai', 'po-material', 'po-jasa', 'kelola-jasa',
       'retur-pembelian', 'pengajuan-bayar', 'permintaan-bayar', 'pembayaran-supplier', 'invoice-supplier', 'pembayaran-jasa', 'invoice-jasa', 'pembayaran-finance', 'invoice-penjualan', 'invoice-operasional',
       'laporan-harian', 'global-schedule', 'time-schedule', 'join-opname', 'bast', 'complain',
-      'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories', 'transfer-bank', 'laporan-laba'
+      'item-tracking', 'habis-pakai', 'buku-besar', 'work-categories', 'transfer-bank', 'laporan-laba', 'settings'
     ];
     if (validTabs.includes(tabFromPath)) {
       setActiveTab(tabFromPath);
@@ -238,6 +239,7 @@ function App() {
             {activeTab === "buku-besar" && <BukuBesarPage />}
             {activeTab === "transfer-bank" && <TransferBankPage />}
             {activeTab === "laporan-laba" && <LaporanLabaRugiPage />}
+            {activeTab === "settings" && <SettingsPage currentUser={user} onUserUpdated={updateUser} />}
           </Suspense>
         </main>
       </div>
