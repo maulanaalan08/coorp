@@ -49,10 +49,64 @@ const getVolumeTone = (orderedQty, rapQty) => {
   return '#22c55e';
 };
 
+const labelUtamaStyle = {
+  fontSize: '10px',
+  fontWeight: 700,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  padding: '2px 8px',
+  borderRadius: '4px',
+  background: 'rgba(59, 130, 246, 0.15)',
+  color: '#93c5fd',
+  border: '1px solid rgba(59, 130, 246, 0.4)',
+  display: 'inline-flex',
+  alignItems: 'center',
+};
+
+const subLabelStyle = {
+  fontSize: '10px',
+  fontWeight: 600,
+  padding: '2px 8px',
+  borderRadius: '4px',
+  background: '#23201b',
+  color: '#d4af37',
+  border: '1px solid #4a4231',
+  display: 'inline-flex',
+  alignItems: 'center',
+};
+
+const labelUtamaSmStyle = {
+  fontSize: '9.5px',
+  fontWeight: 700,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  padding: '1px 6px',
+  borderRadius: '3px',
+  background: 'rgba(59, 130, 246, 0.15)',
+  color: '#93c5fd',
+  border: '1px solid rgba(59, 130, 246, 0.4)',
+  display: 'inline-flex',
+  alignItems: 'center',
+};
+
+const subLabelSmStyle = {
+  fontSize: '9.5px',
+  fontWeight: 600,
+  padding: '1px 6px',
+  borderRadius: '3px',
+  background: '#23201b',
+  color: '#d4af37',
+  border: '1px solid #4a4231',
+  display: 'inline-flex',
+  alignItems: 'center',
+};
+
 const PurchaseOrderJasaPage = () => {
   const [activeTab, setActiveTab] = useState('buat-po');
   const [projectId, setProjectId] = useState(null);
   const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [selectedSubCategory, setSelectedSubCategory] = useState('ALL');
   const [selectedItems, setSelectedItems] = useState([]);
   const [isPoModalOpen, setIsPoModalOpen] = useState(false);
   const [editingPo, setEditingPo] = useState(null);
@@ -138,21 +192,66 @@ const PurchaseOrderJasaPage = () => {
     });
   }, [rapItems, poJasaProject]);
 
+  const availableCategories = useMemo(() => {
+    const set = new Set();
+    rapWithHistory.forEach((r) => {
+      const code = r.parentWorkCategoryCode || r.workCategoryCode;
+      if (code) set.add(code.toUpperCase());
+    });
+    return Array.from(set).sort();
+  }, [rapWithHistory]);
+
+  const availableSubCategories = useMemo(() => {
+    const set = new Set();
+    rapWithHistory.forEach((r) => {
+      const cat = r.parentWorkCategoryCode || r.workCategoryCode;
+      if (!selectedCategory || selectedCategory === 'ALL' || String(cat || '').toUpperCase() === selectedCategory.toUpperCase()) {
+        const sub = r.parentWorkSubCategoryCode || r.workSubCategoryCode || r.parentWorkSubCategoryName || r.workSubCategoryName;
+        if (sub) set.add(sub);
+      }
+    });
+    return Array.from(set).sort();
+  }, [rapWithHistory, selectedCategory]);
+
   const filteredRapRows = useMemo(() => {
-    if (!search.trim()) return rapWithHistory;
+    let rows = rapWithHistory;
+
+    if (selectedCategory && selectedCategory !== 'ALL') {
+      rows = rows.filter((row) => {
+        const cat = String(row.parentWorkCategoryCode || row.workCategoryCode || '').toUpperCase();
+        return cat === selectedCategory.toUpperCase();
+      });
+    }
+
+    if (selectedSubCategory && selectedSubCategory !== 'ALL') {
+      rows = rows.filter((row) => {
+        const sub = String(row.parentWorkSubCategoryCode || row.workSubCategoryCode || row.parentWorkSubCategoryName || row.workSubCategoryName || '').toLowerCase();
+        return sub === selectedSubCategory.toLowerCase();
+      });
+    }
+
+    if (!search.trim()) return rows;
     const q = search.toLowerCase();
-    return rapWithHistory.filter((row) => {
+    return rows.filter((row) => {
       const cocokRow =
         String(row.itemName || '').toLowerCase().includes(q) ||
         String(row.groupName || '').toLowerCase().includes(q) ||
-        String(row.jobName || '').toLowerCase().includes(q);
+        String(row.jobName || '').toLowerCase().includes(q) ||
+        String(row.parentWorkCategoryCode || '').toLowerCase().includes(q) ||
+        String(row.parentWorkCategoryName || '').toLowerCase().includes(q) ||
+        String(row.parentWorkSubCategoryCode || '').toLowerCase().includes(q) ||
+        String(row.parentWorkSubCategoryName || '').toLowerCase().includes(q) ||
+        String(row.workCategoryCode || '').toLowerCase().includes(q) ||
+        String(row.workCategoryName || '').toLowerCase().includes(q) ||
+        String(row.workSubCategoryCode || '').toLowerCase().includes(q) ||
+        String(row.workSubCategoryName || '').toLowerCase().includes(q);
       const cocokRiwayat = (row.histories || []).some((h) =>
         String(h.poNumber || '').toLowerCase().includes(q) ||
         String(h.jasaName || '').toLowerCase().includes(q),
       );
       return cocokRow || cocokRiwayat;
     });
-  }, [rapWithHistory, search]);
+  }, [rapWithHistory, search, selectedCategory, selectedSubCategory]);
 
   const groupedRows = useMemo(() => {
     const groups = {};
@@ -188,6 +287,14 @@ const PurchaseOrderJasaPage = () => {
           notes: row.overUnderNotes,
           groupName: row.groupName,
           jobName: row.jobName,
+          parentWorkCategoryCode: row.parentWorkCategoryCode,
+          parentWorkCategoryName: row.parentWorkCategoryName,
+          parentWorkSubCategoryCode: row.parentWorkSubCategoryCode,
+          parentWorkSubCategoryName: row.parentWorkSubCategoryName,
+          workCategoryCode: row.workCategoryCode,
+          workCategoryName: row.workCategoryName,
+          workSubCategoryCode: row.workSubCategoryCode,
+          workSubCategoryName: row.workSubCategoryName,
         },
       ];
     });
@@ -233,6 +340,8 @@ const PurchaseOrderJasaPage = () => {
     setExpandedGroups({});
     setExpandedJobs({});
     setExpandedItems({});
+    setSelectedCategory('ALL');
+    setSelectedSubCategory('ALL');
   };
 
   return (
@@ -295,7 +404,7 @@ const PurchaseOrderJasaPage = () => {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className={styles.searchInput}
-                    placeholder="Cari jasa / group / no PO..."
+                    placeholder="Cari jasa / group / label / no PO..."
                   />
                 </div>
                 <button
@@ -307,6 +416,101 @@ const PurchaseOrderJasaPage = () => {
                 </button>
               </div>
             </div>
+
+            {projectId && availableCategories.length > 0 && (
+              <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: availableSubCategories.length > 0 && selectedCategory !== 'ALL' ? 8 : 0 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Label Utama (Kategori):
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedCategory('ALL'); setSelectedSubCategory('ALL'); }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: selectedCategory === 'ALL' ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.1)',
+                      background: selectedCategory === 'ALL' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                      color: selectedCategory === 'ALL' ? '#93c5fd' : '#aaa',
+                    }}
+                  >
+                    Semua ({rapWithHistory.length})
+                  </button>
+                  {availableCategories.map((cat) => {
+                    const count = rapWithHistory.filter((r) => String(r.parentWorkCategoryCode || r.workCategoryCode || '').toUpperCase() === cat).length;
+                    const isActive = selectedCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => { setSelectedCategory(cat); setSelectedSubCategory('ALL'); }}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          border: isActive ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.1)',
+                          background: isActive ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                          color: isActive ? '#93c5fd' : '#ccc',
+                        }}
+                      >
+                        {cat} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedCategory !== 'ALL' && availableSubCategories.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#d4af37', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Sub Label:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSubCategory('ALL')}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        border: selectedSubCategory === 'ALL' ? '1px solid #d4af37' : '1px solid rgba(255,255,255,0.1)',
+                        background: selectedSubCategory === 'ALL' ? 'rgba(212, 175, 55, 0.2)' : 'transparent',
+                        color: selectedSubCategory === 'ALL' ? '#fcd34d' : '#aaa',
+                      }}
+                    >
+                      Semua
+                    </button>
+                    {availableSubCategories.map((sub) => {
+                      const isActive = selectedSubCategory === sub;
+                      return (
+                        <button
+                          key={sub}
+                          type="button"
+                          onClick={() => setSelectedSubCategory(sub)}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            border: isActive ? '1px solid #d4af37' : '1px solid #4a4231',
+                            background: isActive ? 'rgba(212, 175, 55, 0.2)' : 'transparent',
+                            color: isActive ? '#fcd34d' : '#999',
+                          }}
+                        >
+                          {sub}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {!projectId ? (
               <div className={styles.emptyState}>
@@ -330,6 +534,7 @@ const PurchaseOrderJasaPage = () => {
                       <tr>
                         <th style={{ width: 36 }} />
                         <th>NAMA GRUP / PEKERJAAN</th>
+                        <th style={{ minWidth: 160 }}>LABEL / KATEGORI</th>
                         <th style={{ textAlign: 'center' }}>TOTAL ITEM</th>
                         <th style={{ textAlign: 'center' }}>DIPILIH</th>
                       </tr>
@@ -351,6 +556,9 @@ const PurchaseOrderJasaPage = () => {
                                 />
                               </td>
                               <td><span className={styles.groupRowName}>{groupName}</span></td>
+                              <td>
+                                <span style={{ fontSize: '11px', color: '#555' }}>—</span>
+                              </td>
                               <td style={{ textAlign: 'center', color: '#aaa' }}>{totalItems}</td>
                               <td style={{ textAlign: 'center', color: '#d4af37' }}>{selectedCount}</td>
                             </tr>
@@ -358,6 +566,12 @@ const PurchaseOrderJasaPage = () => {
                             {isGroupOpen && Object.entries(jobsObj).map(([jobName, rows]) => {
                               const jobKey = `${groupName}::${jobName}`;
                               const isJobOpen = !!expandedJobs[jobKey];
+                              const firstRow = rows[0] || {};
+                              const parentCat = firstRow.parentWorkCategoryCode;
+                              const parentCatName = firstRow.parentWorkCategoryName;
+                              const parentSub = firstRow.parentWorkSubCategoryCode || firstRow.parentWorkSubCategoryName;
+                              const parentSubName = firstRow.parentWorkSubCategoryName;
+
                               return (
                                 <React.Fragment key={jobKey}>
                                   <tr className={styles.jobRow} onClick={() => setExpandedJobs((p) => ({ ...p, [jobKey]: !p[jobKey] }))}>
@@ -367,19 +581,50 @@ const PurchaseOrderJasaPage = () => {
                                         style={{ transform: isJobOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform .2s', color: '#60a5fa', marginLeft: 18 }}
                                       />
                                     </td>
-                                    <td><span className={styles.jobRowName}><span style={{ color: '#444', marginRight: 8 }}>└</span>{jobName}</span></td>
+                                    <td>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span className={styles.jobRowName}>
+                                          <span style={{ color: '#444', marginRight: 8 }}>└</span>
+                                          {jobName}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td>
+                                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                        {parentCat && (
+                                          <span
+                                            style={labelUtamaStyle}
+                                            title={parentCatName ? `Label Utama: ${parentCatName}` : `Label Utama: ${parentCat}`}
+                                          >
+                                            {parentCat}
+                                          </span>
+                                        )}
+                                        {parentSub && (
+                                          <span
+                                            style={subLabelStyle}
+                                            title={parentSubName ? `Sub Label: ${parentSubName}` : `Sub Label: ${parentSub}`}
+                                          >
+                                            {parentSub}
+                                          </span>
+                                        )}
+                                        {!parentCat && !parentSub && (
+                                          <span style={{ fontSize: '11px', color: '#666' }}>—</span>
+                                        )}
+                                      </div>
+                                    </td>
                                     <td style={{ textAlign: 'center', color: '#777', fontSize: 12 }}>{rows.length}</td>
                                     <td style={{ textAlign: 'center', color: '#d4af37', fontSize: 12 }}>{rows.filter((r) => selectedItems.some((s) => s.rabItemId === r.rabItemId)).length}</td>
                                   </tr>
 
                                   {isJobOpen && (
                                     <tr>
-                                      <td colSpan={4} style={{ padding: 0, background: 'rgba(0,0,0,.25)' }}>
+                                      <td colSpan={5} style={{ padding: 0, background: 'rgba(0,0,0,.25)' }}>
                                         <div className={styles.materialTableWrapper}>
                                           <table className={styles.subTable}>
                                             <thead>
                                               <tr>
                                                 <th style={{ width: 40, textAlign: 'center' }}>PILIH</th>
+                                                <th style={{ width: 140 }}>LABEL</th>
                                                 <th>NAMA JASA</th>
                                                 <th>SAT.</th>
                                                 <th className={styles.cellRight}>QTY RAP</th>
@@ -395,6 +640,12 @@ const PurchaseOrderJasaPage = () => {
                                                 const selected = selectedItems.some((s) => (s.uniqueId || s.rabItemId) === uId);
                                                 const itemKey = uId;
                                                 const isItemOpen = !!expandedItems[itemKey];
+
+                                                const itemCat = row.workCategoryCode || row.parentWorkCategoryCode;
+                                                const itemCatName = row.workCategoryName || row.parentWorkCategoryName;
+                                                const itemSub = row.workSubCategoryCode || row.workSubCategoryName || row.parentWorkSubCategoryCode || row.parentWorkSubCategoryName;
+                                                const itemSubName = row.workSubCategoryName || row.parentWorkSubCategoryName;
+
                                                 return (
                                                   <React.Fragment key={itemKey}>
                                                     <tr className={selected ? styles.selectedRow : styles.subItemRow}>
@@ -405,6 +656,29 @@ const PurchaseOrderJasaPage = () => {
                                                           onChange={() => toggleSelect(row)}
                                                           className={styles.checkbox}
                                                         />
+                                                      </td>
+                                                      <td>
+                                                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                                                          {itemCat && (
+                                                            <span
+                                                              style={labelUtamaSmStyle}
+                                                              title={itemCatName ? `Label Utama: ${itemCatName}` : `Label Utama: ${itemCat}`}
+                                                            >
+                                                              {itemCat}
+                                                            </span>
+                                                          )}
+                                                          {itemSub && (
+                                                            <span
+                                                              style={subLabelSmStyle}
+                                                              title={itemSubName ? `Sub Label: ${itemSubName}` : `Sub Label: ${itemSub}`}
+                                                            >
+                                                              {itemSub}
+                                                            </span>
+                                                          )}
+                                                          {!itemCat && !itemSub && (
+                                                            <span style={{ fontSize: '11px', color: '#666' }}>—</span>
+                                                          )}
+                                                        </div>
                                                       </td>
                                                       <td onClick={() => setExpandedItems((p) => ({ ...p, [itemKey]: !p[itemKey] }))} style={{ cursor: 'pointer' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -435,7 +709,7 @@ const PurchaseOrderJasaPage = () => {
 
                                                     {isItemOpen && (
                                                       <tr>
-                                                        <td colSpan={8} style={{ padding: 0, background: 'rgba(0,0,0,.45)' }}>
+                                                        <td colSpan={9} style={{ padding: 0, background: 'rgba(0,0,0,.45)' }}>
                                                           <div style={{ padding: '10px 16px 16px 72px' }}>
                                                             <h4 style={{ margin: 0, marginBottom: 8, fontSize: 12, color: '#a78bfa' }}>Riwayat PO Jasa</h4>
                                                             {(row.histories || []).length === 0 ? (

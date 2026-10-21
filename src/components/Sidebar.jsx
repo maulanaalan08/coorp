@@ -80,8 +80,8 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
 
   useEffect(() => {
     if (["data-survey", "bv", "rab"].includes(activeTab)) setIsPerencanaanOpen(true);
-    if (["spk-client", "spk-subcon"].includes(activeTab)) setIsDocumentOpen(true);
-    if (["time-schedule", "global-schedule", "join-opname", "bast", "complain", "item-tracking", "kelola-jasa", "po-jasa"].includes(activeTab)) setIsPelaksanaanOpen(true);
+    if (["spk-client", "spk-subcon", "bast"].includes(activeTab)) setIsDocumentOpen(true);
+    if (["time-schedule", "global-schedule", "join-opname", "complain", "item-tracking", "kelola-jasa", "po-jasa"].includes(activeTab)) setIsPelaksanaanOpen(true);
     if (["finance", "pengajuan-bayar", "permintaan-bayar", "pembayaran-supplier", "invoice-supplier", "pembayaran-jasa", "invoice-jasa", "pembayaran-finance", "invoice-penjualan", "invoice-operasional", "buku-besar", "transfer-bank", "laporan-laba"].includes(activeTab)) setIsFinanceOpen(true);
     if (["po-material", "habis-pakai"].includes(activeTab)) setIsPurchasingOpen(true);
     if (["upload-hspk", "work-categories"].includes(activeTab)) setIsHspkOpen(true);
@@ -258,6 +258,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                   <ul className="mt-1 flex flex-col gap-1 list-none p-0">
                     <SubNavItem icon={FileText} label="SPK Client" tab="spk-client" />
                     <SubNavItem icon={FileText} label="SPK Subcon" tab="spk-subcon" />
+                    <SubNavItem icon={FileText} label="Berita Acara (BAST)" tab="bast" />
                   </ul>
                   )}
             </li>
@@ -282,7 +283,6 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                   <SubNavItem icon={CalendarDays} label="Global Schedule" tab="global-schedule" />
                   <SubNavItem icon={History} label="Time Schedule" tab="time-schedule" />
                   <SubNavItem icon={ClipboardCheck} label="Join Opname" tab="join-opname" />
-                  <SubNavItem icon={FileText} label="Berita Acara (BAST)" tab="bast" />
                   <SubNavItem icon={PieChart} label="Complain" tab="complain" />
                   <SubNavItem icon={MapPin} label="Item Tracking" tab="item-tracking" />
                   <SubNavItem icon={ClipboardList} label="Kelola Jasa" tab="kelola-jasa" />

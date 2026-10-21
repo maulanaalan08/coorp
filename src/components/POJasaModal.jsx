@@ -11,6 +11,32 @@ const fmtNum = (n) => {
 
 const fmtRp = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
 
+const labelUtamaSmStyle = {
+  fontSize: '9.5px',
+  fontWeight: 700,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  padding: '1px 6px',
+  borderRadius: '3px',
+  background: 'rgba(59, 130, 246, 0.15)',
+  color: '#93c5fd',
+  border: '1px solid rgba(59, 130, 246, 0.4)',
+  display: 'inline-flex',
+  alignItems: 'center',
+};
+
+const subLabelSmStyle = {
+  fontSize: '9.5px',
+  fontWeight: 600,
+  padding: '1px 6px',
+  borderRadius: '3px',
+  background: '#23201b',
+  color: '#d4af37',
+  border: '1px solid #4a4231',
+  display: 'inline-flex',
+  alignItems: 'center',
+};
+
 const POJasaModal = ({ selectedItems, projectId, onClose, onSuccess }) => {
   const [jasaList, setJasaList] = useState([]);
   const [items, setItems] = useState([]);
@@ -160,7 +186,32 @@ const POJasaModal = ({ selectedItems, projectId, onClose, onSuccess }) => {
                         </select>
                       </td>
                       <td>
-                        <div>{item.itemName}</div>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '4px' }}>
+                          {item.jobName && (
+                            <span style={{ fontSize: '11px', color: '#888', fontWeight: 500 }}>
+                              {item.jobName}
+                            </span>
+                          )}
+                          {(item.workCategoryCode || item.parentWorkCategoryCode) && (
+                            <span
+                              style={labelUtamaSmStyle}
+                              title={item.workCategoryName || item.parentWorkCategoryName}
+                            >
+                              {item.workCategoryCode || item.parentWorkCategoryCode}
+                            </span>
+                          )}
+                          {(item.workSubCategoryCode || item.parentWorkSubCategoryCode) && (
+                            <span
+                              style={subLabelSmStyle}
+                              title={item.workSubCategoryName || item.parentWorkSubCategoryName}
+                            >
+                              {item.workSubCategoryCode || item.parentWorkSubCategoryCode}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontWeight: 500, color: '#f1f5f9' }}>{item.itemName}</span>
+                        </div>
                         <div style={{ marginTop: 4, fontSize: 11, color: '#888' }}>
                           RAP Qty: {fmtNum(item.rapQty)} | Harga: Rp {Number(item.rapPrice).toLocaleString('id-ID')}
                         </div>
