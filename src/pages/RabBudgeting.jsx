@@ -213,6 +213,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // State untuk Edit Individual + detail breakdown OVH
   const [editModal, setEditModal] = useState(null);
   const [ohDetailItem, setOhDetailItem] = useState(null);
+const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" });
 
   // State untuk Hapus Massal & Checkbox
   const [selectedItemIds, setSelectedItemIds] = useState([]);
@@ -516,6 +517,52 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       const next = !prev.isByOwner;
       return { ...prev, isByOwner: next, rapUnitPrice: next ? 0 : prev.rapUnitPrice };
     });
+  };
+
+  const handleAddOvhComponent = async (item, name, rawPercent) => {
+    if (!name || name.trim().length === 0) return toast.error("Nama komponen wajib diisi.");
+    const percent = Number(rawPercent);
+    if (!Number.isFinite(percent) || percent < 0 || percent > 1000) {
+      return toast.error("Persen komponen harus antara 0 dan 1000.");
+    }
+    const current = Array.isArray(item.ohComponents) ? [...item.ohComponents] : [];
+    if (current.length >= 10) return toast.error("Komponen OVH maksimal 10.");
+    if (current.find((c) => c.name.toLowerCase() === name.trim().toLowerCase())) {
+      return toast.error("Nama komponen sudah ada.");
+    }
+    const nextId = `custom-${Date.now()}`;
+    const ohComponents = [
+      ...current,
+      { id: nextId, name: name.trim(), percent, kind: "CUSTOM" },
+    ];
+    toast.promise(
+      updateRabItem(item.id, { ohComponents }).then(() => {
+        setOvhNewComponent({ name: "", percent: "" });
+        refreshGroups();
+      }),
+      {
+        loading: "Menambah komponen OVH...",
+        success: "Komponen OVH ditambahkan.",
+        error: "Gagal menambah komponen OVH.",
+      },
+    ).catch((e) => console.error(e));
+  };
+
+  const handleRemoveOvhComponent = async (item, componentId) => {
+    if (["operational", "waste", "profit"].includes(componentId)) {
+      return toast.error("Komponen default tidak boleh dihapus.");
+    }
+    const ohComponents = (Array.isArray(item.ohComponents) ? item.ohComponents : []).filter(
+      (c) => c.id !== componentId,
+    );
+    toast.promise(
+      updateRabItem(item.id, { ohComponents }).then(refreshGroups),
+      {
+        loading: "Menghapus komponen OVH...",
+        success: "Komponen OVH dihapus.",
+        error: "Gagal menghapus komponen OVH.",
+      },
+    ).catch((e) => console.error(e));
   };
 
   const toggleStip = () => {
@@ -1390,7 +1437,11 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         const opsNom = rapTotal * (opsPct / 100);
         const wasteNom = rapTotal * (wastePct / 100);
         const profitNom = rapTotal * (profitPct / 100);
-        const ohNom = opsNom + wasteNom + profitNom;
+        const customNom = (Array.isArray(components)
+          ? components.filter((c) => !["operational", "waste", "profit"].includes(c.id))
+          : []
+        ).reduce((sum, c) => sum + rapTotal * (Number(c.percent || 0) / 100), 0);
+        const ohNom = opsNom + wasteNom + profitNom + customNom;
         const rabTotal = Number(it.rabTotalPrice ?? rapTotal + ohNom);
         return (
           <div className={styles["rab-modal-overlay"]} onClick={() => setOhDetailItem(null)}>
@@ -1416,17 +1467,70 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                         { id: "waste", name: "Waste Anggaran", percent: wastePct },
                         { id: "profit", name: "Laba Rencana", percent: profitPct },
                       ]
-                  ).map((component) => (
-                    <tr key={component.id}>
-                      <td>{component.name}</td>
-                      <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{Number(component.percent || 0).toFixed(2)}%</td>
-                      <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(rapTotal * (Number(component.percent || 0) / 100))}</td>
-                    </tr>
-                  ))}
+                  ).map((component) => {
+                    const isDefault = ["operational", "waste", "profit"].includes(component.id);
+                    return (
+                      <tr key={component.id}>
+                        <td>
+                          {component.name}
+                          {!isDefault && canEditOverhead && (
+                            <button
+                              className={styles["rab-btn"]}
+                              type="button"
+                              onClick={() => handleRemoveOvhComponent(item, component.id)}
+                              style={{ marginLeft: "8px", fontSize: "12px", padding: "2px 8px" }}
+                              aria-label={`Hapus komponen ${component.name}`}
+                            >
+                              ×
+                            </button>
+                          )}
+                        </td>
+                        <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{Number(component.percent || 0).toFixed(2)}%</td>
+                        <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(rapTotal * (Number(component.percent || 0) / 100))}</td>
+                      </tr>
+                    );
+                  })}
                   <tr className={styles["rab-oh-detail-total"]}>
                     <td>Total OVH</td>
                     <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{totalPct.toFixed(2)}%</td>
                     <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(ohNom)}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan="3" style={{ padding: "10px 0 8px", borderTop: "1px solid", borderColor: "currentColor", opacity: 0.6 }}>
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        <label className={styles["rab-form-label"]} style={{ margin: 0, fontSize: "13px" }}>
+                          Tambah komponen OVH
+                        </label>
+                        <input
+                          className={styles["rab-form-input"]}
+                          style={{ width: "160px", fontSize: "13px" }}
+                          placeholder="Nama komponen"
+                          value={ovhNewComponent.name}
+                          onChange={(e) => setOvhNewComponent({ ...ovhNewComponent, name: e.target.value })}
+                        />
+                        <input
+                          className={styles["rab-form-input"]}
+                          style={{ width: "110px", fontSize: "13px" }}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Persen"
+                          value={ovhNewComponent.percent}
+                          onChange={(e) => setOvhNewComponent({ ...ovhNewComponent, percent: e.target.value })}
+                        />
+                        <button
+                          className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
+                          type="button"
+                          onClick={() => canEditOverhead && handleAddOvhComponent(item, ovhNewComponent.name, ovhNewComponent.percent)}
+                          disabled={!canEditOverhead}
+                        >
+                          Tambah
+                        </button>
+                      </div>
+                      <p className={styles["rab-form-hint"]} style={{ margin: "0 0 0 8px", fontSize: "12px" }}>
+                        Maksimal 10 komponen. Komponen default tidak bisa dihapus.
+                      </p>
+                    </td>
                   </tr>
                 </tbody>
               </table>
