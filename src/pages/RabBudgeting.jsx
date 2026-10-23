@@ -513,7 +513,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       payload[field] = value;
     }
     toast.promise(
-      updateRabItem(item.id, payload).then(() => refreshGroups()),
+      updateRabItem(item.id, payload).then(() => {
+        console.log("[OH UPDATE] berhasil:", item.id, JSON.stringify(payload.ohComponents));
+        refreshGroups();
+      }),
       {
         loading: "Menyimpan OVH...",
         success: "OVH tersimpan.",
@@ -2316,7 +2319,7 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
                       )}
                       key={`${item.id}-${c.id}-${item.ohComponents?.find((x) => x.id === c.id)?.percent ?? 0}`}
                       onBlur={(e) => {
-                        const next = Number(e.currentTarget.value);
+                        const next = Number(e.target.value);
                         if (!Number.isFinite(next) || next < 0) return;
                         const comps = [
                           ...(Array.isArray(item.ohComponents) ? item.ohComponents : []),
