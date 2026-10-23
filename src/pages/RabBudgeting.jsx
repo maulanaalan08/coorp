@@ -210,7 +210,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // State untuk Tambah Group
   const [groupModal, setGroupModal] = useState(null);
 
-  // State untuk Edit Individual + detail breakdown OH
+  // State untuk Edit Individual + detail breakdown OVH
   const [editModal, setEditModal] = useState(null);
   const [ohDetailItem, setOhDetailItem] = useState(null);
 
@@ -473,20 +473,21 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
     const value = Number(rawValue);
     if (!Number.isFinite(value) || value < 0) {
-      return toast.error("Nilai OH tidak valid.");
+      return toast.error("Nilai OVH tidak valid.");
     }
     const payload = {
       operationalPercent: Number(item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0),
       wastePercent: Number(item.wastePercent ?? 0),
       profitPercent: Number(item.profitPercent ?? 0),
+      ohComponents: Array.isArray(item.ohComponents) ? item.ohComponents : null,
       [field]: value,
     };
     toast.promise(
       updateRabItem(item.id, payload).then(() => refreshGroups()),
       {
-        loading: "Menyimpan OH...",
-        success: "OH tersimpan.",
-        error: "Gagal menyimpan OH.",
+        loading: "Menyimpan OVH...",
+        success: "OVH tersimpan.",
+        error: "Gagal menyimpan OVH.",
       },
     ).catch((e) => console.error(e));
   };
@@ -1270,14 +1271,14 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                       <div className={styles["rab-stat-desc"]}>Target laba, bukan pengeluaran</div>
                     </div>
                     <div className={styles["rab-plate"]}>
-                      <div className={styles["rab-stat-header"]}><Scale size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Total OH</span></div>
+                      <div className={styles["rab-stat-header"]}><Scale size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Total OVH</span></div>
                       <div className={styles["rab-stat-value"]}>{fmtRp(totalOh)}</div>
                       <div className={styles["rab-stat-desc"]}>Operasional + waste + laba</div>
                     </div>
                     <div className={styles["rab-plate"]}>
                       <div className={styles["rab-stat-header"]}><Wallet size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Total RAB Billing</span></div>
                       <div className={[styles["rab-stat-value"], styles["gold"]].join(" ")}>{fmtRp(totalRab)}</div>
-                      <div className={styles["rab-stat-desc"]}>RAP + Total OH</div>
+                      <div className={styles["rab-stat-desc"]}>RAP + Total OVH</div>
                     </div>
                   </>
                 ) : (
@@ -1378,7 +1379,14 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         const opsPct = Number(it.operationalPercent ?? it.overheadPercent ?? it.overhead ?? 0);
         const wastePct = Number(it.wastePercent ?? 0);
         const profitPct = Number(it.profitPercent ?? 0);
-        const totalPct = opsPct + wastePct + profitPct;
+        const components = Array.isArray(it.ohComponents) && it.ohComponents.length > 0
+          ? it.ohComponents
+          : [
+              { id: "operational", name: "Operasional", percent: opsPct },
+              { id: "waste", name: "Waste Anggaran", percent: wastePct },
+              { id: "profit", name: "Laba Rencana", percent: profitPct },
+            ];
+        const totalPct = components.reduce((sum, component) => sum + Number(component.percent || 0), 0);
         const opsNom = rapTotal * (opsPct / 100);
         const wasteNom = rapTotal * (wastePct / 100);
         const profitNom = rapTotal * (profitPct / 100);
@@ -1387,7 +1395,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         return (
           <div className={styles["rab-modal-overlay"]} onClick={() => setOhDetailItem(null)}>
             <div className={styles["rab-modal"]} onClick={(e) => e.stopPropagation()}>
-              <h3>Detail OH</h3>
+              <h3>Detail OVH</h3>
               <p className={styles["rab-edit-meta"]}>
                 {it.name} · {it.paymentUnit} · Vol: {vol.toFixed(2)}
               </p>
@@ -1401,23 +1409,22 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>Operasional</td>
-                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{opsPct.toFixed(2)}%</td>
-                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(opsNom)}</td>
-                  </tr>
-                  <tr>
-                    <td>Waste Anggaran</td>
-                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{wastePct.toFixed(2)}%</td>
-                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(wasteNom)}</td>
-                  </tr>
-                  <tr>
-                    <td>Laba / Profit</td>
-                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{profitPct.toFixed(2)}%</td>
-                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(profitNom)}</td>
-                  </tr>
+                  {(Array.isArray(it.ohComponents) && it.ohComponents.length > 0
+                    ? it.ohComponents
+                    : [
+                        { id: "operational", name: "Operasional", percent: opsPct },
+                        { id: "waste", name: "Waste Anggaran", percent: wastePct },
+                        { id: "profit", name: "Laba Rencana", percent: profitPct },
+                      ]
+                  ).map((component) => (
+                    <tr key={component.id}>
+                      <td>{component.name}</td>
+                      <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{Number(component.percent || 0).toFixed(2)}%</td>
+                      <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(rapTotal * (Number(component.percent || 0) / 100))}</td>
+                    </tr>
+                  ))}
                   <tr className={styles["rab-oh-detail-total"]}>
-                    <td>Total OH</td>
+                    <td>Total OVH</td>
                     <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{totalPct.toFixed(2)}%</td>
                     <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(ohNom)}</td>
                   </tr>
@@ -1438,7 +1445,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
               </table>
 
               <p className={styles["rab-form-hint"]}>
-                RAB = RAP × (1 + Total OH% ÷ 100). Waste di sini adalah waste anggaran RAB,
+                RAB = RAP × (1 + Total OVH% ÷ 100). Waste di sini adalah waste anggaran RAB,
                 terpisah dari Waste Volume pada BV.
               </p>
 
@@ -1450,7 +1457,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                     type="button"
                     onClick={() => { setOhDetailItem(null); openEdit(it, ohDetailItem.itemNumber); }}
                   >
-                    Edit OH
+                    Edit OVH
                   </button>
                 )}
               </div>
@@ -1491,7 +1498,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
             </div>
 
             <p className={styles["rab-form-hint"]} style={{ marginBottom: '24px' }}>
-              Total OH: <strong>{(
+              Total OVH: <strong>{(
                 (Number(editModal.operationalPercent) || 0) +
                 (Number(editModal.wastePercent) || 0) +
                 (Number(editModal.profitPercent) || 0)
@@ -1706,7 +1713,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
               </label>
             </div>
             <p className={styles["rab-form-hint"]}>
-              Total OH: <strong>{(
+              Total OVH: <strong>{(
                 (Number(bulkPriceModal.operationalPercent) || 0) +
                 (Number(bulkPriceModal.wastePercent) || 0) +
                 (Number(bulkPriceModal.profitPercent) || 0)
@@ -1750,7 +1757,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
               </label>
             </div>
             <p className={styles["rab-form-hint"]}>
-              Total OH: <strong>{(
+              Total OVH: <strong>{(
                 (Number(bulkSwitchModal.operationalPercent) || 0) +
                 (Number(bulkSwitchModal.wastePercent) || 0) +
                 (Number(bulkSwitchModal.profitPercent) || 0)
@@ -2049,7 +2056,7 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
                   <strong>{Number(item.overheadPercent ?? item.overhead ?? 0).toFixed(2)}%</strong>
                   <button
                     className={styles["rab-oh-detail"]}
-                    title="Lihat rincian OH"
+                    title="Lihat rincian OVH"
                     onClick={() => onShowOhDetail && onShowOhDetail(item, itemNumber)}
                     type="button"
                   >
@@ -2100,12 +2107,12 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
               <th style={{ width: "7%" }}>Ops %</th>
               <th style={{ width: "7%" }}>Waste %</th>
               <th style={{ width: "7%" }}>Laba %</th>
-              <th style={{ width: "8%" }} title="Total ketiga komponen OH">OH %</th>
+              <th style={{ width: "8%" }} title="Total komponen OVH">OVH %</th>
             </>
           )}
           <th style={{ width: "10%" }}>{budgetMode === "rab" && isSuperAdmin ? "RAB Satuan" : "RAP Satuan"}</th>
           <th style={{ width: "10%" }}>{budgetMode === "rab" && isSuperAdmin ? "RAB Total" : "RAP Total"}</th>
-          {budgetMode === "rab" && isSuperAdmin && <th style={{ width: "8%" }} title="Selisih RAB - RAP = operasional + waste anggaran + laba">Total OH</th>}
+          {budgetMode === "rab" && isSuperAdmin && <th style={{ width: "8%" }} title="Selisih RAB - RAP = operasional + waste anggaran + laba">Total OVH</th>}
           <th style={{ width: "60px" }}></th>
         </tr>
       </thead>
