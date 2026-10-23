@@ -472,17 +472,25 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
 
   // OH = tiga komponen dan bisa diedit langsung dari tabel, baik di mode
   // RAP Costing maupun RAB Billing. Satu field diubah, dua lainnya dipertahankan.
-  const handleUpdateOhComponent = async (item, field, rawValue) => {
+  const handleUpdateOhComponent = async (item, field, rawValue, ohComponentsOverride) => {
     if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
-    const value = Number(rawValue);
-    if (!Number.isFinite(value) || value < 0) {
+    const currentPcts =
+      Array.isArray(item.ohComponents) ? item.ohComponents : null;
+    // Kalau caller langsung mengirim array ohComponents (untuk komponen custom),
+    // gunakan langsung tanpa menimpa field tunggal.
+    const ohComponents =
+      ohComponentsOverride !== undefined
+        ? ohComponentsOverride
+        : currentPcts;
+    const value = field === "ohComponents" ? undefined : Number(rawValue);
+    if (field !== "ohComponents" && (!Number.isFinite(value) || value < 0)) {
       return toast.error("Nilai OVH tidak valid.");
     }
     const payload = {
       operationalPercent: Number(item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0),
       wastePercent: Number(item.wastePercent ?? 0),
       profitPercent: Number(item.profitPercent ?? 0),
-      ohComponents: Array.isArray(item.ohComponents) ? item.ohComponents : null,
+      ohComponents: Array.isArray(ohComponents) ? ohComponents : null,
       [field]: value,
     };
     toast.promise(
@@ -2269,13 +2277,32 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
             {customOhComponents.map((c) => (
               <td key={c.id} className={styles["rab-oh-cell"]}>
                 {!hasChildren && (
-                  <div>
-                    <strong>
-                      {Number(
-                        (item.ohComponents?.find((x) => x.id === c.id)?.percent) ?? 0,
-                      ).toFixed(2)}
-                    </strong>
-                    %
+                  <div className={styles["rab-oh-inline"]}>
+                    <input
+                      className={styles["rab-oh-inline-input"]}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={Number(
+                        item.ohComponents?.find((x) => x.id === c.id)?.percent ?? 0,
+                      )}
+                      key={`${item.id}-${c.id}-${item.ohComponents?.find((x) => x.id === c.id)?.percent ?? 0}`}
+                      onBlur={(e) => {
+                        const next = Number(e.currentTarget.value);
+                        if (!Number.isFinite(next) || next < 0) return;
+                        const comps = [
+                          ...(Array.isArray(item.ohComponents) ? item.ohComponents : []),
+                        ];
+                        const existing = comps.find((x) => x.id === c.id);
+                        if (!existing) return;
+                        const idx = comps.indexOf(existing);
+                        comps[idx] = { ...existing, percent: next };
+                        onUpdateOhComponent(item, "ohComponents", undefined, comps);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                      }}
+                    />
                   </div>
                 )}
               </td>
