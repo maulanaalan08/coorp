@@ -1534,7 +1534,7 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
                         <button
                           className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
                           type="button"
-                          onClick={() => canAddOvhComponent && handleAddOvhComponent(item, ovhNewComponent.name, ovhNewComponent.percent)}
+                          onClick={() => canAddOvhComponent && handleAddOvhComponent(it, ovhNewComponent.name, ovhNewComponent.percent)}
                           disabled={!canAddOvhComponent}
                         >
                           Tambah
