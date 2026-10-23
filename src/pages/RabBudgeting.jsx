@@ -80,10 +80,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const [search, setSearch] = useState("");
   const [budgetMode, setBudgetMode] = useState("rap");
   const canEditRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
-  // Overhead (%) edit 3 komponen default tetap terbatas untuk 3 role di atas.
+  // Overhead (%) adalah lever margin yang juga dipegang SUPER_ADMIN di view RAB Selling.
   const canEditOverhead = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
-  // Tambah komponen OVH baru: semua role yang login boleh, selama project tidak terkunci approval.
-  const canAddOvhComponent = Boolean(user?.role) && !approvalLocked;
   const canExportRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role);
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -212,10 +210,9 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // State untuk Tambah Group
   const [groupModal, setGroupModal] = useState(null);
 
-  // State untuk Edit Individual + detail breakdown OVH
+  // State untuk Edit Individual + detail breakdown OH
   const [editModal, setEditModal] = useState(null);
   const [ohDetailItem, setOhDetailItem] = useState(null);
-const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" });
 
   // State untuk Hapus Massal & Checkbox
   const [selectedItemIds, setSelectedItemIds] = useState([]);
@@ -476,21 +473,20 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
     if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
     const value = Number(rawValue);
     if (!Number.isFinite(value) || value < 0) {
-      return toast.error("Nilai OVH tidak valid.");
+      return toast.error("Nilai OH tidak valid.");
     }
     const payload = {
       operationalPercent: Number(item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0),
       wastePercent: Number(item.wastePercent ?? 0),
       profitPercent: Number(item.profitPercent ?? 0),
-      ohComponents: Array.isArray(item.ohComponents) ? item.ohComponents : null,
       [field]: value,
     };
     toast.promise(
       updateRabItem(item.id, payload).then(() => refreshGroups()),
       {
-        loading: "Menyimpan OVH...",
-        success: "OVH tersimpan.",
-        error: "Gagal menyimpan OVH.",
+        loading: "Menyimpan OH...",
+        success: "OH tersimpan.",
+        error: "Gagal menyimpan OH.",
       },
     ).catch((e) => console.error(e));
   };
@@ -519,63 +515,6 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
       const next = !prev.isByOwner;
       return { ...prev, isByOwner: next, rapUnitPrice: next ? 0 : prev.rapUnitPrice };
     });
-  };
-
-  const handleAddOvhComponent = async (item, name, rawPercent) => {
-    if (!name || name.trim().length === 0) return toast.error("Nama komponen wajib diisi.");
-    const percent = Number(rawPercent);
-    if (!Number.isFinite(percent) || percent < 0 || percent > 1000) {
-      return toast.error("Persen komponen harus antara 0 dan 1000.");
-    }
-
-    // Pastikan 3 komponen default selalu ada, bahkan kalohComponents kosong/undefined
-    // (misal item baru dari link-to-rab yang belum generate komponen default).
-    let current = Array.isArray(item.ohComponents) ? [...item.ohComponents] : [];
-    if (current.length === 0) {
-      const total = Number(item.overheadPercent ?? 0);
-      current = [
-        { id: "operational", name: "Operasional", percent: total, kind: "OPERATIONAL" },
-        { id: "waste", name: "Waste Anggaran", percent: 0, kind: "WASTE" },
-        { id: "profit", name: "Laba Rencana", percent: 0, kind: "PROFIT" },
-      ];
-    }
-    if (current.length >= 10) return toast.error("Komponen OVH maksimal 10.");
-    if (current.find((c) => c.name.toLowerCase() === name.trim().toLowerCase())) {
-      return toast.error("Nama komponen sudah ada.");
-    }
-    const nextId = `custom-${Date.now()}`;
-    const ohComponents = [
-      ...current,
-      { id: nextId, name: name.trim(), percent, kind: "CUSTOM" },
-    ];
-    toast.promise(
-      updateRabItem(item.id, { ohComponents }).then(() => {
-        setOvhNewComponent({ name: "", percent: "" });
-        refreshGroups();
-      }),
-      {
-        loading: "Menambah komponen OVH...",
-        success: "Komponen OVH ditambahkan.",
-        error: "Gagal menambah komponen OVH.",
-      },
-    ).catch((e) => console.error(e));
-  };
-
-  const handleRemoveOvhComponent = async (item, componentId) => {
-    if (["operational", "waste", "profit"].includes(componentId)) {
-      return toast.error("Komponen default tidak boleh dihapus.");
-    }
-    const ohComponents = (Array.isArray(item.ohComponents) ? item.ohComponents : []).filter(
-      (c) => c.id !== componentId,
-    );
-    toast.promise(
-      updateRabItem(item.id, { ohComponents }).then(refreshGroups),
-      {
-        loading: "Menghapus komponen OVH...",
-        success: "Komponen OVH dihapus.",
-        error: "Gagal menghapus komponen OVH.",
-      },
-    ).catch((e) => console.error(e));
   };
 
   const toggleStip = () => {
@@ -1331,14 +1270,14 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
                       <div className={styles["rab-stat-desc"]}>Target laba, bukan pengeluaran</div>
                     </div>
                     <div className={styles["rab-plate"]}>
-                      <div className={styles["rab-stat-header"]}><Scale size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Total OVH</span></div>
+                      <div className={styles["rab-stat-header"]}><Scale size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Total OH</span></div>
                       <div className={styles["rab-stat-value"]}>{fmtRp(totalOh)}</div>
                       <div className={styles["rab-stat-desc"]}>Operasional + waste + laba</div>
                     </div>
                     <div className={styles["rab-plate"]}>
                       <div className={styles["rab-stat-header"]}><Wallet size={18} className={styles["rab-stat-icon"]} /><span className={styles["rab-stat-label"]}>Total RAB Billing</span></div>
                       <div className={[styles["rab-stat-value"], styles["gold"]].join(" ")}>{fmtRp(totalRab)}</div>
-                      <div className={styles["rab-stat-desc"]}>RAP + Total OVH</div>
+                      <div className={styles["rab-stat-desc"]}>RAP + Total OH</div>
                     </div>
                   </>
                 ) : (
@@ -1439,27 +1378,16 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
         const opsPct = Number(it.operationalPercent ?? it.overheadPercent ?? it.overhead ?? 0);
         const wastePct = Number(it.wastePercent ?? 0);
         const profitPct = Number(it.profitPercent ?? 0);
-        const components = Array.isArray(it.ohComponents) && it.ohComponents.length > 0
-          ? it.ohComponents
-          : [
-              { id: "operational", name: "Operasional", percent: opsPct },
-              { id: "waste", name: "Waste Anggaran", percent: wastePct },
-              { id: "profit", name: "Laba Rencana", percent: profitPct },
-            ];
-        const totalPct = components.reduce((sum, component) => sum + Number(component.percent || 0), 0);
+        const totalPct = opsPct + wastePct + profitPct;
         const opsNom = rapTotal * (opsPct / 100);
         const wasteNom = rapTotal * (wastePct / 100);
         const profitNom = rapTotal * (profitPct / 100);
-        const customNom = (Array.isArray(components)
-          ? components.filter((c) => !["operational", "waste", "profit"].includes(c.id))
-          : []
-        ).reduce((sum, c) => sum + rapTotal * (Number(c.percent || 0) / 100), 0);
-        const ohNom = opsNom + wasteNom + profitNom + customNom;
+        const ohNom = opsNom + wasteNom + profitNom;
         const rabTotal = Number(it.rabTotalPrice ?? rapTotal + ohNom);
         return (
           <div className={styles["rab-modal-overlay"]} onClick={() => setOhDetailItem(null)}>
             <div className={styles["rab-modal"]} onClick={(e) => e.stopPropagation()}>
-              <h3>Detail OVH</h3>
+              <h3>Detail OH</h3>
               <p className={styles["rab-edit-meta"]}>
                 {it.name} · {it.paymentUnit} · Vol: {vol.toFixed(2)}
               </p>
@@ -1473,77 +1401,25 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
                   </tr>
                 </thead>
                 <tbody>
-                  {(Array.isArray(it.ohComponents) && it.ohComponents.length > 0
-                    ? it.ohComponents
-                    : [
-                        { id: "operational", name: "Operasional", percent: opsPct },
-                        { id: "waste", name: "Waste Anggaran", percent: wastePct },
-                        { id: "profit", name: "Laba Rencana", percent: profitPct },
-                      ]
-                  ).map((component) => {
-                    const isDefault = ["operational", "waste", "profit"].includes(component.id);
-                    return (
-                      <tr key={component.id}>
-                        <td>
-                          {component.name}
-                          {!isDefault && canEditOverhead && (
-                            <button
-                              className={styles["rab-btn"]}
-                              type="button"
-                              onClick={() => handleRemoveOvhComponent(item, component.id)}
-                              style={{ marginLeft: "8px", fontSize: "12px", padding: "2px 8px" }}
-                              aria-label={`Hapus komponen ${component.name}`}
-                            >
-                              ×
-                            </button>
-                          )}
-                        </td>
-                        <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{Number(component.percent || 0).toFixed(2)}%</td>
-                        <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(rapTotal * (Number(component.percent || 0) / 100))}</td>
-                      </tr>
-                    );
-                  })}
-                  <tr className={styles["rab-oh-detail-total"]}>
-                    <td>Total OVH</td>
-                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{totalPct.toFixed(2)}%</td>
-                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(ohNom)}</td>
+                  <tr>
+                    <td>Operasional</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{opsPct.toFixed(2)}%</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(opsNom)}</td>
                   </tr>
                   <tr>
-                    <td colSpan="3" style={{ padding: "10px 0 8px", borderTop: "1px solid", borderColor: "currentColor", opacity: 0.6 }}>
-                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                        <label className={styles["rab-form-label"]} style={{ margin: 0, fontSize: "13px" }}>
-                          Tambah komponen OVH
-                        </label>
-                        <input
-                          className={styles["rab-form-input"]}
-                          style={{ width: "160px", fontSize: "13px" }}
-                          placeholder="Nama komponen"
-                          value={ovhNewComponent.name}
-                          onChange={(e) => setOvhNewComponent({ ...ovhNewComponent, name: e.target.value })}
-                        />
-                        <input
-                          className={styles["rab-form-input"]}
-                          style={{ width: "110px", fontSize: "13px" }}
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="Persen"
-                          value={ovhNewComponent.percent}
-                          onChange={(e) => setOvhNewComponent({ ...ovhNewComponent, percent: e.target.value })}
-                        />
-                        <button
-                          className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
-                          type="button"
-                          onClick={() => canAddOvhComponent && handleAddOvhComponent(item, ovhNewComponent.name, ovhNewComponent.percent)}
-                          disabled={!canAddOvhComponent}
-                        >
-                          Tambah
-                        </button>
-                      </div>
-                      <p className={styles["rab-form-hint"]} style={{ margin: "0 0 0 8px", fontSize: "12px" }}>
-                        Maksimal 10 komponen. Komponen default tidak bisa dihapus.
-                      </p>
-                    </td>
+                    <td>Waste Anggaran</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{wastePct.toFixed(2)}%</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(wasteNom)}</td>
+                  </tr>
+                  <tr>
+                    <td>Laba / Profit</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{profitPct.toFixed(2)}%</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(profitNom)}</td>
+                  </tr>
+                  <tr className={styles["rab-oh-detail-total"]}>
+                    <td>Total OH</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{totalPct.toFixed(2)}%</td>
+                    <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(ohNom)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1562,7 +1438,7 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
               </table>
 
               <p className={styles["rab-form-hint"]}>
-                RAB = RAP × (1 + Total OVH% ÷ 100). Waste di sini adalah waste anggaran RAB,
+                RAB = RAP × (1 + Total OH% ÷ 100). Waste di sini adalah waste anggaran RAB,
                 terpisah dari Waste Volume pada BV.
               </p>
 
@@ -1574,7 +1450,7 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
                     type="button"
                     onClick={() => { setOhDetailItem(null); openEdit(it, ohDetailItem.itemNumber); }}
                   >
-                    Edit OVH
+                    Edit OH
                   </button>
                 )}
               </div>
@@ -1615,7 +1491,7 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
             </div>
 
             <p className={styles["rab-form-hint"]} style={{ marginBottom: '24px' }}>
-              Total OVH: <strong>{(
+              Total OH: <strong>{(
                 (Number(editModal.operationalPercent) || 0) +
                 (Number(editModal.wastePercent) || 0) +
                 (Number(editModal.profitPercent) || 0)
@@ -1830,7 +1706,7 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
               </label>
             </div>
             <p className={styles["rab-form-hint"]}>
-              Total OVH: <strong>{(
+              Total OH: <strong>{(
                 (Number(bulkPriceModal.operationalPercent) || 0) +
                 (Number(bulkPriceModal.wastePercent) || 0) +
                 (Number(bulkPriceModal.profitPercent) || 0)
@@ -1874,7 +1750,7 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
               </label>
             </div>
             <p className={styles["rab-form-hint"]}>
-              Total OVH: <strong>{(
+              Total OH: <strong>{(
                 (Number(bulkSwitchModal.operationalPercent) || 0) +
                 (Number(bulkSwitchModal.wastePercent) || 0) +
                 (Number(bulkSwitchModal.profitPercent) || 0)
@@ -2173,7 +2049,7 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
                   <strong>{Number(item.overheadPercent ?? item.overhead ?? 0).toFixed(2)}%</strong>
                   <button
                     className={styles["rab-oh-detail"]}
-                    title="Lihat rincian OVH"
+                    title="Lihat rincian OH"
                     onClick={() => onShowOhDetail && onShowOhDetail(item, itemNumber)}
                     type="button"
                   >
@@ -2224,12 +2100,12 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
               <th style={{ width: "7%" }}>Ops %</th>
               <th style={{ width: "7%" }}>Waste %</th>
               <th style={{ width: "7%" }}>Laba %</th>
-              <th style={{ width: "8%" }} title="Total komponen OVH">OVH %</th>
+              <th style={{ width: "8%" }} title="Total ketiga komponen OH">OH %</th>
             </>
           )}
           <th style={{ width: "10%" }}>{budgetMode === "rab" && isSuperAdmin ? "RAB Satuan" : "RAP Satuan"}</th>
           <th style={{ width: "10%" }}>{budgetMode === "rab" && isSuperAdmin ? "RAB Total" : "RAP Total"}</th>
-          {budgetMode === "rab" && isSuperAdmin && <th style={{ width: "8%" }} title="Selisih RAB - RAP = operasional + waste anggaran + laba">Total OVH</th>}
+          {budgetMode === "rab" && isSuperAdmin && <th style={{ width: "8%" }} title="Selisih RAB - RAP = operasional + waste anggaran + laba">Total OH</th>}
           <th style={{ width: "60px" }}></th>
         </tr>
       </thead>
