@@ -215,7 +215,8 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // State untuk Edit Individual + detail breakdown OVH
   const [editModal, setEditModal] = useState(null);
   const [ohDetailItem, setOhDetailItem] = useState(null);
-const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" });
+  const [ohEditDrafts, setOhEditDrafts] = useState({});
+  const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" });
 
   // State untuk Hapus Massal & Checkbox
   const [selectedItemIds, setSelectedItemIds] = useState([]);
@@ -1529,6 +1530,9 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
                       ]
                   ).map((component) => {
                     const isDefault = ["operational", "waste", "profit"].includes(component.id);
+                    const draft = ohEditDrafts[it?.id]?.[component.id] || {};
+                    const draftName = draft.name ?? component.name;
+                    const draftPct = draft.percent ?? component.percent;
                     return (
                       <tr key={component.id}>
                         <td style={{ display: "flex", gap: "4px", alignItems: "center" }}>
@@ -1539,24 +1543,36 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
                               key={`${component.id}-${component.name}`}
                               className={styles["rab-form-input"]}
                               style={{ width: "140px", fontSize: "13px" }}
-                              defaultValue={component.name}
-                              onBlur={(e) =>
-                                handleEditOvhComponent(it, component.id, {
-                                  name: e.currentTarget.value.trim(),
-                                })
+                              defaultValue={draftName}
+                              onChange={(e) =>
+                                setOhEditDrafts((prev) => ({
+                                  ...prev,
+                                  [it.id]: { ...(prev[it.id] || {}), [component.id]: { name: e.currentTarget.value.trim(), percent: draftPct } },
+                                }))
                               }
                             />
                           )}
                           {!isDefault && canEditOverhead && (
-                            <button
-                              className={styles["rab-btn"]}
-                              type="button"
-                              onClick={() => handleRemoveOvhComponent(it, component.id)}
-                              style={{ marginLeft: "6px", fontSize: "12px", padding: "2px 8px" }}
-                              aria-label={`Hapus komponen ${component.name}`}
-                            >
-                              ×
-                            </button>
+                            <>
+                              <button
+                                className={styles["rab-btn"]}
+                                type="button"
+                                onClick={() => handleRemoveOvhComponent(it, component.id)}
+                                style={{ marginLeft: "6px", fontSize: "12px", padding: "2px 8px" }}
+                                aria-label={`Hapus komponen ${component.name}`}
+                              >
+                                ×
+                              </button>
+                              <button
+                                className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
+                                type="button"
+                                onClick={() => handleEditOvhComponent(it, component.id, { name: draftName, percent: draftPct })}
+                                style={{ marginLeft: "4px", fontSize: "11px", padding: "2px 8px" }}
+                                title="Simpan"
+                              >
+                                Simpan
+                              </button>
+                            </>
                           )}
                         </td>
                         <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>
@@ -1570,12 +1586,14 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
                               type="number"
                               step="0.01"
                               min="0"
-                              defaultValue={component.percent}
-                              onBlur={(e) =>
-                                handleEditOvhComponent(it, component.id, {
-                                  percent: Number(e.currentTarget.value),
-                                })
-                              }
+                              defaultValue={draftPct}
+                              onChange={(e) => {
+                                const p = Number(e.currentTarget.value);
+                                setOhEditDrafts((prev) => ({
+                                  ...prev,
+                                  [it.id]: { ...(prev[it.id] || {}), [component.id]: { name: draftName, percent: p } },
+                                }));
+                              }}
                             />
                           )}
                         </td>
