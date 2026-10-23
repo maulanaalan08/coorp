@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Banknote, Plus, Search, Save, X, Edit2, Wrench } from 'lucide-react';
+import { Banknote, Plus, Search, Save, X, Edit2, Wrench, RotateCcw, AlertCircle } from 'lucide-react';
 import Header from '../components/Header';
 import { purchasingService } from '../services/purchasingService';
 import { poService } from '../services/poService';
@@ -48,25 +48,37 @@ const normalizeApprovalStatus = (status) => {
   return s;
 };
 
-const approvalBadge = (approvalStatus, isPostedKasBank) => {
+const hasPaymentAction = (p) => {
+  if (!p) return false;
+  const entries = Array.isArray(p.paymentHistory?.entries)
+    ? p.paymentHistory.entries
+    : Array.isArray(p.paymentHistory)
+      ? p.paymentHistory
+      : [];
+  return entries.length > 0 || Number(p.totalTerbayar || 0) > 0 || Number(p.jumlahBayar || 0) > 0;
+};
+
+const approvalBadge = (approvalStatus, isPostedKasBank, record) => {
   if (isPostedKasBank) return 'bg-emerald-500/10 text-emerald-300 border-emerald-500/40';
+  const normalized = normalizeApprovalStatus(approvalStatus);
+  if (normalized === 'REJECTED') return 'bg-red-500/10 text-red-400 border-red-500/30';
+  if (!hasPaymentAction(record)) return 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30';
   const map = {
-    PENDING: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30',
+    PENDING: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
     APPROVED_FINANCE: 'bg-blue-500/10 text-blue-300 border-blue-500/30',
     APPROVED: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/40',
-    REJECTED: 'bg-red-500/10 text-red-300 border-red-500/30',
   };
-  const normalized = normalizeApprovalStatus(approvalStatus);
   return map[normalized] || 'bg-gray-500/10 text-gray-300 border-gray-500/30';
 };
 
-const approvalLabel = (approvalStatus, isPostedKasBank) => {
+const approvalLabel = (approvalStatus, isPostedKasBank, record) => {
   if (isPostedKasBank) return 'Terkirim Kas/Bank';
   const normalized = normalizeApprovalStatus(approvalStatus);
+  if (normalized === 'REJECTED') return 'Ditolak';
+  if (!hasPaymentAction(record)) return 'Pending';
   if (normalized === 'PENDING') return 'Menunggu Finance';
   if (normalized === 'APPROVED_FINANCE') return 'Menunggu Atasan';
   if (normalized === 'APPROVED') return 'Disetujui Atasan (Siap Kirim)';
-  if (normalized === 'REJECTED') return 'Ditolak';
   return normalized || '-';
 };
 
@@ -118,6 +130,7 @@ const PembayaranSupplierPage = () => {
   const [search, setSearch] = useState('');
   const [filterProject, setFilterProject] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [joProgressData, setJoProgressData] = useState(null);
 
   const [jasaList, setJasaList] = useState([]);
   const [pos, setPOs] = useState([]);
@@ -185,7 +198,9 @@ const PembayaranSupplierPage = () => {
   const jasaRows = useMemo(
     () =>
       (pembayarans || []).filter(
-        (p) => p?.purchaseOrder?.kategoriPO === 'JASA' || !!p?.jasaId || !!p?.jasa,
+        (p) =>
+          (p?.purchaseOrder?.kategoriPO === 'JASA' || !!p?.jasaId || !!p?.jasa) &&
+          (p.pengajuan?.status === 'APPROVED' || (!p.pengajuan && p.purchaseOrder?.status === 'APPROVED')),
       ),
     [pembayarans],
   );
@@ -252,9 +267,25 @@ const PembayaranSupplierPage = () => {
     return Math.min(sisaTagihan, sisaByProgress);
   }, [formData.totalTagihan, progressRecap.progressCap, totalSudahDibayar]);
 
+
+  const effectiveMaxBayar = useMemo(() => {
+    if (joProgressData && typeof joProgressData.sisaPlafonBayar === 'number') {
+      return Math.max(0, joProgressData.sisaPlafonBayar);
+    }
+    return maxByProgress;
+  }, [joProgressData, maxByProgress]);
+
   const openModal = (pembayaran = null) => {
     if (pembayaran) {
       setEditId(pembayaran.id);
+      const isRejected = pembayaran.approvalStatus === 'REJECTED';
+      const entries = Array.isArray(pembayaran.paymentHistory)
+        ? pembayaran.paymentHistory
+        : Array.isArray(pembayaran.paymentHistory?.entries)
+          ? pembayaran.paymentHistory.entries
+          : [];
+      const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
+
       setFormData({
         flowType: 'JASA',
         supplierId: '',
@@ -262,10 +293,10 @@ const PembayaranSupplierPage = () => {
         pengajuanId: pembayaran.pengajuanId || '',
         poId: pembayaran.poId || '',
         totalTagihan: pembayaran.totalTagihan || '',
-        jumlah: '',
-        metode: pembayaran.metodeBayar || pembayaran.metode || 'TRANSFER',
+        jumlah: isRejected && lastEntry?.jumlah ? String(lastEntry.jumlah) : '',
+        metode: (isRejected && lastEntry?.metodeBayar) || pembayaran.metodeBayar || pembayaran.metode || 'TRANSFER',
         status: pembayaran.status || 'BELUM_BAYAR',
-        keterangan: pembayaran.keterangan || '',
+        keterangan: (isRejected && lastEntry?.keterangan) || pembayaran.keterangan || '',
         tanggal: pembayaran.tanggal
           ? new Date(pembayaran.tanggal).toISOString().split('T')[0]
           : new Date().toISOString().split('T')[0],
@@ -275,13 +306,14 @@ const PembayaranSupplierPage = () => {
         tanggalBayar: pembayaran.tanggalBayar
           ? new Date(pembayaran.tanggalBayar).toISOString().split('T')[0]
           : '',
-        rekeningBankId: pembayaran.rekeningBankId || '',
+        rekeningBankId: (isRejected && lastEntry?.rekeningBankId) || pembayaran.rekeningBankId || '',
         tipeRekeningId:
-          pembayaran.tipeRekeningId || pembayaran.rekeningBank?.tipeRekeningId || '',
+          (isRejected && lastEntry?.tipeRekeningId) || pembayaran.tipeRekeningId || pembayaran.rekeningBank?.tipeRekeningId || '',
         tambahPembayaran: true,
       });
     } else {
       setEditId(null);
+      setJoProgressData(null);
       setFormData({
         flowType: 'JASA',
         supplierId: '',
@@ -332,8 +364,8 @@ const PembayaranSupplierPage = () => {
       return;
     }
 
-    if (jumlahNominal > maxByProgress) {
-      toast.error(`Nominal bayar melebihi batas progress JO saat ini (${fmtRp(maxByProgress)})`);
+    if (jumlahNominal > effectiveMaxBayar) {
+      toast.error(`Nominal bayar melebihi batas progress JO saat ini (${fmtRp(effectiveMaxBayar)})`);
       return;
     }
 
@@ -356,6 +388,7 @@ const PembayaranSupplierPage = () => {
       rekeningBankId: formData.rekeningBankId || null,
       tipeRekeningId: formData.tipeRekeningId || null,
       tambahPembayaran: Boolean(formData.tambahPembayaran),
+      isRevisi: editId && pembayarans.find((p) => p.id === editId)?.approvalStatus === 'REJECTED',
     };
 
     try {
@@ -452,6 +485,9 @@ const PembayaranSupplierPage = () => {
                         <div className="text-white font-medium font-mono text-sm">
                           {p.noPembayaran || '-'}
                         </div>
+                        <div className="text-[10px] text-[#888] mt-0.5">
+                          Diinput: <span className="text-[#d4af37]">{p.paymentHistory?.entries?.[p.paymentHistory?.entries?.length - 1]?.createdByName || p.createdByName || p.createdBy?.name || '-'}</span>
+                        </div>
                         {p.purchaseOrder?.poNumber && (
                           <div className="text-[10px] text-[#38bdf8] mt-0.5 font-mono">
                             PO: {p.purchaseOrder.poNumber}
@@ -488,10 +524,15 @@ const PembayaranSupplierPage = () => {
                       <td className="px-4 py-3 text-right text-[#ccc] font-mono whitespace-nowrap">{fmtRp(p.sisaBayar ?? 0)}</td>
                       <td className="px-4 py-3 text-center">
                         <span
-                          className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${approvalBadge(p.approvalStatus || 'PENDING', p.isPostedKasBank)}`}
+                          className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${approvalBadge(p.approvalStatus || 'PENDING', p.isPostedKasBank, p)}`}
                         >
-                          {approvalLabel(p.approvalStatus || 'PENDING', p.isPostedKasBank)}
+                          {approvalLabel(p.approvalStatus || 'PENDING', p.isPostedKasBank, p)}
                         </span>
+                        {p.approvalStatus === 'REJECTED' && p.rejectReason && (
+                          <div className="text-[10px] text-red-400 mt-0.5 truncate max-w-[120px] mx-auto" title={p.rejectReason}>
+                            {p.rejectReason}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge(p.status)}`}>
@@ -499,13 +540,23 @@ const PembayaranSupplierPage = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => openModal(p)}
-                          className="p-1.5 text-[#888] hover:text-[#d4af37] bg-white/5 hover:bg-white/10 rounded transition-colors"
-                          title="Update Pembayaran Jasa"
-                        >
-                          <Edit2 size={14} />
-                        </button>
+                        {p.approvalStatus === 'REJECTED' ? (
+                          <button
+                            onClick={() => openModal(p)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-300 bg-red-500/15 border border-red-500/30 hover:bg-red-500/25 rounded transition-colors"
+                            title="Revisi Pembayaran Jasa"
+                          >
+                            <RotateCcw size={12} /> Revisi
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => openModal(p)}
+                            className="p-1.5 text-[#888] hover:text-[#d4af37] bg-white/5 hover:bg-white/10 rounded transition-colors"
+                            title="Update Pembayaran Jasa"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -537,6 +588,20 @@ const PembayaranSupplierPage = () => {
 
             <form onSubmit={handleSubmit} className="max-h-[75vh] overflow-y-auto">
               <div className="px-6 py-4 space-y-4">
+                {editId && pembayarans.find((p) => p.id === editId)?.approvalStatus === 'REJECTED' && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3.5 flex gap-2.5 items-start">
+                    <AlertCircle size={18} className="text-red-400 mt-0.5 shrink-0" />
+                    <div className="text-xs text-red-300">
+                      <div className="font-semibold text-red-200">Tagihan Jasa Sebelumnya Ditolak</div>
+                      <div className="mt-0.5 text-red-300/90">
+                        Alasan: <strong className="text-red-100">{pembayarans.find((p) => p.id === editId)?.rejectReason || 'Silakan sesuaikan data pembayaran.'}</strong>
+                      </div>
+                      <p className="mt-1 text-[11px] text-red-200/80">
+                        Silakan perbaiki nominal atau informasi pembayaran di bawah. Setelah disimpan, status akan berubah kembali menjadi <strong>Menunggu Finance</strong>.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-[#888] mb-1">Nama Jasa *</label>
@@ -732,16 +797,38 @@ const PembayaranSupplierPage = () => {
                     placeholder="0"
                     className="w-full bg-[#0c0b09] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#d4af37] outline-none"
                   />
-                  {maxByProgress <= 0 ? (
+                  {/* KOTAK INFORMASI JO & PLAFON */}
+                  <div className="bg-[#14120e] border border-[#2a2a2a] rounded-xl p-3 mb-3 text-xs">
+                    <div className="flex items-center justify-between pb-2 border-b border-white/5 mb-2">
+                      <span className="text-[#888]">Progress Join Opname (JO):</span>
+                      <span className="text-cyan-300 font-bold font-mono">
+                        {joProgressData ? `${joProgressData.progressJoPercent}%` : `${progressRecap.rows?.[0]?.progressPercent || 0}%`}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] text-[#aaa]">
+                      <div>Total Tagihan: <b className="text-white font-mono">{fmtRp(formData.totalTagihan)}</b></div>
+                      <div>Plafon JO Kumulatif: <b className="text-white font-mono">{fmtRp(joProgressData ? joProgressData.maxPlafonBayar : progressRecap.progressCap)}</b></div>
+                      <div>Sudah Terbayar: <b className="text-amber-300 font-mono">{fmtRp(joProgressData ? joProgressData.totalTerbayar : totalSudahDibayar)}</b></div>
+                      <div>Maks Boleh Dibayar: <b className="text-emerald-400 font-mono">{fmtRp(effectiveMaxBayar)}</b></div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
+                      <span className="text-[#888]">Status Pembayaran Ini:</span>
+                      <span className="font-bold px-2 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                        {Number(formData.jumlah || 0) + (joProgressData ? joProgressData.totalTerbayar : totalSudahDibayar) >= Number(formData.totalTagihan || 0) && Number(formData.totalTagihan || 0) > 0
+                          ? 'LUNAS'
+                          : 'BON (Cicilan JO)'}
+                      </span>
+                    </div>
+                  </div>
+                  {effectiveMaxBayar <= 0 ? (
                     <p className="text-xs text-red-400 mt-1 font-semibold">
-                      Tidak bisa melakukan pembayaran lagi. Harap tunggu progress Joint Opname meningkat.
+                      Tidak bisa melakukan pembayaran lagi. Harap tunggu progress Joint Opname lapangan meningkat.
                     </p>
-                  ) : (
-                    <p className="text-xs text-[#666] mt-1">
-                      Batas total JO: {fmtRp(progressRecap.progressCap)}
-                      {totalSudahDibayar > 0 ? ` (Sudah terbayar: ${fmtRp(totalSudahDibayar)}, Maks bayar: ${fmtRp(maxByProgress)})` : ''}
+                  ) : Number(formData.jumlah || 0) > effectiveMaxBayar ? (
+                    <p className="text-xs text-red-400 mt-1 font-semibold">
+                      Nominal melebihi sisa plafon JO ({fmtRp(effectiveMaxBayar)})!
                     </p>
-                  )}
+                  ) : null}
                 </div>
 
                 <div>
@@ -766,7 +853,7 @@ const PembayaranSupplierPage = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || maxByProgress <= 0}
+                  disabled={isSubmitting || effectiveMaxBayar <= 0 || Number(formData.jumlah || 0) > effectiveMaxBayar}
                   className="flex items-center gap-2 bg-[#d4af37] text-[#0c0b09] font-semibold px-5 py-2.5 rounded-lg hover:bg-[#e8c874] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save size={16} /> {isSubmitting ? 'Menyimpan...' : editId ? 'Update' : 'Buat'}

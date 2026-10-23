@@ -732,7 +732,14 @@ const PurchaseOrderJasaPage = () => {
                                                                     const poFull = poJasaProject.find((p) => p.id === h.poId);
                                                                     return (
                                                                       <tr key={`${h.poId}-${h.poNumber}-${h.qty}`} style={{ borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-                                                                        <td className={styles.cellMono} style={{ padding: 6, fontSize: 12, color: '#60a5fa' }}>{h.poNumber || '-'}</td>
+                                                                        <td className={styles.cellMono} style={{ padding: 6, fontSize: 12, color: '#60a5fa' }}>
+                                                                          <div>{h.poNumber || '-'}</div>
+                                                                          {poFull?.createdBy?.name && (
+                                                                            <div style={{ fontSize: 10, color: '#888' }}>
+                                                                              Oleh: <span style={{ color: '#d4af37' }}>{poFull.createdBy.name}</span>
+                                                                            </div>
+                                                                          )}
+                                                                        </td>
                                                                         <td style={{ padding: 6, fontSize: 12, color: '#ccc' }}>{h.tanggal ? new Date(h.tanggal).toLocaleDateString('id-ID') : '-'}</td>
                                                                         <td style={{ padding: 6, fontSize: 12, color: '#ccc' }}>{h.jasaName || '-'}</td>
                                                                         <td style={{ padding: 6, fontSize: 12, color: '#93c5fd' }}>{h.caraPembayaran || '-'}</td>

@@ -14,6 +14,8 @@ import {
   AlertCircle,
   FileText,
   DollarSign,
+  RotateCcw,
+  Package,
 } from 'lucide-react';
 import Header from '../components/Header';
 import { purchasingService } from '../services/purchasingService';
@@ -50,26 +52,41 @@ const statusBayarLabel = (p) => {
   return isRecordLunas(p) ? 'Lunas' : 'Tempo';
 };
 
+// Cek apakah invoice sudah memiliki aksi pembayaran
+const hasPaymentAction = (p) => {
+  if (!p) return false;
+  const entries = Array.isArray(p.paymentHistory?.entries)
+    ? p.paymentHistory.entries
+    : Array.isArray(p.paymentHistory)
+      ? p.paymentHistory
+      : [];
+  return entries.length > 0 || Number(p.totalTerbayar || 0) > 0 || Number(p.jumlahBayar || 0) > 0;
+};
+
 // Status Approval
-const approvalBadge = (status) => {
+const approvalBadge = (status, record) => {
   const s = String(status || '').toUpperCase();
-  if (s === 'APPROVED' || s === 'APPROVED_ATASAN') {
+  if (s === 'REJECTED') {
+    return 'bg-red-500/10 text-red-400 border-red-500/30';
+  }
+  if (!hasPaymentAction(record)) {
+    return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
+  }
+  if (s === 'APPROVED' || s === 'APPROVED_ATASAN' || record?.isPostedKasBank) {
     return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
   }
   if (s === 'APPROVED_FINANCE') {
     return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
   }
-  if (s === 'REJECTED') {
-    return 'bg-red-500/10 text-red-400 border-red-500/30';
-  }
-  return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
+  return 'bg-amber-500/10 text-amber-300 border-amber-500/30';
 };
 
-const approvalLabel = (status) => {
+const approvalLabel = (status, record) => {
   const s = String(status || '').toUpperCase();
-  if (s === 'APPROVED' || s === 'APPROVED_ATASAN') return 'Disetujui Atasan';
-  if (s === 'APPROVED_FINANCE') return 'Menunggu Atasan';
   if (s === 'REJECTED') return 'Ditolak';
+  if (!hasPaymentAction(record)) return 'Pending';
+  if (s === 'APPROVED' || s === 'APPROVED_ATASAN' || record?.isPostedKasBank) return 'Disetujui Atasan';
+  if (s === 'APPROVED_FINANCE') return 'Menunggu Atasan';
   return 'Menunggu Finance';
 };
 
@@ -221,17 +238,29 @@ const PembayaranMaterialPage = () => {
   // Aksi Pembayaran Modal Handlers
   const handleOpenBayarModal = (p) => {
     setSelectedForBayar(p);
+    const isRejected = p.approvalStatus === 'REJECTED';
+    const entries = Array.isArray(p.paymentHistory)
+      ? p.paymentHistory
+      : Array.isArray(p.paymentHistory?.entries)
+        ? p.paymentHistory.entries
+        : [];
+    const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
+
     const totalTagihan = Number(p.totalTagihan || p.jumlahBayar || 0);
     const totalTerbayar = Number(p.totalTerbayar ?? p.jumlahBayar ?? 0);
     const sisa = Math.max(0, totalTagihan - totalTerbayar);
 
+    const initialNominal = isRejected && lastEntry?.jumlah
+      ? String(lastEntry.jumlah)
+      : (sisa > 0 ? String(sisa) : '');
+
     setBayarForm({
-      jumlah: sisa > 0 ? String(sisa) : '',
+      jumlah: initialNominal,
       tanggalBayar: new Date().toISOString().split('T')[0],
-      metode: p.metodeBayar || 'TRANSFER',
-      rekeningBankId: p.rekeningBankId || '',
-      tipeRekeningId: p.tipeRekeningId || '',
-      keterangan: `Pembayaran PO ${p.purchaseOrder?.poNumber || ''}`,
+      metode: (isRejected && lastEntry?.metodeBayar) || p.metodeBayar || 'TRANSFER',
+      rekeningBankId: (isRejected && lastEntry?.rekeningBankId) || p.rekeningBankId || '',
+      tipeRekeningId: (isRejected && lastEntry?.tipeRekeningId) || p.tipeRekeningId || '',
+      keterangan: (isRejected && lastEntry?.keterangan) || `Pembayaran PO ${p.purchaseOrder?.poNumber || ''}`,
     });
     setIsBayarModalOpen(true);
   };
@@ -251,6 +280,7 @@ const PembayaranMaterialPage = () => {
       await purchasingService.updatePembayaran(selectedForBayar.id, {
         jumlahBayar: nominal,
         tambahPembayaran: true,
+        isRevisi: selectedForBayar.approvalStatus === 'REJECTED',
         tanggalBayar: bayarForm.tanggalBayar || null,
         metodeBayar: bayarForm.metode,
         rekeningBankId: bayarForm.rekeningBankId || null,
@@ -258,7 +288,11 @@ const PembayaranMaterialPage = () => {
         tipeAkunKasBank: bayarForm.rekeningBankId ? 'BANK' : 'KAS',
         keterangan: bayarForm.keterangan || null,
       });
-      toast.success('Aksi pembayaran berhasil diajukan! Menunggu approval Finance & Atasan.');
+      toast.success(
+        selectedForBayar.approvalStatus === 'REJECTED'
+          ? 'Revisi pembayaran berhasil diajukan ulang ke Finance'
+          : 'Aksi pembayaran berhasil diajukan! Menunggu approval Finance & Atasan.',
+      );
       setIsBayarModalOpen(false);
       fetchPembayarans();
     } catch (err) {
@@ -476,14 +510,40 @@ const PembayaranMaterialPage = () => {
                     return (
                       <tr
                         key={p.id}
-                        className="border-t border-[#2a2a2a] hover:bg-white/[0.02] transition-colors"
+                        onClick={() => setDetailPembayaran(p)}
+                        className="border-t border-[#2a2a2a] hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                        title="Klik baris untuk melihat rincian item material PO & riwayat pembayaran"
                       >
                         <td className="px-4 py-3">
-                          <div className="font-semibold text-[#f2ead9]">
-                            {p.supplier?.name || p.purchaseOrder?.supplier?.name || '-'}
+                          <div className="font-semibold text-[#f2ead9] group-hover:text-[#d4af37] transition-colors flex items-center justify-between">
+                            <span>{p.supplier?.name || p.purchaseOrder?.supplier?.name || '-'}</span>
                           </div>
                           <div className="text-xs text-[#888] font-mono mt-0.5">
                             {p.purchaseOrder?.poNumber || p.noPembayaran || '-'}
+                          </div>
+                          {/* Preview item material PO */}
+                          <div className="flex flex-wrap gap-1 mt-1.5 max-w-xs">
+                            {(p.purchaseOrder?.items || []).slice(0, 2).map((it, idx) => {
+                              const itName = it.description || it.materialRequest?.itemName || it.rabItem?.name || 'Item Material';
+                              return (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center gap-1 bg-[#1e1c18] border border-[#332e26] text-[#e0d6c3] px-1.5 py-0.5 rounded text-[10px] group-hover:border-[#d4af37]/40 transition-colors"
+                                  title={itName}
+                                >
+                                  <Package size={9} className="text-[#d4af37] shrink-0" />
+                                  <span className="truncate max-w-[110px]">{itName}</span>
+                                </span>
+                              );
+                            })}
+                            {(p.purchaseOrder?.items || []).length > 2 && (
+                              <span className="text-[10px] text-[#888] self-center">
+                                +{p.purchaseOrder.items.length - 2} item
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-[#777] mt-1">
+                            Diinput: <span className="text-[#d4af37]">{p.paymentHistory?.entries?.[p.paymentHistory?.entries?.length - 1]?.createdByName || p.createdByName || p.createdBy?.name || '-'}</span>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-[#ccc] text-xs">
@@ -536,25 +596,50 @@ const PembayaranMaterialPage = () => {
                           <span
                             className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${approvalBadge(
                               p.approvalStatus,
+                              p,
                             )}`}
                           >
-                            {approvalLabel(p.approvalStatus)}
+                            {approvalLabel(p.approvalStatus, p)}
                           </span>
+                          {p.approvalStatus === 'REJECTED' && p.rejectReason && (
+                            <div className="text-[10px] text-red-400 mt-1 max-w-[130px] truncate mx-auto" title={p.rejectReason}>
+                              {p.rejectReason}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
-                            {/* Tombol Aksi Bayar (Multi-Termin) */}
-                            <button
-                              onClick={() => handleOpenBayarModal(p)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#d4af37]/15 hover:bg-[#d4af37]/30 text-[#d4af37] border border-[#d4af37]/40 rounded-lg text-xs font-semibold transition-colors"
-                              title="Lakukan aksi pembayaran cicilan / pelunasan"
-                            >
-                              <Banknote size={14} /> Bayar
-                            </button>
+                            {/* Tombol Aksi Bayar / Revisi */}
+                            {p.approvalStatus === 'REJECTED' ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenBayarModal(p);
+                                }}
+                                className="flex items-center gap-1 px-2.5 py-1.5 bg-red-500/15 hover:bg-red-500/30 text-red-300 border border-red-500/40 rounded-lg text-xs font-semibold transition-colors"
+                                title="Revisi pembayaran yang ditolak"
+                              >
+                                <RotateCcw size={14} /> Revisi
+                              </button>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenBayarModal(p);
+                                }}
+                                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#d4af37]/15 hover:bg-[#d4af37]/30 text-[#d4af37] border border-[#d4af37]/40 rounded-lg text-xs font-semibold transition-colors"
+                                title="Lakukan aksi pembayaran cicilan / pelunasan"
+                              >
+                                <Banknote size={14} /> Bayar
+                              </button>
+                            )}
 
                             {/* Tombol Cetak Invoice PDF */}
                             <button
-                              onClick={() => canPrint && handlePrintInvoice(p.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                canPrint && handlePrintInvoice(p.id);
+                              }}
                               disabled={!canPrint || printingId === p.id}
                               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                                 canPrint
@@ -573,7 +658,10 @@ const PembayaranMaterialPage = () => {
 
                             {/* Tombol Riwayat & Detail Item PO */}
                             <button
-                              onClick={() => setDetailPembayaran(p)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDetailPembayaran(p);
+                              }}
                               className="p-1.5 text-[#888] hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
                               title="Lihat Detail Item PO & Riwayat Pembayaran"
                             >
@@ -582,7 +670,8 @@ const PembayaranMaterialPage = () => {
 
                             {/* Tombol Set Jatuh Tempo */}
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setJatuhTempoData({
                                   id: p.id,
                                   jatuhTempo: p.jatuhTempo ? p.jatuhTempo.split('T')[0] : '',
@@ -636,6 +725,22 @@ const PembayaranMaterialPage = () => {
 
             <form onSubmit={handleBayarSubmit}>
               <div className="p-6 space-y-4">
+                {/* Rejection Alert Box if previously rejected */}
+                {selectedForBayar.approvalStatus === 'REJECTED' && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3.5 flex gap-2.5 items-start">
+                    <AlertCircle size={18} className="text-red-400 mt-0.5 shrink-0" />
+                    <div className="text-xs text-red-300">
+                      <div className="font-semibold text-red-200">Pembayaran Sebelumnya Ditolak</div>
+                      <div className="mt-0.5 text-red-300/90">
+                        Alasan: <strong className="text-red-100">{selectedForBayar.rejectReason || 'Silakan sesuaikan data pembayaran.'}</strong>
+                      </div>
+                      <p className="mt-1.5 text-[11px] text-red-200/80 leading-relaxed">
+                        Silakan revisi nominal atau rekening di bawah. Setelah diajukan ulang, status akan berubah kembali menjadi <strong>Menunggu Finance</strong>.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Summary Box */}
                 <div className="grid grid-cols-3 gap-2 bg-[#201d19] border border-[#332e26] rounded-xl p-3 text-center">
                   <div>
@@ -783,7 +888,7 @@ const PembayaranMaterialPage = () => {
                   disabled={isSubmitting}
                   className="flex items-center gap-2 bg-[#d4af37] text-[#0c0b09] font-bold px-6 py-2.5 rounded-lg hover:bg-[#e8c874] transition-colors disabled:opacity-50"
                 >
-                  <Save size={16} /> {isSubmitting ? 'Memproses...' : 'Ajukan Pembayaran'}
+                  <Save size={16} /> {isSubmitting ? 'Memproses...' : (selectedForBayar.approvalStatus === 'REJECTED' ? 'Ajukan Ulang Pembayaran' : 'Ajukan Pembayaran')}
                 </button>
               </div>
             </form>
@@ -805,10 +910,10 @@ const PembayaranMaterialPage = () => {
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <FileText size={20} className="text-[#d4af37]" />
-                  Detail Invoice &amp; Riwayat Pembayaran
+                  Detail Invoice &amp; Rincian Material PO
                 </h3>
                 <p className="text-xs text-[#888] mt-0.5">
-                  Supplier: {detailPembayaran.supplier?.name || detailPembayaran.purchaseOrder?.supplier?.name || '-'} | PO: {detailPembayaran.purchaseOrder?.poNumber || '-'}
+                  Supplier: <strong className="text-white">{detailPembayaran.supplier?.name || detailPembayaran.purchaseOrder?.supplier?.name || '-'}</strong> | PO: <strong className="text-[#d4af37]">{detailPembayaran.purchaseOrder?.poNumber || detailPembayaran.noPembayaran || '-'}</strong>
                 </p>
               </div>
               <button
@@ -820,6 +925,16 @@ const PembayaranMaterialPage = () => {
             </div>
 
             <div className="p-6 overflow-y-auto space-y-6">
+              {/* Alert jika ditolak */}
+              {detailPembayaran.approvalStatus === 'REJECTED' && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3.5 flex gap-2.5 items-start">
+                  <AlertCircle size={18} className="text-red-400 mt-0.5 shrink-0" />
+                  <div className="text-xs text-red-300">
+                    <span className="font-semibold text-red-200">Status: Pembayaran Ditolak</span> — {detailPembayaran.rejectReason || 'Silakan lakukan revisi pembayaran.'}
+                  </div>
+                </div>
+              )}
+
               {/* Financial KPI Summary */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-[#1e1c18] border border-[#332e26] rounded-xl p-4">
                 <div>
@@ -858,21 +973,29 @@ const PembayaranMaterialPage = () => {
 
               {/* Rincian Item PO */}
               <div>
-                <h4 className="text-sm font-bold text-[#f2ead9] uppercase tracking-wider mb-3">
-                  Rincian Barang / Material Purchase Order
-                </h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-bold text-[#f2ead9] uppercase tracking-wider flex items-center gap-2">
+                    <Package size={16} className="text-[#d4af37]" />
+                    Rincian Barang / Material Purchase Order
+                  </h4>
+                  <span className="text-xs text-[#888]">
+                    Proyek: <strong className="text-white">{detailPembayaran.purchaseOrder?.project?.name || '-'}</strong>
+                  </span>
+                </div>
+
                 <div className="overflow-x-auto border border-[#2a2a2a] rounded-xl">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-[#888] bg-[#22201c] border-b border-[#2a2a2a]">
-                        <th className="py-2.5 px-4 font-semibold">Nama Item</th>
-                        <th className="py-2.5 px-4 font-semibold text-right">Qty</th>
+                        <th className="py-2.5 px-3 font-semibold text-center w-12">No</th>
+                        <th className="py-2.5 px-4 font-semibold">Nama Item Material</th>
+                        <th className="py-2.5 px-4 font-semibold text-right">Qty &amp; Satuan</th>
                         <th className="py-2.5 px-4 font-semibold text-right">Harga Satuan</th>
                         <th className="py-2.5 px-4 font-semibold text-right">Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(detailPembayaran.purchaseOrder?.items || []).map((it) => {
+                      {(detailPembayaran.purchaseOrder?.items || []).map((it, idx) => {
                         const itemName =
                           it.description ||
                           it.materialRequest?.itemName ||
@@ -883,8 +1006,14 @@ const PembayaranMaterialPage = () => {
                         const total = Number(it.total || qtyNum * unitPrice || 0);
 
                         return (
-                          <tr key={it.id} className="border-b border-[#22201c] hover:bg-white/[0.02]">
-                            <td className="py-2.5 px-4 text-[#f2ead9]">{itemName}</td>
+                          <tr key={it.id || idx} className="border-b border-[#22201c] hover:bg-white/[0.02]">
+                            <td className="py-2.5 px-3 text-center text-[#888] font-mono text-xs">{idx + 1}</td>
+                            <td className="py-2.5 px-4 text-[#f2ead9]">
+                              <div className="font-medium">{itemName}</div>
+                              {it.description2 && (
+                                <div className="text-xs text-[#777] mt-0.5">{it.description2}</div>
+                              )}
+                            </td>
                             <td className="py-2.5 px-4 text-right text-[#ccc] font-mono">
                               {qtyNum.toLocaleString('id-ID', { maximumFractionDigits: 2 })} {it.unit || ''}
                             </td>
@@ -895,12 +1024,29 @@ const PembayaranMaterialPage = () => {
                       })}
                       {(detailPembayaran.purchaseOrder?.items || []).length === 0 && (
                         <tr>
-                          <td colSpan={4} className="py-6 text-center text-[#888]">
+                          <td colSpan={5} className="py-6 text-center text-[#888]">
                             Detail item PO tidak tersedia.
                           </td>
                         </tr>
                       )}
                     </tbody>
+                    {(detailPembayaran.purchaseOrder?.items || []).length > 0 && (
+                      <tfoot>
+                        <tr className="bg-[#22201c]/80 text-white font-bold border-t border-[#332e26]">
+                          <td colSpan={4} className="py-2.5 px-4 text-right text-xs uppercase tracking-wider text-[#aaa]">
+                            Total Nilai Item PO:
+                          </td>
+                          <td className="py-2.5 px-4 text-right text-[#d4af37] font-mono">
+                            {fmtRp(
+                              (detailPembayaran.purchaseOrder?.items || []).reduce(
+                                (sum, it) => sum + Number(it.total || (Number(it.qty || 0) * Number(it.unitPrice || 0))),
+                                0,
+                              ),
+                            )}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
               </div>
@@ -953,6 +1099,13 @@ const PembayaranMaterialPage = () => {
                               </td>
                               <td className="py-2.5 px-4 text-center text-[#ccc] text-xs">{ent.metodeBayar || '-'}</td>
                               <td className="py-2.5 px-4 text-[#888] text-xs max-w-xs truncate">{ent.keterangan || '-'}</td>
+                              <td className="py-2.5 px-4 text-xs text-[#f2ead9]">
+                                <span className="font-medium text-[#d4af37]">{ent.createdByName || ent.createdBy || '-'}</span>
+                              </td>
+                              <td className="py-2.5 px-4 text-xs">
+                                <div className="text-[11px] text-blue-300">Finance: {ent.financeApprovedBy || '-'}</div>
+                                <div className="text-[11px] text-emerald-300 mt-0.5">Atasan: {ent.atasanApprovedBy || '-'}</div>
+                              </td>
                               <td className="py-2.5 px-4 text-center whitespace-nowrap">
                                 <span
                                   className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${approvalBadge(

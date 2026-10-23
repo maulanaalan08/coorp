@@ -1061,10 +1061,13 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                                   `PO-${po.id?.slice(0, 8) || pengajuan.id.slice(0, 8)}`}
                               </span>
                               {pengajuan?.noPengajuan && (
-                                <span className="text-[11px] text-[#888] font-mono">
+                                <span className="text-[11px] text-[#888] font-mono block">
                                   PPB: {pengajuan.noPengajuan}
                                 </span>
                               )}
+                              <span className="text-[10px] text-[#888] block mt-0.5">
+                                Dibuat: <span className="text-[#d4af37]">{pengajuan.createdBy?.name || po.createdBy?.name || '-'}</span>
+                              </span>
                             </div>
                           </td>
 

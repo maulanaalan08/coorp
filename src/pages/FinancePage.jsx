@@ -389,7 +389,12 @@ const [busyPoId, setBusyPoId] = useState(null);
                                   }}
                                 />
                               </td>
-                              <td className={styles.itemCell}>{po.poNumber}</td>
+                              <td className={styles.itemCell}>
+                                <div>{po.poNumber}</div>
+                                <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
+                                  Dibuat: <span style={{ color: '#d4af37' }}>{po.createdBy?.name || '-'}</span>
+                                </div>
+                              </td>
                               <td style={{ textAlign: 'center' }}>
                                 <span className={`${styles.statusBadge} ${typeClass}`}>
                                   {po.kategoriPO === "HABIS_PAKAI" ? "HABIS PAKAI" :
@@ -400,6 +405,16 @@ const [busyPoId, setBusyPoId] = useState(null);
                               <td className={`${styles.cellMono} ${styles.cellRight}`}>{fmtRp(po.grandTotal)}</td>
                               <td style={{ textAlign: 'center' }}>
                                 <span className={`${styles.statusBadge} ${statusClass}`}>{po.status || "-"}</span>
+                                {po.verifiedBy?.name && (
+                                  <div style={{ fontSize: 10, color: '#38bdf8', marginTop: 3 }}>
+                                    Finance: {po.verifiedBy.name}
+                                  </div>
+                                )}
+                                {po.approvedBy?.name && (
+                                  <div style={{ fontSize: 10, color: '#4ade80', marginTop: 2 }}>
+                                    Atasan: {po.approvedBy.name}
+                                  </div>
+                                )}
                               </td>
                               <td style={{ textAlign: 'center' }}>
                                 {po.status === "BELUM_APPROVE" && (

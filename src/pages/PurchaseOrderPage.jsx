@@ -718,7 +718,14 @@ const PurchaseOrderPage = () => {
                                                                     return (
                                                                       <React.Fragment key={poI.id}>
                                                                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                          <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', color: '#60a5fa' }}>{poI.poNumber}</td>
+                                                                          <td className={styles.cellMono} style={{ padding: '6px', fontSize: '12px', color: '#60a5fa' }}>
+                                                                            <div>{poI.poNumber}</div>
+                                                                            {fullPo?.createdBy?.name && (
+                                                                              <div style={{ fontSize: '10px', color: '#888' }}>
+                                                                                Oleh: <span style={{ color: '#d4af37' }}>{fullPo.createdBy.name}</span>
+                                                                              </div>
+                                                                            )}
+                                                                          </td>
                                                                           <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{fullPo?.tanggal ? new Date(fullPo.tanggal).toLocaleDateString('id-ID') : '-'}</td>
                                                                           <td style={{ padding: '6px', fontSize: '12px', color: '#ccc' }}>{poI.supplierName}</td>
                                                                           <td style={{ padding: '6px', fontSize: '12px' }}>

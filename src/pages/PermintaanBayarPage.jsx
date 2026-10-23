@@ -43,6 +43,18 @@ const normalizeApprovalStatus = (status) => {
   return s;
 };
 
+// Hanya invoice yang sudah pernah diajukan bayar (ada nominal bayar/cicilan) yang masuk ke workflow
+const hasPaymentAction = (p) => {
+  if (!p) return false;
+  if (p.isOperasional) return true;
+  const entries = Array.isArray(p.paymentHistory?.entries)
+    ? p.paymentHistory.entries
+    : Array.isArray(p.paymentHistory)
+      ? p.paymentHistory
+      : [];
+  return entries.length > 0 || Number(p.totalTerbayar || 0) > 0 || Number(p.jumlahBayar || 0) > 0;
+};
+
 const PermintaanBayarPage = () => {
   const [pembayarans, setPembayarans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,6 +133,7 @@ const PermintaanBayarPage = () => {
     let nominalRejected = 0;
 
     pembayarans.forEach((p) => {
+      if (!hasPaymentAction(p)) return;
       const nom = Number(p.jumlahBayar || p.totalTerbayar || p.totalTagihan || 0);
       const approvalStatus = normalizeApprovalStatus(p.approvalStatus);
       if (p.isPostedKasBank) {
@@ -153,6 +166,8 @@ const PermintaanBayarPage = () => {
   // Filter list
   const filteredList = useMemo(() => {
     return pembayarans.filter((p) => {
+      // Hanya tampilkan jika sudah diajukan bayar
+      if (!hasPaymentAction(p)) return false;
       const kategori = String(
         p.jenisPembayaran ||
           p.kategoriPembayaran ||
@@ -807,6 +822,16 @@ const PermintaanBayarPage = () => {
 
                         {/* Status Badge */}
                         <td className="py-3.5 px-4 align-top text-center">
+                          {item.paymentHistory?.entries?.[item.paymentHistory?.entries?.length - 1]?.createdByName && (
+                            <div className="text-[10px] text-[#888] mb-1">
+                              Diinput: <span className="text-[#d4af37]">{item.paymentHistory.entries[item.paymentHistory.entries.length - 1].createdByName}</span>
+                            </div>
+                          )}
+                          {item.atasanApprovedBy && (
+                            <div className="text-[10px] text-emerald-400 mb-1">
+                              Atasan: {item.atasanApprovedBy}
+                            </div>
+                          )}
                           {isPosted ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                               <CheckCircle2 size={12} />

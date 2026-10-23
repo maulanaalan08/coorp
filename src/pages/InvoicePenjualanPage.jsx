@@ -567,6 +567,11 @@ function InvoicePenjualanPage() {
                         <td className="px-4 py-3 align-top">
                           <div className="font-semibold text-white">{row.noInvoice}</div>
                           <div className="text-[11px] text-[#777]">{fmtTgl(row.tanggal)}</div>
+                          {row.createdBy?.name && (
+                            <div className="text-[10px] text-[#888] mt-0.5">
+                              Dibuat: <span className="text-[#d4af37]">{row.createdBy.name}</span>
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3 align-top">
                           <div className="text-[#ddd]">{row.project?.name || '-'}</div>
@@ -585,6 +590,16 @@ function InvoicePenjualanPage() {
                           <span className={`inline-flex px-2.5 py-1 rounded-full border text-[11px] font-semibold ${APPROVAL_BADGE[approvalStatus] || APPROVAL_BADGE.PENDING}`}>
                             {APPROVAL_LABEL[approvalStatus] || approvalStatus}
                           </span>
+                          {row.verifiedBy?.name && (
+                            <div className="text-[10px] text-blue-400 mt-0.5">
+                              Finance: {row.verifiedBy.name}
+                            </div>
+                          )}
+                          {row.approvedBy?.name && (
+                            <div className="text-[10px] text-emerald-400 mt-0.5">
+                              Atasan: {row.approvedBy.name}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className="inline-flex px-2.5 py-1 rounded-full border text-[11px] border-[#2f2f2f] text-[#ccc]">
