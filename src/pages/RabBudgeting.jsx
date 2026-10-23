@@ -525,7 +525,18 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
     if (!Number.isFinite(percent) || percent < 0 || percent > 1000) {
       return toast.error("Persen komponen harus antara 0 dan 1000.");
     }
-    const current = Array.isArray(item.ohComponents) ? [...item.ohComponents] : [];
+
+    // Pastikan 3 komponen default selalu ada, bahkan kalohComponents kosong/undefined
+    // (misal item baru dari link-to-rab yang belum generate komponen default).
+    let current = Array.isArray(item.ohComponents) ? [...item.ohComponents] : [];
+    if (current.length === 0) {
+      const total = Number(item.overheadPercent ?? 0);
+      current = [
+        { id: "operational", name: "Operasional", percent: total, kind: "OPERATIONAL" },
+        { id: "waste", name: "Waste Anggaran", percent: 0, kind: "WASTE" },
+        { id: "profit", name: "Laba Rencana", percent: 0, kind: "PROFIT" },
+      ];
+    }
     if (current.length >= 10) return toast.error("Komponen OVH maksimal 10.");
     if (current.find((c) => c.name.toLowerCase() === name.trim().toLowerCase())) {
       return toast.error("Nama komponen sudah ada.");
