@@ -98,6 +98,8 @@ const PembayaranMaterialPage = () => {
   const [search, setSearch] = useState('');
   const [filterProject, setFilterProject] = useState('');
   const [filterSupplier, setFilterSupplier] = useState('');
+  const [filterStatusBayar, setFilterStatusBayar] = useState('ALL');
+  const [filterApproval, setFilterApproval] = useState('ALL');
 
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -147,13 +149,9 @@ const PembayaranMaterialPage = () => {
     try {
       const data = await purchasingService.getPembayaranSupplier();
       const all = Array.isArray(data) ? data : [];
-      // Hanya menampilkan data yang sudah disetujui Atasan dari Pengajuan Bayar (atau PO approved jika pengajuan tidak ada)
+      // Tampilkan semua invoice supplier (material / non-jasa)
       const materialOnly = all.filter(
-        (p) =>
-          !p.jasaId &&
-          !p.jasa &&
-          p.purchaseOrder?.kategoriPO !== 'JASA' &&
-          (p.pengajuan?.status === 'APPROVED' || (!p.pengajuan && p.purchaseOrder?.status === 'APPROVED')),
+        (p) => !p.jasaId && !p.jasa && p.purchaseOrder?.kategoriPO !== 'JASA',
       );
       setPembayarans(materialOnly);
     } catch {
@@ -212,15 +210,62 @@ const PembayaranMaterialPage = () => {
 
   const filtered = useMemo(() => {
     let result = pembayarans;
+
+    // Filter per Projek
     if (filterProject) {
-      result = result.filter((p) => p.purchaseOrder?.project?.id === filterProject);
+      result = result.filter(
+        (p) =>
+          p.purchaseOrder?.project?.id === filterProject ||
+          p.purchaseOrder?.projectId === filterProject ||
+          p.project?.id === filterProject,
+      );
     }
+
+    // Filter per Supplier
     if (filterSupplier) {
       result = result.filter((p) => {
         const supId = p.supplier?.id || p.purchaseOrder?.supplier?.id;
         return supId === filterSupplier;
       });
     }
+
+    // Filter Status Bayar
+    if (filterStatusBayar !== 'ALL') {
+      result = result.filter((p) => {
+        const isLunas = isRecordLunas(p);
+        if (filterStatusBayar === 'LUNAS') return isLunas;
+        if (filterStatusBayar === 'TEMPO') return !isLunas;
+        return true;
+      });
+    }
+
+    // Filter Status Approval
+    if (filterApproval !== 'ALL') {
+      result = result.filter((p) => {
+        const s = String(p.approvalStatus || '').toUpperCase();
+        const hasAction = hasPaymentAction(p);
+        const isAppr = s === 'APPROVED' || s === 'APPROVED_ATASAN' || Boolean(p.isPostedKasBank);
+
+        if (filterApproval === 'REJECTED') {
+          return s === 'REJECTED';
+        }
+        if (filterApproval === 'PENDING') {
+          return !hasAction && s !== 'REJECTED';
+        }
+        if (filterApproval === 'MENUNGGU_FINANCE') {
+          return hasAction && (s === 'PENDING' || s === 'MENUNGGU_FINANCE');
+        }
+        if (filterApproval === 'MENUNGGU_ATASAN') {
+          return hasAction && s === 'APPROVED_FINANCE';
+        }
+        if (filterApproval === 'APPROVED') {
+          return isAppr;
+        }
+        return true;
+      });
+    }
+
+    // Pencarian
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -229,11 +274,12 @@ const PembayaranMaterialPage = () => {
           p.supplier?.name?.toLowerCase().includes(q) ||
           p.purchaseOrder?.supplier?.name?.toLowerCase().includes(q) ||
           p.purchaseOrder?.poNumber?.toLowerCase().includes(q) ||
-          p.noPembayaran?.toLowerCase().includes(q),
+          p.noPembayaran?.toLowerCase().includes(q) ||
+          p.purchaseOrder?.project?.name?.toLowerCase().includes(q),
       );
     }
     return result;
-  }, [search, pembayarans, filterProject, filterSupplier]);
+  }, [search, pembayarans, filterProject, filterSupplier, filterStatusBayar, filterApproval]);
 
   // Aksi Pembayaran Modal Handlers
   const handleOpenBayarModal = (p) => {
@@ -438,37 +484,84 @@ const PembayaranMaterialPage = () => {
           </button>
         </div>
 
-        <div className="mb-4 flex flex-col md:flex-row gap-3 items-center">
-          <div className="relative w-full md:w-80">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888]" />
-            <input
-              type="text"
-              placeholder="Cari supplier / PO / no inv..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-[#1a1814] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#666] focus:border-[#d4af37] outline-none"
-            />
+        <div className="mb-4 flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between flex-wrap">
+          <div className="flex flex-col sm:flex-row gap-3 items-center flex-1 flex-wrap">
+            <div className="relative w-full sm:w-64">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888]" />
+              <input
+                type="text"
+                placeholder="Cari supplier / PO / no inv..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-[#1a1814] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder:text-[#666] focus:border-[#d4af37] outline-none"
+              />
+            </div>
+
+            {/* Filter Per Projek */}
+            <select
+              value={filterProject}
+              onChange={(e) => setFilterProject(e.target.value)}
+              className="w-full sm:w-48 bg-[#1a1814] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-white focus:border-[#d4af37] outline-none"
+            >
+              <option value="">Semua Proyek</option>
+              {projectOptions.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+
+            {/* Filter Status Bayar */}
+            <select
+              value={filterStatusBayar}
+              onChange={(e) => setFilterStatusBayar(e.target.value)}
+              className="w-full sm:w-44 bg-[#1a1814] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-white focus:border-[#d4af37] outline-none"
+            >
+              <option value="ALL">Semua Status Bayar</option>
+              <option value="LUNAS">Lunas</option>
+              <option value="TEMPO">Tempo (Belum Lunas)</option>
+            </select>
+
+            {/* Filter Status Approval */}
+            <select
+              value={filterApproval}
+              onChange={(e) => setFilterApproval(e.target.value)}
+              className="w-full sm:w-48 bg-[#1a1814] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-white focus:border-[#d4af37] outline-none"
+            >
+              <option value="ALL">Semua Status Approval</option>
+              <option value="PENDING">Pending (Belum Diajukan)</option>
+              <option value="MENUNGGU_FINANCE">Menunggu Finance</option>
+              <option value="MENUNGGU_ATASAN">Menunggu Atasan</option>
+              <option value="APPROVED">Disetujui Atasan</option>
+              <option value="REJECTED">Ditolak</option>
+            </select>
+
+            {/* Filter Supplier (Opsional) */}
+            <select
+              value={filterSupplier}
+              onChange={(e) => setFilterSupplier(e.target.value)}
+              className="w-full sm:w-44 bg-[#1a1814] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-white focus:border-[#d4af37] outline-none"
+            >
+              <option value="">Semua Supplier</option>
+              {supplierOptions.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+
+            {(filterProject || filterSupplier || filterStatusBayar !== 'ALL' || filterApproval !== 'ALL' || search) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterProject('');
+                  setFilterSupplier('');
+                  setFilterStatusBayar('ALL');
+                  setFilterApproval('ALL');
+                  setSearch('');
+                }}
+                className="text-xs text-[#888] hover:text-[#d4af37] underline transition-colors px-1"
+              >
+                Reset Filter
+              </button>
+            )}
           </div>
-          <select
-            value={filterProject}
-            onChange={(e) => setFilterProject(e.target.value)}
-            className="w-full md:w-56 bg-[#1a1814] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-sm text-white focus:border-[#d4af37] outline-none"
-          >
-            <option value="">Semua Proyek</option>
-            {projectOptions.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <select
-            value={filterSupplier}
-            onChange={(e) => setFilterSupplier(e.target.value)}
-            className="w-full md:w-56 bg-[#1a1814] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-sm text-white focus:border-[#d4af37] outline-none"
-          >
-            <option value="">Semua Supplier</option>
-            {supplierOptions.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
         </div>
 
         <div className="bg-[#1a1814] border border-[#2a2a2a] rounded-xl overflow-hidden shadow-xl">
