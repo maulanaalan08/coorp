@@ -537,15 +537,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     );
     const nextComps = Array.isArray(payload?.ohComponents) ? payload.ohComponents : null;
     if (nextComps) {
-      setRabItems?.((prevItems) =>
-        Array.isArray(prevItems)
-          ? prevItems.map((row) =>
-              row.id === item.id
-                ? { ...row, ...payload, ohComponents: nextComps }
-                : row,
-            )
-          : prevItems,
-      );
+      refreshGroups();
     }
   };
 
@@ -1547,7 +1539,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                               onChange={(e) =>
                                 setOhEditDrafts((prev) => ({
                                   ...prev,
-                                  [it.id]: { ...(prev[it.id] || {}), [component.id]: { name: e.currentTarget.value.trim(), percent: draftPct } },
+                                  [it.id]: { ...(prev[it.id] || {}), [component.id]: { name: e.target.value.trim(), percent: draftPct } },
                                 }))
                               }
                             />
@@ -1588,7 +1580,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                               min="0"
                               defaultValue={draftPct}
                               onChange={(e) => {
-                                const p = Number(e.currentTarget.value);
+                                const p = Number(e.target.value);
                                 setOhEditDrafts((prev) => ({
                                   ...prev,
                                   [it.id]: { ...(prev[it.id] || {}), [component.id]: { name: draftName, percent: p } },
