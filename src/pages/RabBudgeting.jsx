@@ -475,25 +475,43 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // RAP Costing maupun RAB Billing. Satu field diubah, dua lainnya dipertahankan.
   const handleUpdateOhComponent = async (item, field, rawValue, ohComponentsOverride) => {
     if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
-    const currentPcts =
-      Array.isArray(item.ohComponents) ? item.ohComponents : null;
-    // Kalau caller langsung mengirim array ohComponents (untuk komponen custom),
-    // gunakan langsung tanpa menimpa field tunggal.
-    const ohComponents =
-      ohComponentsOverride !== undefined
-        ? ohComponentsOverride
-        : currentPcts;
+
+    // Caller bisa mengirim object changes {name, percent} untuk komponen custom
+    // agar diperbarui sekaligus tanpa memicu validasi angka tunggal.
+    if (
+      ohComponentsOverride === undefined &&
+      rawValue !== undefined &&
+      typeof rawValue === "object" &&
+      !Array.isArray(rawValue)
+    ) {
+      ohComponentsOverride = (Array.isArray(currentPcts) ? currentPcts : []).map((c) => {
+        if (!rawValue.id && c.id === componentId) return { ...c, ...rawValue };
+        if (rawValue.id && c.id === rawValue.id) return { ...c, ...rawValue };
+        return c;
+      });
+      field = field || "ohComponents";
+      rawValue = undefined;
+    }
+
     const value = field === "ohComponents" ? undefined : Number(rawValue);
     if (field !== "ohComponents" && (!Number.isFinite(value) || value < 0)) {
       return toast.error("Nilai OVH tidak valid.");
     }
+    const currentPcts =
+      Array.isArray(item.ohComponents) ? item.ohComponents : null;
+    const ohComponents =
+      ohComponentsOverride !== undefined
+        ? ohComponentsOverride
+        : (Array.isArray(currentPcts) ? currentPcts : null);
     const payload = {
       operationalPercent: Number(item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0),
       wastePercent: Number(item.wastePercent ?? 0),
       profitPercent: Number(item.profitPercent ?? 0),
-      ohComponents: Array.isArray(ohComponents) ? ohComponents : null,
-      [field]: value,
+      ohComponents,
     };
+    if (field !== "ohComponents") {
+      payload[field] = value;
+    }
     toast.promise(
       updateRabItem(item.id, payload).then(() => refreshGroups()),
       {
