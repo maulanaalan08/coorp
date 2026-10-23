@@ -80,8 +80,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const [search, setSearch] = useState("");
   const [budgetMode, setBudgetMode] = useState("rap");
   const canEditRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
-  // Overhead (%) adalah lever margin yang juga dipegang SUPER_ADMIN di view RAB Selling.
+  // Overhead (%) edit 3 komponen default tetap terbatas untuk 3 role di atas.
   const canEditOverhead = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
+  // Tambah komponen OVH baru: semua role yang login boleh, selama project tidak terkunci approval.
+  const canAddOvhComponent = Boolean(user?.role) && !approvalLocked;
   const canExportRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role);
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -1532,8 +1534,8 @@ const [ovhNewComponent, setOvhNewComponent] = useState({ name: "", percent: "" }
                         <button
                           className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
                           type="button"
-                          onClick={() => canEditOverhead && handleAddOvhComponent(item, ovhNewComponent.name, ovhNewComponent.percent)}
-                          disabled={!canEditOverhead}
+                          onClick={() => canAddOvhComponent && handleAddOvhComponent(item, ovhNewComponent.name, ovhNewComponent.percent)}
+                          disabled={!canAddOvhComponent}
                         >
                           Tambah
                         </button>
