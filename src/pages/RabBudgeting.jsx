@@ -80,10 +80,9 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const [search, setSearch] = useState("");
   const [budgetMode, setBudgetMode] = useState("rap");
   const canEditRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
-  // Overhead (%) edit 3 komponen default tetap terbatas untuk 3 role di atas.
+  // Overhead (%) adalah lever margin yang juga dipegang SUPER_ADMIN di view RAB Selling.
   const canEditOverhead = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
-  // Tambah komponen OVH baru: semua role yang login boleh, selama project tidak terkunci approval.
-  const canAddOvhComponent = Boolean(user?.role) && !approvalLocked;
+  const canManageOhComponents = Boolean(user?.role) && !approvalLocked;
   const canExportRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role);
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -212,7 +211,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // State untuk Tambah Group
   const [groupModal, setGroupModal] = useState(null);
 
-  // State untuk Edit Individual + detail breakdown OVH
+  // State untuk Edit Individual + detail breakdown OH
   const [editModal, setEditModal] = useState(null);
   const [ohDetailItem, setOhDetailItem] = useState(null);
   const [ohEditDrafts, setOhEditDrafts] = useState({});
@@ -449,16 +448,12 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
           unitPrice: String(c.unitPrice),
         }))
       : [blankComponent()];
+    const initialComponents = itemOhComponents(item);
     setEditModal({
       item,
       pricingMode: "manual",
       rapUnitPrice: item.rapUnitPrice ?? 0,
-      // RAP Costing: perencana mengisi satu OH total.
-      // RAB Billing: admin memecahnya menjadi operasional, waste, laba.
-      ohTotalPercent: item.overheadPercent ?? item.overhead ?? 0,
-      operationalPercent: item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0,
-      wastePercent: item.wastePercent ?? 0,
-      profitPercent: item.profitPercent ?? 0,
+      ohComponents: initialComponents,
       isByOwner: !!item.isByOwner,
       isStip: !!item.isStip,
       sourceJobId: "",
@@ -471,56 +466,112 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     });
   };
 
-  // OH = tiga komponen dan bisa diedit langsung dari tabel, baik di mode
-  // RAP Costing maupun RAB Billing. Satu field diubah, dua lainnya dipertahankan.
-  const handleUpdateOhComponent = async (item, field, rawValue, ohComponentsOverride) => {
+  const projectOhDefinitions = useMemo(() => {
+    const fromProject = visibleAllItems.find((item) => Array.isArray(item.ohDefinitions))?.ohDefinitions;
+    if (Array.isArray(fromProject)) return fromProject;
+    return [
+      { id: "operational", name: "Ops", kind: "OPERATIONAL" },
+      { id: "waste", name: "Waste", kind: "WASTE" },
+      { id: "profit", name: "Laba", kind: "PROFIT" },
+    ];
+  }, [visibleAllItems]);
+
+  const itemOhComponents = (item) => {
+    const values = new Map((Array.isArray(item?.ohComponents) ? item.ohComponents : []).map((component) => [component.id, component]));
+    return projectOhDefinitions.map((definition) => ({
+      ...definition,
+      percent: Number(values.get(definition.id)?.percent ?? (
+        definition.id === "operational" ? item?.operationalPercent ?? item?.overheadPercent ?? 0
+          : definition.id === "waste" ? item?.wastePercent ?? 0
+            : definition.id === "profit" ? item?.profitPercent ?? 0
+              : 0
+      )),
+    }));
+  };
+
+  const saveOhComponents = (item, ohComponents, successMsg, ohDefinitions = projectOhDefinitions) => {
+    const total = ohComponents.reduce((sum, c) => sum + Number(c.percent || 0), 0);
+    const subtotal = (kind) => ohComponents.filter((c) => c.kind === kind).reduce((sum, c) => sum + Number(c.percent || 0), 0);
+    return updateRabItem(item.id, {
+      operationalPercent: subtotal("OPERATIONAL"),
+      wastePercent: subtotal("WASTE"),
+      profitPercent: subtotal("PROFIT"),
+      overheadPercent: total,
+      ohComponents,
+      ohDefinitions,
+    }).then(() => refreshGroups()).then(() => toast.success(successMsg))
+      .catch((e) => { console.error(e); toast.error("Gagal menyimpan OH."); });
+  };
+
+  const handleAddOhComponent = async (item, name, rawPercent) => {
     if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    const trimmed = String(name || "").trim();
+    if (!trimmed) return toast.error("Nama komponen OH wajib diisi.");
+    if (trimmed.length > 60) return toast.error("Nama komponen OH maksimal 60 karakter.");
+    const percent = Number(rawPercent);
+    if (!Number.isFinite(percent) || percent < 0 || percent > 1000) return toast.error("Persen komponen OH harus 0-1000.");
+    const current = itemOhComponents(item);
+    if (projectOhDefinitions.length >= 10) return toast.error("Komponen OH maksimal 10.");
+    if (projectOhDefinitions.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) return toast.error("Nama komponen OH sudah ada.");
+    const definition = { id: `custom-${Date.now()}`, name: trimmed, kind: "CUSTOM" };
+    const nextDefinitions = [...projectOhDefinitions, definition];
+    const next = [...current, { ...definition, percent }];
+    setOhDetailItem((prev) => (prev && prev.item?.id === item.id ? { ...prev, item: { ...prev.item, ohComponents: next, ohDefinitions: nextDefinitions } } : prev));
+    setOvhNewComponent({ name: "", percent: "" });
+    return saveOhComponents(item, next, "Komponen OH ditambahkan ke seluruh project.", nextDefinitions);
+  };
 
-    // Caller bisa mengirim object changes {name, percent} untuk komponen custom
-    // agar diperbarui sekaligus tanpa memicu validasi angka tunggal.
-    if (
-      ohComponentsOverride === undefined &&
-      rawValue !== undefined &&
-      typeof rawValue === "object" &&
-      !Array.isArray(rawValue)
-    ) {
-      ohComponentsOverride = (Array.isArray(currentPcts) ? currentPcts : []).map((c) => {
-        if (!rawValue.id && c.id === componentId) return { ...c, ...rawValue };
-        if (rawValue.id && c.id === rawValue.id) return { ...c, ...rawValue };
-        return c;
-      });
-      field = field || "ohComponents";
-      rawValue = undefined;
-    }
+  const handleEditOhComponent = async (item, componentId, changes) => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    const name = typeof changes.name === "string" ? changes.name.trim() : undefined;
+    if (name !== undefined && !name) return toast.error("Nama komponen OH wajib diisi.");
+    const percent = changes.percent !== undefined ? Number(changes.percent) : undefined;
+    if (percent !== undefined && (!Number.isFinite(percent) || percent < 0 || percent > 1000)) return toast.error("Persen komponen OH harus 0-1000.");
+    const current = itemOhComponents(item);
+    const nextDefinitions = projectOhDefinitions.map((definition) => (
+      definition.id === componentId && name !== undefined ? { ...definition, name } : definition
+    ));
+    const next = current.map((c) => (c.id === componentId ? { ...c, ...(name !== undefined ? { name } : {}), ...(percent !== undefined ? { percent } : {}) } : c));
+    setOhDetailItem((prev) => (prev && prev.item?.id === item.id ? { ...prev, item: { ...prev.item, ohComponents: next, ohDefinitions: nextDefinitions } } : prev));
+    return saveOhComponents(item, next, "Komponen OH diperbarui.", nextDefinitions);
+  };
 
-    const value = field === "ohComponents" ? undefined : Number(rawValue);
-    if (field !== "ohComponents" && (!Number.isFinite(value) || value < 0)) {
-      return toast.error("Nilai OVH tidak valid.");
+  const handleRemoveOhComponent = async (item, componentId) => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    if (["operational", "waste", "profit"].includes(componentId)) {
+      return toast.error("Ops, Waste, dan Laba wajib tersedia untuk setiap item.");
     }
-    const currentPcts =
-      Array.isArray(item.ohComponents) ? item.ohComponents : null;
-    const ohComponents =
-      ohComponentsOverride !== undefined
-        ? ohComponentsOverride
-        : (Array.isArray(currentPcts) ? currentPcts : null);
+    if (!window.confirm("Hapus komponen OH ini dari seluruh item dalam project?")) return;
+    const nextDefinitions = projectOhDefinitions.filter((definition) => definition.id !== componentId);
+    const next = itemOhComponents(item).filter((c) => c.id !== componentId);
+    setOhDetailItem((prev) => (prev && prev.item?.id === item.id ? { ...prev, item: { ...prev.item, ohComponents: next, ohDefinitions: nextDefinitions } } : prev));
+    return saveOhComponents(item, next, "Komponen OH dihapus dari seluruh project.", nextDefinitions);
+  };
+
+  // Nilai tiap komponen OH tetap per item; struktur kolomnya global per project.
+  const handleUpdateOhComponent = async (item, componentId, rawValue) => {
+    if (approvalLocked) return toast.error("BV/RAB sedang dikunci oleh approval.");
+    const value = Number(rawValue);
+    if (!Number.isFinite(value) || value < 0 || value > 1000) {
+      return toast.error("Nilai OH harus 0-1000.");
+    }
+    const ohComponents = itemOhComponents(item).map((component) => (
+      component.id === componentId ? { ...component, percent: value } : component
+    ));
+    const subtotal = (kind) => ohComponents.filter((component) => component.kind === kind).reduce((sum, component) => sum + Number(component.percent || 0), 0);
     const payload = {
-      operationalPercent: Number(item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0),
-      wastePercent: Number(item.wastePercent ?? 0),
-      profitPercent: Number(item.profitPercent ?? 0),
+      operationalPercent: subtotal("OPERATIONAL"),
+      wastePercent: subtotal("WASTE"),
+      profitPercent: subtotal("PROFIT"),
+      overheadPercent: ohComponents.reduce((sum, component) => sum + Number(component.percent || 0), 0),
       ohComponents,
     };
-    if (field !== "ohComponents") {
-      payload[field] = value;
-    }
     toast.promise(
-      updateRabItem(item.id, payload).then(() => {
-        console.log("[OH UPDATE] berhasil:", item.id, JSON.stringify(payload.ohComponents));
-        refreshGroups();
-      }),
+      updateRabItem(item.id, payload).then(() => refreshGroups()),
       {
-        loading: "Menyimpan OVH...",
-        success: "OVH tersimpan.",
-        error: "Gagal menyimpan OVH.",
+        loading: "Menyimpan OH...",
+        success: "OH tersimpan.",
+        error: "Gagal menyimpan OH.",
       },
     ).catch((e) => console.error(e));
   };
@@ -549,94 +600,6 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       const next = !prev.isByOwner;
       return { ...prev, isByOwner: next, rapUnitPrice: next ? 0 : prev.rapUnitPrice };
     });
-  };
-
-  const applyOvhResult = (item, result) => {
-    const payload = result?.data ?? result;
-    setOhDetailItem((prev) =>
-      prev && prev.item?.id === item.id ? { ...prev, item: { ...prev.item, ...payload } } : prev,
-    );
-    const nextComps = Array.isArray(payload?.ohComponents) ? payload.ohComponents : null;
-    if (nextComps) {
-      refreshGroups();
-    }
-  };
-
-  const handleAddOvhComponent = async (item, name, rawPercent) => {
-    if (!name || name.trim().length === 0) return toast.error("Nama komponen wajib diisi.");
-    const percent = Number(rawPercent);
-    if (!Number.isFinite(percent) || percent < 0 || percent > 1000) {
-      return toast.error("Persen komponen harus antara 0 dan 1000.");
-    }
-
-    // Pastikan 3 komponen default selalu ada, bahkan kalohComponents kosong/undefined
-    // (misal item baru dari link-to-rab yang belum generate komponen default).
-    let current = Array.isArray(item.ohComponents) ? [...item.ohComponents] : [];
-    if (current.length === 0) {
-      const total = Number(item.overheadPercent ?? 0);
-      current = [
-        { id: "operational", name: "Operasional", percent: total, kind: "OPERATIONAL" },
-        { id: "waste", name: "Waste Anggaran", percent: 0, kind: "WASTE" },
-        { id: "profit", name: "Laba Rencana", percent: 0, kind: "PROFIT" },
-      ];
-    }
-    if (current.length >= 10) return toast.error("Komponen OVH maksimal 10.");
-    if (current.find((c) => c.name.toLowerCase() === name.trim().toLowerCase())) {
-      return toast.error("Nama komponen sudah ada.");
-    }
-    const nextId = `custom-${Date.now()}`;
-    const ohComponents = [
-      ...current,
-      { id: nextId, name: name.trim(), percent, kind: "CUSTOM" },
-    ];
-    toast.promise(
-      updateRabItem(item.id, { ohComponents }).then((res) => {
-        setOvhNewComponent({ name: "", percent: "" });
-        applyOvhResult(item, res);
-        refreshGroups();
-      }),
-      {
-        loading: "Menambah komponen OVH...",
-        success: "Komponen OVH ditambahkan.",
-        error: "Gagal menambah komponen OVH.",
-      },
-    ).catch((e) => console.error(e));
-  };
-
-  const handleEditOvhComponent = async (item, componentId, changes) => {
-    const current = Array.isArray(item.ohComponents) ? item.ohComponents : [];
-    const ohComponents = current.map((c) => (c.id === componentId ? { ...c, ...changes } : c));
-    toast.promise(
-      updateRabItem(item.id, { ohComponents }).then((res) => {
-        applyOvhResult(item, res);
-        refreshGroups();
-      }),
-      {
-        loading: "Menyimpan komponen OVH...",
-        success: "Komponen OVH diperbarui.",
-        error: "Gagal memperbarui komponen OVH.",
-      },
-    ).catch((e) => console.error(e));
-  };
-
-  const handleRemoveOvhComponent = async (item, componentId) => {
-    if (["operational", "waste", "profit"].includes(componentId)) {
-      return toast.error("Komponen default tidak boleh dihapus.");
-    }
-    const ohComponents = (Array.isArray(item.ohComponents) ? item.ohComponents : []).filter(
-      (c) => c.id !== componentId,
-    );
-    toast.promise(
-      updateRabItem(item.id, { ohComponents }).then((res) => {
-        applyOvhResult(item, res);
-        refreshGroups();
-      }),
-      {
-        loading: "Menghapus komponen OVH...",
-        success: "Komponen OVH dihapus.",
-        error: "Gagal menghapus komponen OVH.",
-      },
-    ).catch((e) => console.error(e));
   };
 
   const toggleStip = () => {
@@ -755,16 +718,16 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     if (!editModal) return;
     const { item, pricingMode, isByOwner, isStip, rapUnitPrice, sourceJobId } = editModal;
     const breakdownPayload = {
-      operationalPercent: Number(editModal.operationalPercent) || 0,
-      wastePercent: Number(editModal.wastePercent) || 0,
-      profitPercent: Number(editModal.profitPercent) || 0,
+      ohComponents: editModal.ohComponents,
+      operationalPercent: editModal.ohComponents.filter((c) => c.kind === "OPERATIONAL").reduce((s, c) => s + Number(c.percent || 0), 0),
+      wastePercent: editModal.ohComponents.filter((c) => c.kind === "WASTE").reduce((s, c) => s + Number(c.percent || 0), 0),
+      profitPercent: editModal.ohComponents.filter((c) => c.kind === "PROFIT").reduce((s, c) => s + Number(c.percent || 0), 0),
+      overheadPercent: editModal.ohComponents.reduce((s, c) => s + Number(c.percent || 0), 0),
     };
     if (pricingMode === "manual") {
       const updatePromise = updateRabItem(item.id, {
           rapUnitPrice: isByOwner || isStip ? 0 : Number(rapUnitPrice),
-          operationalPercent: Number(editModal.operationalPercent) || 0,
-          wastePercent: Number(editModal.wastePercent) || 0,
-          profitPercent: Number(editModal.profitPercent) || 0,
+          ...breakdownPayload,
           isByOwner,
           isStip,
       }).then(() => refreshGroups());
@@ -1454,6 +1417,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                       onDeleteItem={canEditRap ? deleteItem : null}
                       onUpdateOverhead={canEditOverhead ? handleUpdateOverhead : null}
                       onUpdateOhComponent={canEditOverhead ? handleUpdateOhComponent : null}
+                      ohDefinitions={projectOhDefinitions}
                       onShowOhDetail={(it, num) => setOhDetailItem({ item: it, itemNumber: num })}
                       canEditRap={canEditRap}
                       canEditOverhead={canEditOverhead}
@@ -1497,25 +1461,9 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
         const rapUnit = Number(it.rapUnitPrice || 0);
         const vol = Number(it.volume || 0);
         const rapTotal = Number(it.rapTotalPrice ?? rapUnit * vol);
-        const opsPct = Number(it.operationalPercent ?? it.overheadPercent ?? it.overhead ?? 0);
-        const wastePct = Number(it.wastePercent ?? 0);
-        const profitPct = Number(it.profitPercent ?? 0);
-        const components = Array.isArray(it.ohComponents) && it.ohComponents.length > 0
-          ? it.ohComponents
-          : [
-              { id: "operational", name: "Operasional", percent: opsPct },
-              { id: "waste", name: "Waste Anggaran", percent: wastePct },
-              { id: "profit", name: "Laba Rencana", percent: profitPct },
-            ];
-        const totalPct = components.reduce((sum, component) => sum + Number(component.percent || 0), 0);
-        const opsNom = rapTotal * (opsPct / 100);
-        const wasteNom = rapTotal * (wastePct / 100);
-        const profitNom = rapTotal * (profitPct / 100);
-        const customNom = (Array.isArray(components)
-          ? components.filter((c) => !["operational", "waste", "profit"].includes(c.id))
-          : []
-        ).reduce((sum, c) => sum + rapTotal * (Number(c.percent || 0) / 100), 0);
-        const ohNom = opsNom + wasteNom + profitNom + customNom;
+        const components = itemOhComponents(it);
+        const totalPct = components.reduce((sum, c) => sum + Number(c.percent || 0), 0);
+        const ohNom = components.reduce((sum, c) => sum + rapTotal * (Number(c.percent || 0) / 100), 0);
         const rabTotal = Number(it.rabTotalPrice ?? rapTotal + ohNom);
         return (
           <div className={styles["rab-modal-overlay"]} onClick={() => setOhDetailItem(null)}>
@@ -1531,86 +1479,49 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                     <th>Komponen</th>
                     <th style={{ textAlign: "right" }}>Persen</th>
                     <th style={{ textAlign: "right" }}>Nominal</th>
+                    <th>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(Array.isArray(it.ohComponents) && it.ohComponents.length > 0
-                    ? it.ohComponents
-                    : [
-                        { id: "operational", name: "Operasional", percent: opsPct },
-                        { id: "waste", name: "Waste Anggaran", percent: wastePct },
-                        { id: "profit", name: "Laba Rencana", percent: profitPct },
-                      ]
-                  ).map((component) => {
-                    const isDefault = ["operational", "waste", "profit"].includes(component.id);
-                    const draft = ohEditDrafts[it?.id]?.[component.id] || {};
+                  {components.map((component) => {
+                    const draft = ohEditDrafts[it.id]?.[component.id] || {};
                     const draftName = draft.name ?? component.name;
-                    const draftPct = draft.percent ?? component.percent;
+                    const draftPercent = draft.percent ?? component.percent;
                     return (
                       <tr key={component.id}>
-                        <td style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-                          {isDefault ? (
-                            component.name
-                          ) : (
-                            <input
-                              key={`${component.id}-${component.name}`}
-                              className={styles["rab-form-input"]}
-                              style={{ width: "140px", fontSize: "13px" }}
-                              defaultValue={draftName}
-                              onChange={(e) =>
-                                setOhEditDrafts((prev) => ({
-                                  ...prev,
-                                  [it.id]: { ...(prev[it.id] || {}), [component.id]: { name: e.target.value.trim(), percent: draftPct } },
-                                }))
-                              }
-                            />
-                          )}
-                          {!isDefault && canEditOverhead && (
-                            <>
-                              <button
-                                className={styles["rab-btn"]}
-                                type="button"
-                                onClick={() => handleRemoveOvhComponent(it, component.id)}
-                                style={{ marginLeft: "6px", fontSize: "12px", padding: "2px 8px" }}
-                                aria-label={`Hapus komponen ${component.name}`}
-                              >
-                                ×
-                              </button>
-                              <button
-                                className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
-                                type="button"
-                                onClick={() => handleEditOvhComponent(it, component.id, { name: draftName, percent: draftPct })}
-                                style={{ marginLeft: "4px", fontSize: "11px", padding: "2px 8px" }}
-                                title="Simpan"
-                              >
-                                Simpan
-                              </button>
-                            </>
-                          )}
+                        <td>
+                          <input
+                            className={styles["rab-form-input"]}
+                            value={draftName}
+                            onChange={(e) => setOhEditDrafts((prev) => ({
+                              ...prev,
+                              [it.id]: { ...(prev[it.id] || {}), [component.id]: { name: e.target.value, percent: draftPercent } },
+                            }))}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className={styles["rab-form-input"]}
+                            type="number"
+                            min="0"
+                            max="1000"
+                            step="0.01"
+                            value={draftPercent}
+                            onChange={(e) => setOhEditDrafts((prev) => ({
+                              ...prev,
+                              [it.id]: { ...(prev[it.id] || {}), [component.id]: { name: draftName, percent: e.target.value } },
+                            }))}
+                          />
                         </td>
                         <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>
-                          {isDefault ? (
-                            <span>{Number(component.percent || 0).toFixed(2)}%</span>
-                          ) : (
-                            <input
-                              key={`${component.id}-pct`}
-                              className={styles["rab-form-input"]}
-                              style={{ width: "70px", fontSize: "13px", textAlign: "right" }}
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              defaultValue={draftPct}
-                              onChange={(e) => {
-                                const p = Number(e.target.value);
-                                setOhEditDrafts((prev) => ({
-                                  ...prev,
-                                  [it.id]: { ...(prev[it.id] || {}), [component.id]: { name: draftName, percent: p } },
-                                }));
-                              }}
-                            />
+                          {fmtRp(rapTotal * (Number(component.percent || 0) / 100))}
+                        </td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <button className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")} type="button" onClick={() => handleEditOhComponent(it, component.id, { name: draftName, percent: draftPercent })}>Simpan</button>
+                          {component.kind === "CUSTOM" && (
+                            <button className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-danger"]].join(" ")} type="button" onClick={() => handleRemoveOhComponent(it, component.id)}>Hapus</button>
                           )}
                         </td>
-                        <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(rapTotal * (Number(component.percent || 0) / 100))}</td>
                       </tr>
                     );
                   })}
@@ -1618,43 +1529,13 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                     <td>Total OVH</td>
                     <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{totalPct.toFixed(2)}%</td>
                     <td className={styles["rab-mono"]} style={{ textAlign: "right" }}>{fmtRp(ohNom)}</td>
+                    <td></td>
                   </tr>
                   <tr>
-                    <td colSpan="3" style={{ padding: "10px 0 8px", borderTop: "1px solid", borderColor: "currentColor", opacity: 0.6 }}>
-                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                        <label className={styles["rab-form-label"]} style={{ margin: 0, fontSize: "13px" }}>
-                          Tambah komponen OVH
-                        </label>
-                        <input
-                          className={styles["rab-form-input"]}
-                          style={{ width: "160px", fontSize: "13px" }}
-                          placeholder="Nama komponen"
-                          value={ovhNewComponent.name}
-                          onChange={(e) => setOvhNewComponent({ ...ovhNewComponent, name: e.target.value })}
-                        />
-                        <input
-                          className={styles["rab-form-input"]}
-                          style={{ width: "110px", fontSize: "13px" }}
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="Persen"
-                          value={ovhNewComponent.percent}
-                          onChange={(e) => setOvhNewComponent({ ...ovhNewComponent, percent: e.target.value })}
-                        />
-                        <button
-                          className={[styles["rab-btn"], styles["rab-btn-small"]].join(" ")}
-                          type="button"
-                          onClick={() => canAddOvhComponent && handleAddOvhComponent(it, ovhNewComponent.name, ovhNewComponent.percent)}
-                          disabled={!canAddOvhComponent}
-                        >
-                          Tambah
-                        </button>
-                      </div>
-                      <p className={styles["rab-form-hint"]} style={{ margin: "0 0 0 8px", fontSize: "12px" }}>
-                        Maksimal 10 komponen. Komponen default tidak bisa dihapus.
-                      </p>
-                    </td>
+                    <td><input className={styles["rab-form-input"]} placeholder="Nama OH baru" value={ovhNewComponent.name} onChange={(e) => setOvhNewComponent({ ...ovhNewComponent, name: e.target.value })} /></td>
+                    <td><input className={styles["rab-form-input"]} type="number" min="0" max="1000" step="0.01" placeholder="Persen" value={ovhNewComponent.percent} onChange={(e) => setOvhNewComponent({ ...ovhNewComponent, percent: e.target.value })} /></td>
+                    <td></td>
+                    <td><button className={[styles["rab-btn"], styles["rab-btn-primary"]].join(" ")} type="button" disabled={!canManageOhComponents} onClick={() => handleAddOhComponent(it, ovhNewComponent.name, ovhNewComponent.percent)}>Tambah OH</button></td>
                   </tr>
                 </tbody>
               </table>
@@ -1711,26 +1592,35 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
             </div>
 
             <div className={styles["rab-oh-grid"]}>
-              <label className={styles["rab-form-label"]}>
-                Operasional (%)
-                <input type="number" step="0.01" className={styles["rab-form-input"]} value={editModal.isByOwner || editModal.isStip ? "" : editModal.operationalPercent} disabled={editModal.isByOwner || editModal.isStip} onChange={(e) => setEditModal({ ...editModal, operationalPercent: e.target.value })} />
-              </label>
-              <label className={styles["rab-form-label"]}>
-                Waste Anggaran (%)
-                <input type="number" step="0.01" className={styles["rab-form-input"]} value={editModal.isByOwner || editModal.isStip ? "" : editModal.wastePercent} disabled={editModal.isByOwner || editModal.isStip} onChange={(e) => setEditModal({ ...editModal, wastePercent: e.target.value })} />
-              </label>
-              <label className={styles["rab-form-label"]}>
-                Laba / Profit (%)
-                <input type="number" step="0.01" className={styles["rab-form-input"]} value={editModal.isByOwner || editModal.isStip ? "" : editModal.profitPercent} disabled={editModal.isByOwner || editModal.isStip} onChange={(e) => setEditModal({ ...editModal, profitPercent: e.target.value })} />
-              </label>
+              {(editModal.ohComponents || []).map((component) => (
+                <label key={component.id} className={styles["rab-form-label"]}>
+                  {component.name} (%)
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1000"
+                    className={styles["rab-form-input"]}
+                    value={editModal.isByOwner || editModal.isStip ? "" : component.percent}
+                    disabled={editModal.isByOwner || editModal.isStip}
+                    onChange={(e) => {
+                      const nextVal = e.target.value;
+                      setEditModal((prev) => ({
+                        ...prev,
+                        ohComponents: (prev.ohComponents || []).map((c) => (
+                          c.id === component.id ? { ...c, percent: nextVal } : c
+                        )),
+                      }));
+                    }}
+                  />
+                </label>
+              ))}
             </div>
 
             <p className={styles["rab-form-hint"]} style={{ marginBottom: '24px' }}>
               Total OVH: <strong>{(
-                (Number(editModal.operationalPercent) || 0) +
-                (Number(editModal.wastePercent) || 0) +
-                (Number(editModal.profitPercent) || 0)
-              ).toFixed(2)}%</strong> — RAB dihitung otomatis dari RAP + ketiga komponen ini.
+                (editModal.ohComponents || []).reduce((sum, c) => sum + (Number(c.percent) || 0), 0)
+              ).toFixed(2)}%</strong> — RAB dihitung otomatis dari RAP + seluruh komponen ini.
             </p>
 
             <div className={styles["rab-mode-cards"]}>
@@ -2072,6 +1962,7 @@ function RabGroupNode({
   onDeleteItem,
   onUpdateOverhead,
   onUpdateOhComponent,
+  ohDefinitions,
   onShowOhDetail,
   canEditRap,
   canEditOverhead,
@@ -2114,6 +2005,7 @@ function RabGroupNode({
           onDelete={onDeleteItem}
           onUpdateOverhead={onUpdateOverhead}
           onUpdateOhComponent={onUpdateOhComponent}
+          ohDefinitions={ohDefinitions}
           onShowOhDetail={onShowOhDetail}
           canEditRap={canEditRap}
           canEditOverhead={canEditOverhead}
@@ -2136,6 +2028,7 @@ function RabGroupNode({
           onDeleteItem={onDeleteItem}
           onUpdateOverhead={onUpdateOverhead}
           onUpdateOhComponent={onUpdateOhComponent}
+          ohDefinitions={ohDefinitions}
           onShowOhDetail={onShowOhDetail}
           canEditRap={canEditRap}
           canEditOverhead={canEditOverhead}
@@ -2149,7 +2042,7 @@ function RabGroupNode({
   );
 }
 
-function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, onUpdateOhComponent, onShowOhDetail, canEditRap, canEditOverhead, budgetMode, isSuperAdmin, selectedItemIds, onToggleSelect, visibleAllItems, onToggleAll }) {
+function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, onUpdateOhComponent, ohDefinitions, onShowOhDetail, canEditRap, canEditOverhead, budgetMode, isSuperAdmin, selectedItemIds, onToggleSelect, visibleAllItems, onToggleAll }) {
   const parents = (items || []).filter((it) => !it.parentId);
   const childrenByParent = useMemo(() => {
     const map = new Map();
@@ -2161,18 +2054,27 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
     }
     return map;
   }, [items]);
-  const customOhComponents = useMemo(() => {
-    const seen = new Map();
-    for (const it of items || []) {
-      const comps = Array.isArray(it.ohComponents) ? it.ohComponents : [];
-      for (const c of comps) {
-        if (c.kind === "CUSTOM" && !seen.has(c.id)) {
-          seen.set(c.id, c);
-        }
-      }
-    }
-    return Array.from(seen.values());
-  }, [items]);
+
+  const dynamicOhComponents = useMemo(() => (
+    Array.isArray(ohDefinitions)
+      ? ohDefinitions
+      : (() => {
+          const seen = new Map();
+          for (const item of items || []) {
+            for (const component of Array.isArray(item.ohDefinitions) ? item.ohDefinitions : []) {
+              if (!seen.has(component.id)) seen.set(component.id, { id: component.id, name: component.name, kind: component.kind });
+            }
+          }
+          return [...seen.values()];
+        })()
+  ), [ohDefinitions, items]);
+  const rowOhComponents = (item) => {
+    const values = new Map((Array.isArray(item?.ohComponents) ? item.ohComponents : []).map((component) => [component.id, component]));
+    return dynamicOhComponents.map((definition) => ({
+      ...definition,
+      percent: Number(values.get(definition.id)?.percent ?? 0),
+    }));
+  };
 
   const renderRow = (item, idx, isParent = false, hasChildren = false) => {
       const source = getItemSource(item);
@@ -2244,52 +2146,34 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
         )}
         {isSellingMode && (
           <>
-            {[
-              ["operationalPercent", "Operasional"],
-              ["wastePercent", "Waste"],
-              ["profitPercent", "Laba"],
-            ].map(([field, label]) => (
-              <td key={field} className={[styles["rab-mono"], styles["rab-oh-cell"]].join(" ")}>
-                {!hasChildren && (
-                  canEditOverhead && onUpdateOhComponent ? (
-                    <input
-                      className={styles["rab-oh-inline-input"]}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      defaultValue={Number(
-                        field === "operationalPercent"
-                          ? (item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0)
-                          : (item[field] ?? 0),
-                      )}
-                      key={`${item.id}-${field}-${item[field] ?? item.overheadPercent ?? 0}`}
-                      aria-label={`${label} (%) untuk ${item.name}`}
-                      title={`${label} (%) — Enter atau pindah fokus untuk menyimpan`}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") e.currentTarget.blur();
-                      }}
-                      onBlur={(e) => {
-                        const previous = Number(
-                          field === "operationalPercent"
-                            ? (item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0)
-                            : (item[field] ?? 0),
-                        );
-                        const next = Number(e.currentTarget.value);
-                        if (Number.isFinite(next) && next !== previous) {
-                          onUpdateOhComponent(item, field, next);
-                        }
-                      }}
-                    />
-                  ) : (
-                    `${Number(
-                      field === "operationalPercent"
-                        ? (item.operationalPercent ?? item.overheadPercent ?? item.overhead ?? 0)
-                        : (item[field] ?? 0),
-                    ).toFixed(2)}%`
-                  )
-                )}
-              </td>
-            ))}
+            {dynamicOhComponents.map((component) => {
+              const current = rowOhComponents(item).find((c) => c.id === component.id);
+              return (
+                <td key={component.id} className={[styles["rab-mono"], styles["rab-oh-cell"]].join(" ")}>
+                  {!hasChildren && (
+                    canEditOverhead && onUpdateOhComponent ? (
+                      <input
+                        className={styles["rab-oh-inline-input"]}
+                        type="number"
+                        min="0"
+                        max="1000"
+                        step="0.01"
+                        defaultValue={Number(current?.percent || 0)}
+                        key={`${item.id}-${component.id}-${current?.percent || 0}`}
+                        aria-label={`${component.name} (%) untuk ${item.name}`}
+                        title={`${component.name} (%) — Enter atau pindah fokus untuk menyimpan`}
+                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                        onBlur={(e) => {
+                          const next = Number(e.target.value);
+                          if (!Number.isFinite(next) || next < 0) return;
+                          onUpdateOhComponent(item, component.id, next);
+                        }}
+                      />
+                    ) : `${Number(current?.percent || 0).toFixed(2)}%`
+                  )}
+                </td>
+              );
+            })}
             <td className={[styles["rab-mono"], styles["rab-oh-cell"]].join(" ")}>
               {!hasChildren && (
                 <div className={styles["rab-oh-inline"]}>
@@ -2305,39 +2189,6 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
                 </div>
               )}
             </td>
-            {customOhComponents.map((c) => (
-              <td key={c.id} className={styles["rab-oh-cell"]}>
-                {!hasChildren && (
-                  <div className={styles["rab-oh-inline"]}>
-                    <input
-                      className={styles["rab-oh-inline-input"]}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      defaultValue={Number(
-                        item.ohComponents?.find((x) => x.id === c.id)?.percent ?? 0,
-                      )}
-                      key={`${item.id}-${c.id}-${item.ohComponents?.find((x) => x.id === c.id)?.percent ?? 0}`}
-                      onBlur={(e) => {
-                        const next = Number(e.target.value);
-                        if (!Number.isFinite(next) || next < 0) return;
-                        const comps = [
-                          ...(Array.isArray(item.ohComponents) ? item.ohComponents : []),
-                        ];
-                        const existing = comps.find((x) => x.id === c.id);
-                        if (!existing) return;
-                        const idx = comps.indexOf(existing);
-                        comps[idx] = { ...existing, percent: next };
-                        onUpdateOhComponent(item, "ohComponents", undefined, comps);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") e.currentTarget.blur();
-                      }}
-                    />
-                  </div>
-                )}
-              </td>
-            ))}
           </>
         )}
         <td className={[styles["rab-mono"], emptyPrice ? styles["rab-empty-price"] : ""].join(" ")}>
@@ -2377,18 +2228,15 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
             <>
               <th style={{ width: "10%" }}>RAP Satuan</th>
               <th style={{ width: "10%" }}>RAP Total</th>
-              <th style={{ width: "7%" }}>Ops %</th>
-              <th style={{ width: "7%" }}>Waste %</th>
-              <th style={{ width: "7%" }}>Laba %</th>
-              <th style={{ width: "8%" }} title="Total komponen OVH">OVH %</th>
-              {customOhComponents.map((c) => (
-                <th key={c.id} style={{ width: "9%" }} title={c.name}>{c.name}</th>
+              {dynamicOhComponents.map((component) => (
+                <th key={component.id} style={{ width: "9%" }} title={component.name}>{component.name} %</th>
               ))}
+              <th style={{ width: "8%" }} title="Total semua komponen OH">OVH %</th>
             </>
           )}
           <th style={{ width: "10%" }}>{budgetMode === "rab" && isSuperAdmin ? "RAB Satuan" : "RAP Satuan"}</th>
           <th style={{ width: "10%" }}>{budgetMode === "rab" && isSuperAdmin ? "RAB Total" : "RAP Total"}</th>
-          {budgetMode === "rab" && isSuperAdmin && <th style={{ width: "8%" }} title="Selisih RAB - RAP = operasional + waste anggaran + laba">Total OVH</th>}
+          {budgetMode === "rab" && isSuperAdmin && <th style={{ width: "8%" }} title="Selisih RAB - RAP = semua komponen OH">Total OVH</th>}
           <th style={{ width: "60px" }}></th>
         </tr>
       </thead>
