@@ -1,5 +1,5 @@
 // src/pages/AuthPage.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { authService } from "../services/authService";
 import Alert from "../components/Alert";
 import "../styles/Auth.css";
@@ -8,6 +8,24 @@ export default function AuthPage({ onLoginSuccess }) {
   const [activeTab, setActiveTab] = useState("login");
   const [alert, setAlert] = useState({ message: "", type: "" });
   const [loading, setLoading] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [panelNode, setPanelNode] = useState(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowIntro(false), 5200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (showIntro || !panelNode) return undefined;
+    const handleMove = (event) => {
+      panelNode.style.setProperty("--mx", `${event.clientX}px`);
+      panelNode.style.setProperty("--my", `${event.clientY}px`);
+    };
+    window.addEventListener("mousemove", handleMove);
+    return () => window.removeEventListener("mousemove", handleMove);
+  }, [showIntro, panelNode]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,6 +46,7 @@ export default function AuthPage({ onLoginSuccess }) {
   const switchTab = (tab) => {
     setActiveTab(tab);
     setAlert({ message: "", type: "" });
+    setShowPassword(false);
   };
 
   const handleLoginSubmit = async (e) => {
@@ -77,8 +96,31 @@ export default function AuthPage({ onLoginSuccess }) {
     }
   };
 
+  const skipIntro = () => setShowIntro(false);
+
   return (
-    <div className="auth-page">
+    <div className={`auth-shell ${showIntro ? "auth-shell-intro" : "auth-shell-ready"}`} data-tab={activeTab}>
+      {showIntro && (
+        <div className="auth-intro" role="dialog" aria-label="Selamat datang">
+          <div className="intro-grid" />
+          <div className="intro-halo" />
+          <div className="intro-ring intro-ring-one" />
+          <div className="intro-ring intro-ring-two" />
+          <div className="intro-orbit"><span /></div>
+          <div className="intro-content">
+            <div className="intro-kicker"><span />Project Management Suite<span /></div>
+            <div className="intro-emblem"><span>D</span></div>
+            <div className="intro-welcome">Selamat datang di</div>
+            <h1 className="intro-title"><span>DIVES CORP</span><em>Interior &amp; Contractor</em></h1>
+            <p className="intro-subtitle">Tempat di mana <strong>presisi</strong> bertemu <strong>kepercayaan</strong>.</p>
+            <div className="intro-steps"><span className="active">Survey</span><i /><span>Volume</span><i /><span>RAB</span><i /><span>Eksekusi</span></div>
+          </div>
+          <button className="intro-skip" type="button" onClick={skipIntro}>Lewati intro <span>→</span></button>
+          <div className="intro-progress"><span /></div>
+        </div>
+      )}
+
+      <div className="auth-page">
       {/* ── Kolom Kiri: Branding ── */}
       <div className="auth-branding">
         <div className="brand-logo">DIVES CORP.</div>
@@ -102,7 +144,7 @@ export default function AuthPage({ onLoginSuccess }) {
       </div>
 
       {/* ── Kolom Kanan: Form Auth ── */}
-      <div className="auth-form-panel">
+      <div className="auth-form-panel" ref={setPanelNode}>
         <div className="auth-form-header">
           <h2 className="auth-form-title">
             {activeTab === "login" ? "Selamat Datang" : "Buat Akun Baru"}
@@ -149,8 +191,8 @@ export default function AuthPage({ onLoginSuccess }) {
             <div className="auth-input-group">
               <label htmlFor="login-password">Password</label>
               <input
-                type="password"
-                id="login-password"
+                type={showPassword ? "text" : "password"}
+                                id="login-password"
                 name="password"
                 placeholder="••••••••"
                 value={formData.password}
@@ -158,6 +200,14 @@ export default function AuthPage({ onLoginSuccess }) {
                 autoComplete="current-password"
                 required
               />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+              >
+                {showPassword ? "Sembunyikan" : "Lihat"}
+              </button>
             </div>
 
             <Alert key={alert.message} message={alert.message} type={alert.type} />
@@ -205,7 +255,7 @@ export default function AuthPage({ onLoginSuccess }) {
             <div className="auth-input-group">
               <label htmlFor="reg-password">Password</label>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 id="reg-password"
                 name="password"
                 placeholder="Minimal 6 karakter"
@@ -214,6 +264,14 @@ export default function AuthPage({ onLoginSuccess }) {
                 autoComplete="new-password"
                 required
               />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+              >
+                {showPassword ? "Sembunyikan" : "Lihat"}
+              </button>
             </div>
             <div className="auth-input-group">
               <label htmlFor="reg-role">Role</label>
@@ -249,6 +307,7 @@ export default function AuthPage({ onLoginSuccess }) {
           </form>
         )}
       </div>
+      </div>
     </div>
   );
-}
+}
