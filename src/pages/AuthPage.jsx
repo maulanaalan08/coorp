@@ -10,6 +10,7 @@ export default function AuthPage({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
   const [panelNode, setPanelNode] = useState(null);
 
   useEffect(() => {
@@ -117,7 +118,20 @@ export default function AuthPage({ onLoginSuccess }) {
           <div className="intro-content">
             <div className="intro-kicker"><span />Project Management Suite<span /></div>
             <div className="intro-logo-wrap">
-              <img className="intro-logo" src="/assets/dives.png" alt="DIVES" />
+              {!logoFailed ? (
+                <img
+                  className="intro-logo"
+                  src="/assets/dives.png"
+                  alt="DIVES"
+                  loading="eager"
+                  onError={() => setLogoFailed(true)}
+                />
+              ) : (
+                <div className="intro-emblem-fallback" aria-hidden="true">
+                  <span className="intro-emblem-d">D</span>
+                  <span className="intro-emblem-ring" />
+                </div>
+              )}
               <span className="intro-logo-glow" aria-hidden="true" />
             </div>
             <div className="intro-welcome">Selamat datang di</div>
