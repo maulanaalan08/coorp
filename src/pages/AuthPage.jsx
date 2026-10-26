@@ -118,23 +118,23 @@ export default function AuthPage({ onLoginSuccess }) {
             <div className="intro-emblem"><span>D</span></div>
             <div className="intro-welcome">Selamat datang di</div>
             <h1 className="intro-title">
-              <span className="intro-brand intro-rise" style={{ animationDelay: ".48s" }}>
+              <span className="intro-brand intro-rise" style={{ "--line-delay": ".48s" }}>
                 <span className="intro-word">DIVES</span>
                 <span className="intro-word">CORP</span>
               </span>
-              <em className="intro-trade intro-rise" style={{ animationDelay: ".78s" }}>
+              <em className="intro-trade intro-rise" style={{ "--line-delay": ".78s" }}>
                 <span className="intro-word">Interior</span>
                 <span className="intro-word">&amp;</span>
                 <span className="intro-word">Contractor</span>
               </em>
             </h1>
             <p className="intro-subtitle">
-              <span className="intro-line intro-rise" style={{ animationDelay: "1.2s" }}>
+              <span className="intro-line intro-rise" style={{ "--line-delay": "1.2s" }}>
                 <span className="intro-word">Ruang</span>
                 <span className="intro-word">kerja</span>
                 <span className="intro-word">presisi</span>
               </span>
-              <span className="intro-line intro-rise" style={{ animationDelay: "1.36s" }}>
+              <span className="intro-line intro-rise" style={{ "--line-delay": "1.36s" }}>
                 <span className="intro-word">untuk</span>
                 <span className="intro-word">proyek</span>
                 <span className="intro-word">yang</span>
