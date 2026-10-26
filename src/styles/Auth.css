@@ -611,9 +611,28 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: radial-gradient(ellipse 90% 70% at 50% 42%, #141008 0%, #080706 64%);
+  background:
+    radial-gradient(ellipse 80% 65% at 50% 44%, rgba(35,27,14,.62) 0%, transparent 58%),
+    radial-gradient(ellipse 120% 100% at 50% 50%, #151008 0%, #080706 68%);
   color: var(--auth-text);
-  animation: authIntroExit 1s 5.2s cubic-bezier(.19,1,.22,1) forwards;
+  animation: authIntroExit 1.25s 5.2s cubic-bezier(.19,1,.22,1) forwards;
+}
+
+.auth-intro::before {
+  content: '';
+  position: absolute;
+  inset: -8%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 42%, transparent 0 24%, rgba(0,0,0,.12) 56%, rgba(0,0,0,.7) 100%),
+    repeating-radial-gradient(ellipse at center, transparent 0 92px, rgba(201,162,75,.025) 93px 94px);
+  opacity: .8;
+  animation: introBreath 8s ease-in-out infinite;
+}
+
+@keyframes introBreath {
+  0%,100% { transform: scale(1); opacity: .62; }
+  50% { transform: scale(1.035); opacity: .92; }
 }
 
 .auth-shell-ready .auth-intro {
@@ -628,6 +647,100 @@
   to { opacity: 0; transform: scale(1.06); filter: blur(9px); pointer-events: none; }
 }
 
+.intro-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(5,4,2,.72) 0%, transparent 16%),
+    linear-gradient(to top, rgba(5,4,2,.78) 0%, transparent 18%),
+    linear-gradient(to right, rgba(4,3,2,.52) 0%, transparent 16%),
+    linear-gradient(to left, rgba(4,3,2,.52) 0%, transparent 16%);
+  z-index: 4;
+}
+
+.intro-scanline {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: -8%;
+  height: 18%;
+  z-index: 4;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background: linear-gradient(to bottom, transparent, rgba(232,200,116,.045), transparent);
+  animation: introSweep 7s cubic-bezier(.37,0,.2,1) .8s infinite;
+}
+
+@keyframes introSweep {
+  from { top: -18%; opacity: 0; }
+  12%, 84% { opacity: 1; }
+  to { top: 106%; opacity: 0; }
+}
+
+.intro-light {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+  will-change: transform, opacity;
+  z-index: 0;
+}
+
+.intro-light-one {
+  width: min(560px, 90vw);
+  aspect-ratio: 1;
+  left: -140px;
+  top: -140px;
+  background: radial-gradient(circle, rgba(201,162,75,.16), transparent 66%);
+  animation: introLightOne 12s ease-in-out infinite;
+}
+
+.intro-light-two {
+  width: min(500px, 84vw);
+  aspect-ratio: 1;
+  right: -150px;
+  bottom: -160px;
+  background: radial-gradient(circle, rgba(126,99,48,.18), transparent 68%);
+  animation: introLightTwo 13.5s ease-in-out 1.2s infinite;
+}
+
+@keyframes introLightOne {
+  0%, 100% { transform: translate3d(0,0,0) scale(1); opacity: .65; }
+  50% { transform: translate3d(42px,52px,0) scale(1.14); opacity: 1; }
+}
+
+@keyframes introLightTwo {
+  0%, 100% { transform: translate3d(0,0,0) scale(1); opacity: .6; }
+  50% { transform: translate3d(-46px,-38px,0) scale(1.12); opacity: 1; }
+}
+
+.intro-corner {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  z-index: 4;
+  pointer-events: none;
+  opacity: .7;
+}
+
+.intro-corner::before,
+.intro-corner::after {
+  content: '';
+  position: absolute;
+  background: linear-gradient(to right, var(--auth-gold-bright), transparent);
+}
+
+.intro-corner::before { width: 100%; height: 1px; }
+.intro-corner::after { width: 1px; height: 100%; background: linear-gradient(to bottom, var(--auth-gold-bright), transparent); }
+
+.intro-corner-tl { top: 34px; left: 38px; }
+.intro-corner-br {
+  right: 38px;
+  bottom: 34px;
+  transform: rotate(180deg);
+}
+
 .intro-grid {
   position: absolute;
   inset: -10%;
@@ -637,12 +750,13 @@
   transform-origin: center bottom;
   mask-image: radial-gradient(ellipse 55% 60% at 50% 55%, #000 0%, transparent 78%);
   -webkit-mask-image: radial-gradient(ellipse 55% 60% at 50% 55%, #000 0%, transparent 78%);
-  animation: introGridMove 14s linear infinite;
+  animation: introGridDrift 14s linear infinite;
+  opacity: .8;
 }
 
-@keyframes introGridMove {
-  from { background-position: 0 0, 0 0; opacity: .65; }
-  to { background-position: 0 64px, 64px 0; opacity: .9; }
+@keyframes introGridDrift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 64px, 64px 0; }
 }
 
 .intro-halo {
