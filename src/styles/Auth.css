@@ -925,6 +925,14 @@
   animation-delay: calc(var(--line-delay, 0s) + var(--word-index, 0) * 120ms);
 }
 
+.auth-intro .intro-word {
+  animation-name: introWordCinematic !important;
+  animation-duration: 1.45s !important;
+  animation-timing-function: cubic-bezier(.16,1.18,.3,1) !important;
+  animation-fill-mode: both !important;
+  animation-play-state: running !important;
+}
+
 .intro-word::after {
   content: '';
   position: absolute;
