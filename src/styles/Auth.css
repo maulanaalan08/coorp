@@ -647,6 +647,22 @@
   to { opacity: 0; transform: scale(1.06); filter: blur(9px); pointer-events: none; }
 }
 
+.intro-dark-wake {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  background: #050403;
+  opacity: .96;
+  animation: darkWake 2.4s cubic-bezier(.37,0,.2,1) .08s forwards;
+}
+
+@keyframes darkWake {
+  0% { opacity: .98; }
+  58% { opacity: .66; }
+  100% { opacity: 0; }
+}
+
 .intro-vignette {
   position: absolute;
   inset: 0;
@@ -1156,6 +1172,21 @@
   .intro-kicker { font-size: .5rem; letter-spacing: .25em; }
   .intro-steps { gap: 6px; font-size: .48rem; }
   .intro-steps i { width: 10px; }
+}
+
+/* Wake sequence: the palette arrives after the darkness, not all at once. */
+.auth-intro .intro-content {
+  animation: introColorWake 2.8s ease-out .25s both;
+}
+
+@keyframes introColorWake {
+  0% { filter: saturate(.05) brightness(.42); }
+  42% { filter: saturate(.35) brightness(.68); }
+  100% { filter: saturate(1) brightness(1); }
+}
+
+.auth-intro .intro-emblem {
+  animation: emblemIn 1.2s cubic-bezier(.19,1,.22,1) .8s both;
 }
 
 @media (prefers-reduced-motion: reduce) {

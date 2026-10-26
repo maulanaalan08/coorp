@@ -102,6 +102,7 @@ export default function AuthPage({ onLoginSuccess }) {
     <div className={`auth-shell ${showIntro ? "auth-shell-intro" : "auth-shell-ready"}`} data-tab={activeTab}>
       {showIntro && (
         <div className="auth-intro" role="dialog" aria-label="Selamat datang">
+          <div className="intro-dark-wake" />
           <div className="intro-vignette" />
           <div className="intro-scanline" />
           <div className="intro-grid" />
