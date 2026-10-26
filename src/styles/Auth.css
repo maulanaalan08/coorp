@@ -847,6 +847,79 @@
 .intro-kicker span { width: 34px; height: 1px; background: linear-gradient(to right, transparent, var(--auth-gold-dim)); }
 .intro-kicker span:last-child { background: linear-gradient(to left, transparent, var(--auth-gold-dim)); }
 
+.intro-logo-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(310px, 62vw);
+  height: 108px;
+  margin: 28px auto 0;
+  opacity: 0;
+  transform: translateY(18px) scale(.92);
+  filter: blur(8px) saturate(.2);
+  animation: introLogoIn 1.8s cubic-bezier(.16,1.12,.3,1) .55s forwards;
+}
+
+.intro-logo {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+  filter: brightness(.8) sepia(.2) saturate(.55);
+  opacity: .92;
+}
+
+.intro-logo-glow {
+  position: absolute;
+  inset: 22% 4%;
+  z-index: 1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(232,200,116,.28), transparent 68%);
+  filter: blur(22px);
+  opacity: 0;
+  animation: logoGlowIn 1.8s ease-out 1.15s forwards, logoGlowPulse 5s ease-in-out 3s infinite;
+}
+
+.intro-logo-wrap::after {
+  content: '';
+  position: absolute;
+  z-index: 3;
+  top: 8%;
+  bottom: 8%;
+  left: -35%;
+  width: 28%;
+  background: linear-gradient(105deg, transparent, rgba(255,240,190,.75), transparent);
+  transform: skewX(-16deg);
+  opacity: 0;
+  animation: logoSheen 1.5s ease-out 1.35s forwards;
+  pointer-events: none;
+}
+
+@keyframes introLogoIn {
+  0% { opacity: 0; transform: translateY(18px) scale(.92); filter: blur(8px) saturate(.2); }
+  58% { opacity: .9; transform: translateY(-3px) scale(1.015); filter: blur(1.5px) saturate(.7); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0) saturate(1); }
+}
+
+@keyframes logoGlowIn {
+  from { opacity: 0; transform: scale(.75); }
+  to { opacity: .75; transform: scale(1); }
+}
+
+@keyframes logoGlowPulse {
+  0%, 100% { opacity: .45; transform: scale(.96); }
+  50% { opacity: .8; transform: scale(1.06); }
+}
+
+@keyframes logoSheen {
+  0% { opacity: 0; left: -35%; }
+  18% { opacity: .85; }
+  100% { opacity: 0; left: 120%; }
+}
+
 .intro-emblem {
   position: relative;
   display: grid;

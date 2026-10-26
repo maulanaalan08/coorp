@@ -116,7 +116,10 @@ export default function AuthPage({ onLoginSuccess }) {
           <div className="intro-orbit"><span /></div>
           <div className="intro-content">
             <div className="intro-kicker"><span />Project Management Suite<span /></div>
-            <div className="intro-emblem"><span>D</span></div>
+            <div className="intro-logo-wrap">
+              <img className="intro-logo" src="/assets/dives.png" alt="DIVES" />
+              <span className="intro-logo-glow" aria-hidden="true" />
+            </div>
             <div className="intro-welcome">Selamat datang di</div>
             <h1 className="intro-title">
               <span className="intro-brand intro-rise" style={{ "--line-delay": ".48s" }}>
