@@ -111,8 +111,14 @@ export default function AuthPage({ onLoginSuccess }) {
             <div className="intro-kicker"><span />Project Management Suite<span /></div>
             <div className="intro-emblem"><span>D</span></div>
             <div className="intro-welcome">Selamat datang di</div>
-            <h1 className="intro-title"><span>DIVES CORP</span><em>Interior &amp; Contractor</em></h1>
-            <p className="intro-subtitle">Tempat di mana <strong>presisi</strong> bertemu <strong>kepercayaan</strong>.</p>
+            <h1 className="intro-title">
+              <span className="intro-brand">DIVES&nbsp;CORP</span>
+              <em className="intro-trade">Interior &amp; Contractor</em>
+            </h1>
+            <p className="intro-subtitle">
+              <span className="intro-line"><span>Ruang kerja presisi</span></span>
+              <span className="intro-line"><span>untuk proyek yang <strong>selalu akuntabel.</strong></span></span>
+            </p>
             <div className="intro-steps"><span className="active">Survey</span><i /><span>Volume</span><i /><span>RAB</span><i /><span>Eksekusi</span></div>
           </div>
           <button className="intro-skip" type="button" onClick={skipIntro}>Lewati intro <span>→</span></button>
@@ -145,30 +151,33 @@ export default function AuthPage({ onLoginSuccess }) {
 
       {/* ── Kolom Kanan: Form Auth ── */}
       <div className="auth-form-panel" ref={setPanelNode}>
+        <div className="auth-panel-card">
         <div className="auth-form-header">
+          <div className="auth-form-eyebrow">{activeTab === "login" ? "Ruang kerja Anda" : "Mulai langkah pertama"}</div>
           <h2 className="auth-form-title">
-            {activeTab === "login" ? "Selamat Datang" : "Buat Akun Baru"}
+            {activeTab === "login" ? "Selamat datang kembali" : "Buat akun baru"}
           </h2>
           <p className="auth-form-subtitle">
             {activeTab === "login"
-              ? "Masuk ke akun Anda untuk melanjutkan."
-              : "Daftarkan akun untuk memulai."}
+              ? "Masuk untuk melanjutkan alur Survey → Volume → RAB Anda."
+              : "Daftarkan satu akun untuk seluruh alur kerja interior dan kontraktor."}
           </p>
         </div>
 
         {/* Tabs */}
         <div className="auth-tabs">
+          <span className="auth-tabs-pill" aria-hidden="true" />
           <div
             className={`auth-tab ${activeTab === "login" ? "active" : ""}`}
             onClick={() => switchTab("login")}
           >
-            Login
+            Masuk
           </div>
           <div
             className={`auth-tab ${activeTab === "register" ? "active" : ""}`}
             onClick={() => switchTab("register")}
           >
-            Register
+            Daftar
           </div>
         </div>
 
@@ -192,7 +201,7 @@ export default function AuthPage({ onLoginSuccess }) {
               <label htmlFor="login-password">Password</label>
               <input
                 type={showPassword ? "text" : "password"}
-                                id="login-password"
+                id="login-password"
                 name="password"
                 placeholder="••••••••"
                 value={formData.password}
@@ -306,6 +315,7 @@ export default function AuthPage({ onLoginSuccess }) {
             </button>
           </form>
         )}
+        </div>
       </div>
       </div>
     </div>
