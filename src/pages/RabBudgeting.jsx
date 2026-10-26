@@ -658,12 +658,24 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       return setEditModal((prev) => ({ ...prev, bahanResults: [] }));
     }
     try {
-      // cari BAHAN, ALAT, dan UPAH (jasa: mandor, tukang, dll) sekaligus, lalu gabung
-      const q = encodeURIComponent(query.trim());
+      // Scope master resource mengikuti item AHSP: kategori, grade, periode.
+      const item = editModal.item || {};
+      const itemWorkCategoryId = item.workCategoryId || activeWorkCategoryId;
+      const categoryConfig = itemWorkCategoryId
+        ? (project?.workCategories || []).find((entry) => entry.workCategoryId === itemWorkCategoryId)
+        : null;
+      const period = project?.hspkPeriod;
+      const grade = item.grade || categoryConfig?.grade || project?.grade || "";
+      const scope = new URLSearchParams({ q: query.trim() });
+      if (itemWorkCategoryId) scope.set("workCategoryId", itemWorkCategoryId);
+      if (item.discipline || activeDiscipline) scope.set("discipline", item.discipline || activeDiscipline);
+      if (grade) scope.set("grade", grade);
+      if (period) scope.set("period", period);
+      const queryString = scope.toString();
       const [rb, ra, ru] = await Promise.all([
-        fetch(`${API_BASE}/price-items?type=BAHAN&q=${q}`),
-        fetch(`${API_BASE}/price-items?type=ALAT&q=${q}`),
-        fetch(`${API_BASE}/price-items?type=UPAH&q=${q}`),
+        fetch(`${API_BASE}/price-items?type=BAHAN&${queryString}`),
+        fetch(`${API_BASE}/price-items?type=ALAT&${queryString}`),
+        fetch(`${API_BASE}/price-items?type=UPAH&${queryString}`),
       ]);
       const [db, da, du] = await Promise.all([
         rb.ok ? rb.json() : [],
@@ -1175,7 +1187,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                 disabled={approvalLocked}
                 type="button"
               >
-                <History size={14} /> Riwayat
+                <History size={14} /> Riwayat &amp; Undo
               </button>
 
               <span className="spacer" />
@@ -1186,7 +1198,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                     RAP Costing
                   </button>
                   <button type="button" className={budgetMode === "rab" ? styles["on"] : ""} onClick={() => setBudgetMode("rab")} disabled={!isSuperAdmin} title={!isSuperAdmin ? "Hanya SUPER_ADMIN" : ""}>
-                    RAB Selling {!isSuperAdmin && <span className={styles["rab-lock"]}>🔒</span>}
+                    RAB Selling {!isSuperAdmin && <span className={styles["rab-lock"]}>Terkunci</span>}
                   </button>
                 </div>
               </div>
@@ -1625,15 +1637,15 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
 
             <div className={styles["rab-mode-cards"]}>
               <div className={[styles["rab-mode-card"], editModal.pricingMode === "manual" ? styles["active"] : ""].join(" ")} onClick={() => setEditModal({ ...editModal, pricingMode: "manual" })}>
-                <div className={styles["rab-mode-title"]}>📝 Input Manual</div>
+                <div className={styles["rab-mode-title"]}>Input Manual</div>
                 <div className={styles["rab-mode-desc"]}>Ketik harga modal langsung + overhead / profit.</div>
               </div>
               <div className={[styles["rab-mode-card"], editModal.pricingMode === "ahsp" ? styles["active"] : ""].join(" ")} onClick={() => setEditModal({ ...editModal, pricingMode: "ahsp" })}>
-                <div className={styles["rab-mode-title"]}>🔄 Tarik Master AHSP</div>
+                <div className={styles["rab-mode-title"]}>Tarik Master AHSP</div>
                 <div className={styles["rab-mode-desc"]}>Ambil harga otomatis dari master pekerjaan AHSP.</div>
               </div>
               <div className={[styles["rab-mode-card"], editModal.pricingMode === "komponen" ? styles["active"] : ""].join(" ")} onClick={() => setEditModal({ ...editModal, pricingMode: "komponen" })}>
-                <div className={styles["rab-mode-title"]}>🧱 Rincian Bahan, Alat &amp; Jasa</div>
+                <div className={styles["rab-mode-title"]}>Rincian Bahan, Alat &amp; Jasa</div>
                 <div className={styles["rab-mode-desc"]}>Susun modal dari bahan, alat, dan jasa (upah/mandor) custom.</div>
               </div>
             </div>

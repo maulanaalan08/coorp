@@ -1,5 +1,5 @@
 // src/pages/AuthPage.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { authService } from "../services/authService";
 import Alert from "../components/Alert";
 import "../styles/Auth.css";
@@ -8,6 +8,25 @@ export default function AuthPage({ onLoginSuccess }) {
   const [activeTab, setActiveTab] = useState("login");
   const [alert, setAlert] = useState({ message: "", type: "" });
   const [loading, setLoading] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
+  const [panelNode, setPanelNode] = useState(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowIntro(false), 5200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (showIntro || !panelNode) return undefined;
+    const handleMove = (event) => {
+      panelNode.style.setProperty("--mx", `${event.clientX}px`);
+      panelNode.style.setProperty("--my", `${event.clientY}px`);
+    };
+    window.addEventListener("mousemove", handleMove);
+    return () => window.removeEventListener("mousemove", handleMove);
+  }, [showIntro, panelNode]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,6 +47,7 @@ export default function AuthPage({ onLoginSuccess }) {
   const switchTab = (tab) => {
     setActiveTab(tab);
     setAlert({ message: "", type: "" });
+    setShowPassword(false);
   };
 
   const handleLoginSubmit = async (e) => {
@@ -77,8 +97,77 @@ export default function AuthPage({ onLoginSuccess }) {
     }
   };
 
+  const skipIntro = () => setShowIntro(false);
+
   return (
-    <div className="auth-page">
+    <div className={`auth-shell ${showIntro ? "auth-shell-intro" : "auth-shell-ready"}`} data-tab={activeTab}>
+      {showIntro && (
+        <div className="auth-intro" role="dialog" aria-label="Selamat datang">
+          <div className="intro-dark-wake" />
+          <div className="intro-vignette" />
+          <div className="intro-scanline" />
+          <div className="intro-grid" />
+          <div className="intro-halo" />
+          <div className="intro-light intro-light-one" />
+          <div className="intro-light intro-light-two" />
+          <div className="intro-corner intro-corner-tl" />
+          <div className="intro-corner intro-corner-br" />
+          <div className="intro-ring intro-ring-one" />
+          <div className="intro-ring intro-ring-two" />
+          <div className="intro-orbit"><span /></div>
+          <div className="intro-content">
+            <div className="intro-kicker"><span />Project Management Suite<span /></div>
+            <div className="intro-logo-wrap">
+              {!logoFailed ? (
+                <img
+                  className="intro-logo"
+                  src="/assets/dives.png"
+                  alt="DIVES"
+                  loading="eager"
+                  onError={() => setLogoFailed(true)}
+                />
+              ) : (
+                <div className="intro-emblem-fallback" aria-hidden="true">
+                  <span className="intro-emblem-d">D</span>
+                  <span className="intro-emblem-ring" />
+                </div>
+              )}
+              <span className="intro-logo-glow" aria-hidden="true" />
+            </div>
+            <div className="intro-welcome">Selamat datang di</div>
+            <h1 className="intro-title">
+              <span className="intro-brand intro-rise" style={{ "--line-delay": ".48s" }}>
+                <span className="intro-word">DIVES</span>
+                <span className="intro-word">CORP</span>
+              </span>
+              <em className="intro-trade intro-rise" style={{ "--line-delay": ".78s" }}>
+                <span className="intro-word">Interior</span>
+                <span className="intro-word">&amp;</span>
+                <span className="intro-word">Contractor</span>
+              </em>
+            </h1>
+            <p className="intro-subtitle">
+              <span className="intro-line intro-rise" style={{ "--line-delay": "1.2s" }}>
+                <span className="intro-word">Ruang</span>
+                <span className="intro-word">kerja</span>
+                <span className="intro-word">presisi</span>
+              </span>
+              <span className="intro-line intro-rise" style={{ "--line-delay": "1.36s" }}>
+                <span className="intro-word">untuk</span>
+                <span className="intro-word">proyek</span>
+                <span className="intro-word">yang</span>
+                <span className="intro-word"><strong>selalu</strong></span>
+                <span className="intro-word"><strong>akuntabel.</strong></span>
+              </span>
+            </p>
+            <div className="intro-steps"><span className="active">Survey</span><i /><span>Volume</span><i /><span>RAB</span><i /><span>Eksekusi</span></div>
+          </div>
+          <button className="intro-skip" type="button" onClick={skipIntro}>Lewati intro <span>→</span></button>
+          <div className="intro-progress"><span /></div>
+        </div>
+      )}
+
+      <div className="auth-page">
       {/* ── Kolom Kiri: Branding ── */}
       <div className="auth-branding">
         <div className="brand-logo">DIVES CORP.</div>
@@ -102,31 +191,34 @@ export default function AuthPage({ onLoginSuccess }) {
       </div>
 
       {/* ── Kolom Kanan: Form Auth ── */}
-      <div className="auth-form-panel">
+      <div className="auth-form-panel" ref={setPanelNode}>
+        <div className="auth-panel-card">
         <div className="auth-form-header">
+          <div className="auth-form-eyebrow">{activeTab === "login" ? "Ruang kerja Anda" : "Mulai langkah pertama"}</div>
           <h2 className="auth-form-title">
-            {activeTab === "login" ? "Selamat Datang" : "Buat Akun Baru"}
+            {activeTab === "login" ? "Selamat datang kembali" : "Buat akun baru"}
           </h2>
           <p className="auth-form-subtitle">
             {activeTab === "login"
-              ? "Masuk ke akun Anda untuk melanjutkan."
-              : "Daftarkan akun untuk memulai."}
+              ? "Masuk untuk melanjutkan alur Survey → Volume → RAB Anda."
+              : "Daftarkan satu akun untuk seluruh alur kerja interior dan kontraktor."}
           </p>
         </div>
 
         {/* Tabs */}
         <div className="auth-tabs">
+          <span className="auth-tabs-pill" aria-hidden="true" />
           <div
             className={`auth-tab ${activeTab === "login" ? "active" : ""}`}
             onClick={() => switchTab("login")}
           >
-            Login
+            Masuk
           </div>
           <div
             className={`auth-tab ${activeTab === "register" ? "active" : ""}`}
             onClick={() => switchTab("register")}
           >
-            Register
+            Daftar
           </div>
         </div>
 
@@ -149,7 +241,7 @@ export default function AuthPage({ onLoginSuccess }) {
             <div className="auth-input-group">
               <label htmlFor="login-password">Password</label>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 id="login-password"
                 name="password"
                 placeholder="••••••••"
@@ -158,6 +250,14 @@ export default function AuthPage({ onLoginSuccess }) {
                 autoComplete="current-password"
                 required
               />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+              >
+                {showPassword ? "Sembunyikan" : "Lihat"}
+              </button>
             </div>
 
             <Alert key={alert.message} message={alert.message} type={alert.type} />
@@ -205,7 +305,7 @@ export default function AuthPage({ onLoginSuccess }) {
             <div className="auth-input-group">
               <label htmlFor="reg-password">Password</label>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 id="reg-password"
                 name="password"
                 placeholder="Minimal 6 karakter"
@@ -214,6 +314,14 @@ export default function AuthPage({ onLoginSuccess }) {
                 autoComplete="new-password"
                 required
               />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+              >
+                {showPassword ? "Sembunyikan" : "Lihat"}
+              </button>
             </div>
             <div className="auth-input-group">
               <label htmlFor="reg-role">Role</label>
@@ -248,7 +356,9 @@ export default function AuthPage({ onLoginSuccess }) {
             </button>
           </form>
         )}
+        </div>
+      </div>
       </div>
     </div>
   );
-}
+}
