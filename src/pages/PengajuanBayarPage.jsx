@@ -763,8 +763,8 @@ const PengajuanBayarPage = ({ initialProjectId = null }) => {
                     </span>
                   </div>
                   <div className="flex justify-between text-[11px] text-[#777]">
-                    <span>• Approved: {fmtRp(budgetData.ordered?.approved)}</span>
-                    <span>• Pending: {fmtRp(budgetData.ordered?.pending)}</span>
+                    <span>• Disetujui: {fmtRp(budgetData.ordered?.approved)}</span>
+                    <span>• Menunggu: {fmtRp(budgetData.ordered?.pending)}</span>
                   </div>
                 </div>
 

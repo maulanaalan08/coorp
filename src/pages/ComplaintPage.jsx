@@ -210,7 +210,7 @@ export default function ComplaintPage() {
   };
 
   const handleDeleteCategory = async (categoryId) => {
-    if (!window.confirm("Yakin ingin menghapus seluruh area defect list ini?")) return;
+    if (!window.confirm("Yakin ingin menghapus seluruh area daftar kerusakan ini?")) return;
     try {
       const newCategories = complaintReport.categories.filter(cat => (cat.id || cat.order) !== categoryId);
       await saveComplaint(newCategories, {});
@@ -287,7 +287,7 @@ export default function ComplaintPage() {
         <div className="complaint-header">
         <div>
           <h1 className="page-title">Manajemen Complain</h1>
-          <p className="page-subtitle">Kelola laporan defect list dan berita acara serah terima perbaikan (BAST).</p>
+          <p className="page-subtitle">Kelola laporan daftar kerusakan dan berita acara serah terima perbaikan (BAST).</p>
         </div>
       </div>
 
@@ -367,7 +367,7 @@ export default function ComplaintPage() {
                     disabled={!complaintReport}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
-                    <FileText size={16} /> View Defect List
+                    <FileText size={16} /> Lihat Daftar Kerusakan
                   </button>
                   <button 
                     className="btn-download" 
@@ -380,7 +380,7 @@ export default function ComplaintPage() {
                     }}
                     title={!isAllDone ? "Seluruh komplain harus berstatus Selesai" : "Lihat BAST"}
                   >
-                    <FileText size={16} /> View BAST Complain
+                    <FileText size={16} /> Lihat BAST Komplain
                   </button>
                   <button 
                     className="btn-download" 
@@ -437,17 +437,17 @@ export default function ComplaintPage() {
                               onClick={() => setShowAddDefectModal(category)}
                               style={{ padding: '2px 8px', fontSize: '10px' }}
                             >
-                              + Tambah Defect
+                              + Tambah Kerusakan
                             </button>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span className={`status-badge ${isHeaderDone ? 'done' : 'ongoing'}`}>
-                              {isHeaderDone ? <><CheckCircle size={14}/> Selesai</> : <><Clock size={14}/> On going</>}
+                              {isHeaderDone ? <><CheckCircle size={14}/> Selesai</> : <><Clock size={14}/> Sedang Berjalan</>}
                             </span>
                             <button
                                onClick={() => handleDeleteCategory(category.id || category.order)}
                                style={{ padding: '4px 8px', fontSize: '11px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer' }}
-                               title="Hapus Tabel Defect List ini"
+                               title="Hapus Tabel Daftar Kerusakan ini"
                             >
                                Hapus Tabel
                             </button>
@@ -457,9 +457,9 @@ export default function ComplaintPage() {
                         <table className="complaint-table">
                           <thead>
                             <tr>
-                              <th>Defect List</th>
-                              <th>Foto Before</th>
-                              <th>Foto After</th>
+                              <th>Daftar Kerusakan</th>
+                              <th>Foto Sebelum (Before)</th>
+                              <th>Foto Sesudah (After)</th>
                               <th>Tgl Perbaikan</th>
                               <th>Laporan Hasil</th>
                               <th>Status</th>
@@ -577,7 +577,7 @@ export default function ComplaintPage() {
                                 onClick={() => complaintService.viewSavedBast2Pdf(bast.id)}
                                 style={{ padding: '4px 8px', fontSize: '11px', background: '#3b82f6', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
-                                <FileText size={12}/> View PDF
+                                <FileText size={12}/> Lihat PDF
                               </button>
                               <button 
                                 className="btn-action" 

@@ -357,7 +357,7 @@ const WorkCategoriesPage = () => {
                           className="wcp-icon-btn wcp-edit"
                           onClick={() => openEdit(cat)}
                           disabled={togglingId === cat.id || deletingId === cat.id}
-                          title="Edit"
+                          title="Ubah"
                         >
                           <Pencil size={16} />
                         </button>

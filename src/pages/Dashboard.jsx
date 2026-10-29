@@ -85,10 +85,10 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
       <div className={styles.dashboardContent}>
         {/* STATS SECTION */}
         <div className={styles.statsGrid}>
-          <StatCard icon={Network} label="ALL ACTIVE" value={totalActive} desc="Active Projects" iconClass="textYellow" />
-          <StatCard icon={Compass} label="PHASE 1" value={planningCount} desc="In Planning Phase" iconClass="textGray" />
-          <StatCard icon={UserCog} label="PHASE 2" value={constructionCount} desc="In Construction Phase" iconClass="textGray" />
-          <StatCard icon={TriangleAlert} label="ACTION REQUIRED" value={issueCount} desc="Unresolved Issues" isDanger />
+          <StatCard icon={Network} label="SEMUA AKTIF" value={totalActive} desc="Proyek Aktif" iconClass="textYellow" />
+          <StatCard icon={Compass} label="TAHAP 1" value={planningCount} desc="Tahap Perencanaan" iconClass="textGray" />
+          <StatCard icon={UserCog} label="TAHAP 2" value={constructionCount} desc="Tahap Konstruksi" iconClass="textGray" />
+          <StatCard icon={TriangleAlert} label="PERLU TINDAKAN" value={issueCount} desc="Masalah Belum Selesai" isDanger />
         </div>
 
         {/* PROJECTS TABLE SECTION */}
@@ -96,17 +96,17 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
           <div className={styles.projectsHeader}>
             <div className={styles.projectsTitle}>
               <div className={styles.titleAccent} />
-              <h3>Recent Active Projects</h3>
+              <h3>Proyek Aktif Terbaru</h3>
             </div>
             <div className={styles.projectsActions}>
-              <button className={styles.iconBtn} onClick={loadProjects} disabled={loading || loadingSurvey} type="button" title="Refresh">
+              <button className={styles.iconBtn} onClick={loadProjects} disabled={loading || loadingSurvey} type="button" title="Muat Ulang">
                 <RefreshCw size={18} />
               </button>
               <button className={styles.newProjectBtn} onClick={() => setIsModalOpen(true)} type="button">
-                <Plus size={18} /> New Project
+                <Plus size={18} /> Proyek Baru
               </button>
               <button className={styles.iconBtn} type="button" title="Filter"><Filter size={18} /></button>
-              <button className={styles.iconBtn} type="button" title="More"><MoreVertical size={18} /></button>
+              <button className={styles.iconBtn} type="button" title="Lainnya"><MoreVertical size={18} /></button>
             </div>
           </div>
 
@@ -114,21 +114,21 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
             <table className={styles.projectsTable}>
               <thead>
                 <tr>
-                  <th>PROJECT NAME</th>
-                  <th>CLIENT</th>
-                  <th>LOCATION</th>
-                  <th>PROGRESS</th>
-                  <th>CURRENT PHASE</th>
-                  <th>ACTION</th>
+                  <th>NAMA PROYEK</th>
+                  <th>KLIEN</th>
+                  <th>LOKASI</th>
+                  <th>PROGRES</th>
+                  <th>TAHAP SAAT INI</th>
+                  <th>AKSI</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className={`${styles.textCenter} ${styles.textGray}`}>Loading projects...</td></tr>
+                  <tr><td colSpan={6} className={`${styles.textCenter} ${styles.textGray}`}>Memuat proyek...</td></tr>
                 ) : error ? (
                   <tr><td colSpan={6} className={`${styles.textCenter} ${styles.textDanger}`}>{error}</td></tr>
                 ) : projects.length === 0 ? (
-                  <tr><td colSpan={6} className={`${styles.textCenter} ${styles.textGray}`}>No projects yet. Click "New Project" to add one.</td></tr>
+                  <tr><td colSpan={6} className={`${styles.textCenter} ${styles.textGray}`}>Belum ada proyek. Klik "Proyek Baru" untuk menambahkan.</td></tr>
                 ) : (
                   projects.map((project, index) => (
                     <ProjectTableRow
@@ -149,7 +149,7 @@ const Dashboard = ({ onViewDetails, onCreateBv, onCreateSurvey }) => {
           </div>
 
           <div className={styles.projectsFooter}>
-            <span className={styles.textGray}>Showing {projects.length} projects</span>
+            <span className={styles.textGray}>Menampilkan {projects.length} proyek</span>
             <div>
               <button className={styles.iconBtn} type="button"><ChevronLeft size={16} /></button>
               <button className={styles.iconBtn} type="button"><ChevronRight size={16} /></button>

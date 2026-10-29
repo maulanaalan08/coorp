@@ -350,11 +350,11 @@ const ItemTrackingPage = ({ onNavigate }) => {
                   <Package size={16} /> Total Item
                 </div>
                 <div className="text-3xl font-extrabold text-white mb-1">{stats.total}</div>
-                <div className="text-xs text-[#888]">Item dari PO yang sudah approved</div>
+                <div className="text-xs text-[#888]">Item dari PO yang sudah disetujui</div>
               </div>
               <div className="bg-[#1f1616] border border-[#d32f2f]/30 p-4 rounded-xl flex flex-col">
                 <div className="flex items-center gap-2 text-[#f44336] font-bold text-sm mb-2">
-                  <Clock size={16} /> Pending
+                  <Clock size={16} /> Menunggu
                 </div>
                 <div className="text-3xl font-extrabold text-white mb-1">{stats.pending}</div>
                 <div className="text-xs text-[#888]">Belum diproses Finance</div>

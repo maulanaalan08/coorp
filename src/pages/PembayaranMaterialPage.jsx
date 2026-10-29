@@ -527,7 +527,7 @@ const PembayaranMaterialPage = () => {
               className="w-full sm:w-48 bg-[#1a1814] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-white focus:border-[#d4af37] outline-none"
             >
               <option value="ALL">Semua Status Approval</option>
-              <option value="PENDING">Pending (Belum Diajukan)</option>
+              <option value="PENDING">Menunggu (Belum Diajukan)</option>
               <option value="MENUNGGU_FINANCE">Menunggu Finance</option>
               <option value="MENUNGGU_ATASAN">Menunggu Atasan</option>
               <option value="APPROVED">Disetujui Atasan</option>
@@ -558,7 +558,7 @@ const PembayaranMaterialPage = () => {
                 }}
                 className="text-xs text-[#888] hover:text-[#d4af37] underline transition-colors px-1"
               >
-                Reset Filter
+                Atur Ulang Filter
               </button>
             )}
           </div>

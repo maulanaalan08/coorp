@@ -172,7 +172,7 @@ const SuratJalanModal = ({ isOpen, onClose, item, onSuccess }) => {
             className={`flex-1 py-2 rounded-t-lg font-semibold flex items-center justify-center gap-2 transition-all ${activeTab === 'upload' ? 'bg-[#333] text-white border-t-2 border-[#d4af37]' : 'bg-transparent text-[#777] hover:bg-[#222]'}`}
             onClick={() => setActiveTab('upload')}
           >
-            <PlusCircle size={16} /> Upload Baru
+            <PlusCircle size={16} /> Unggah Baru
           </button>
         </div>
 
@@ -256,7 +256,7 @@ const SuratJalanModal = ({ isOpen, onClose, item, onSuccess }) => {
                   onClick={() => fileInputRef.current?.click()}
                   className="p-5 border-2 border-dashed border-[#555] rounded-lg text-center cursor-pointer bg-[#222] hover:bg-[#2a2a2a] transition-colors group">
                   <Upload size={24} className="text-[#888] mx-auto mb-2 group-hover:text-[#d4af37] transition-colors" />
-                  <p className="m-0 text-sm text-[#888] group-hover:text-[#ccc] transition-colors">Klik untuk upload foto dari HP / PC</p>
+                  <p className="m-0 text-sm text-[#888] group-hover:text-[#ccc] transition-colors">Klik untuk unggah foto dari HP / PC</p>
                   <p className="m-0 text-xs text-[#666] mt-1">{photos.length}/{MAX_FOTO} foto dipilih</p>
                 </div>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple accept="image/*" className="hidden" />

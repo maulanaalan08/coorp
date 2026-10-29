@@ -116,7 +116,7 @@ export default function AuthPage({ onLoginSuccess }) {
           <div className="intro-ring intro-ring-two" />
           <div className="intro-orbit"><span /></div>
           <div className="intro-content">
-            <div className="intro-kicker"><span />Project Management Suite<span /></div>
+            <div className="intro-kicker"><span />Sistem Manajemen Proyek<span /></div>
             <div className="intro-logo-wrap">
               {!logoFailed ? (
                 <img
@@ -226,12 +226,12 @@ export default function AuthPage({ onLoginSuccess }) {
         {activeTab === "login" ? (
           <form className="auth-form" key="login" onSubmit={handleLoginSubmit}>
             <div className="auth-input-group">
-              <label htmlFor="login-username">Username</label>
+              <label htmlFor="login-username">Nama Pengguna</label>
               <input
                 type="text"
                 id="login-username"
                 name="username"
-                placeholder="Masukkan username Anda"
+                placeholder="Masukkan nama pengguna Anda"
                 value={formData.username}
                 onChange={handleInputChange}
                 autoComplete="username"
@@ -239,7 +239,7 @@ export default function AuthPage({ onLoginSuccess }) {
               />
             </div>
             <div className="auth-input-group">
-              <label htmlFor="login-password">Password</label>
+              <label htmlFor="login-password">Kata Sandi</label>
               <input
                 type={showPassword ? "text" : "password"}
                 id="login-password"
@@ -254,7 +254,7 @@ export default function AuthPage({ onLoginSuccess }) {
                 type="button"
                 className="auth-password-toggle"
                 onClick={() => setShowPassword((value) => !value)}
-                aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
               >
                 {showPassword ? "Sembunyikan" : "Lihat"}
               </button>
@@ -290,12 +290,12 @@ export default function AuthPage({ onLoginSuccess }) {
               />
             </div>
             <div className="auth-input-group">
-              <label htmlFor="reg-username">Username</label>
+              <label htmlFor="reg-username">Nama Pengguna</label>
               <input
                 type="text"
                 id="reg-username"
                 name="username"
-                placeholder="Pilih username unik"
+                placeholder="Pilih nama pengguna unik"
                 value={formData.username}
                 onChange={handleInputChange}
                 autoComplete="username"
@@ -303,7 +303,7 @@ export default function AuthPage({ onLoginSuccess }) {
               />
             </div>
             <div className="auth-input-group">
-              <label htmlFor="reg-password">Password</label>
+              <label htmlFor="reg-password">Kata Sandi</label>
               <input
                 type={showPassword ? "text" : "password"}
                 id="reg-password"

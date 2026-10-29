@@ -612,15 +612,13 @@ function InvoicePenjualanPage() {
                               className={`${actionBtnClass} border-[#2b2b2b] text-[#d4af37] hover:bg-[#d4af37]/10`}
                               onClick={() => (activeTab === TAB_DESAIN ? openEditDesain(row) : openEditKlien(row))}
                               disabled={row.postedToGl}
-                              title="Edit invoice"
-                            >
-                              Edit
-                            </button>
+                              title="Ubah faktur"
+                            >Ubah</button>
                             <button
                               className={`${actionBtnClass} border-blue-500/40 text-blue-300 hover:bg-blue-500/10`}
                               onClick={() => doApproveFinance(row.id)}
                               disabled={!canApproveFinance}
-                              title="Approve Finance"
+                              title="Setujui Finance"
                             >
                               <Clock size={12} className="inline mr-1" />Finance
                             </button>

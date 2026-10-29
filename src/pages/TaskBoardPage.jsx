@@ -23,9 +23,9 @@ import TaskModal from '../components/tasks/TaskModal';
 import Header from '../components/Header';
 
 const COLUMNS = [
-  { id: 'TODO', title: 'To Do', icon: CircleDashed, badgeColor: 'bg-zinc-500/15 text-zinc-300 border-zinc-500/30' },
-  { id: 'IN_PROGRESS', title: 'In Progress', icon: Clock, badgeColor: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
-  { id: 'DONE', title: 'Done', icon: CheckCircle2, badgeColor: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+  { id: 'TODO', title: 'Belum Dikerjakan', icon: CircleDashed, badgeColor: 'bg-zinc-500/15 text-zinc-300 border-zinc-500/30' },
+  { id: 'IN_PROGRESS', title: 'Sedang Dikerjakan', icon: Clock, badgeColor: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+  { id: 'DONE', title: 'Selesai', icon: CheckCircle2, badgeColor: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
 ];
 
 const TaskBoardPage = () => {
@@ -343,7 +343,7 @@ const TaskBoardPage = () => {
               className="bg-transparent text-white focus:outline-none cursor-pointer"
             >
               <option value="all" className="bg-[#161513]">Semua Prioritas</option>
-              <option value="URGENT" className="bg-[#161513]">Urgent</option>
+              <option value="URGENT" className="bg-[#161513]">Mendesak</option>
               <option value="HIGH" className="bg-[#161513]">Tinggi</option>
               <option value="MEDIUM" className="bg-[#161513]">Normal</option>
               <option value="LOW" className="bg-[#161513]">Rendah</option>

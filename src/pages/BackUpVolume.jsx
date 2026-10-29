@@ -1489,7 +1489,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
     bvByGroup[gid].push(it);
   });
 
-  // Buka View BV sesuai kategori aktif dengan autentikasi.
+  // Buka Tampilan BV sesuai kategori aktif dengan autentikasi.
   const viewBv = async () => {
     if (!selectedProjectId) return;
 
@@ -1628,7 +1628,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
             onClick={viewBv}
             title={`Buka View BV ${activeCategoryLabel}`}
           >
-            <Eye size={16} /> View {activeCategoryLabel}
+            <Eye size={16} /> Lihat {activeCategoryLabel}
           </button>
           <details className={styles.exportDropdown}>
             <summary
@@ -1638,7 +1638,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
                 if (!selectedProjectId) event.preventDefault();
               }}
             >
-              <Download size={16} /> Export Excel <ChevronDown size={14} />
+              <Download size={16} /> Ekspor Excel <ChevronDown size={14} />
             </summary>
             <div className={styles.exportMenu}>
               {[

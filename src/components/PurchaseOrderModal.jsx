@@ -725,7 +725,7 @@ const PurchaseOrderModal = ({ selectedItems, projectId, editingPo, receiptItems,
                   />
                 </div>
                 <div className={styles.grandTotalRow} style={{ width: '300px', borderTop: '1px solid #333', paddingTop: '10px', marginTop: '4px' }}>
-                  <span className={styles.grandTotalLabel}>GRAND TOTAL</span>
+                  <span className={styles.grandTotalLabel}>TOTAL KESELURUHAN</span>
                   <span className={styles.grandTotalValue}>{fmtRp(grandTotal)}</span>
                 </div>
               </div>

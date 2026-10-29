@@ -303,7 +303,7 @@ const HabisPakaiPanel = ({ projectId, refreshKey, onCreatePO, onEditPo, onChange
                             </span>
                           ) : r.status === 'ATASAN_APPROVED' ? (
                             <span className="inline-flex items-center gap-1 text-[11px] text-[#4caf50]">
-                              <Link2 size={12} /> Completed
+                              <Link2 size={12} /> Selesai
                             </span>
                           ) : (
                             <span className="text-[11px] text-[#555] italic">—</span>
@@ -327,7 +327,7 @@ const HabisPakaiPanel = ({ projectId, refreshKey, onCreatePO, onEditPo, onChange
             Riwayat PO Habis Pakai
           </h3>
           <p className="text-[#888] text-sm mt-1 mb-0">
-            Daftar PO yang sudah dibuat dari permintaan habis pakai. Klik Edit untuk PO yang belum di-approve atau ditolak.
+            Daftar PO yang sudah dibuat dari permintaan habis pakai. Klik Ubah untuk PO yang belum disetujui atau ditolak.
           </p>
         </div>
 
@@ -389,9 +389,9 @@ const HabisPakaiPanel = ({ projectId, refreshKey, onCreatePO, onEditPo, onChange
                               type="button"
                               onClick={() => onEditPo(po)}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-[#d4af37]/15 text-[#d4af37] border border-[#d4af37]/40 hover:bg-[#d4af37]/25 transition-colors"
-                              title="Edit PO"
+                              title="Ubah PO"
                             >
-                              <Edit size={12} /> Edit
+                              <Edit size={12} /> Ubah
                             </button>
                           )}
                           <button

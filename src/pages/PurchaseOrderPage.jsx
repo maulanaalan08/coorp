@@ -752,8 +752,8 @@ const PurchaseOrderPage = () => {
                                                                               const estP = Number(firstItem.pricePerUnit);
                                                                               const curP = Number(fullPoItem.unitPrice);
                                                                               const diffP = Math.round(curP - estP);
-                                                                              if (diffP > 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={10} style={{ shrink: 0 }} />Over-price +{fmtRp(diffP)}</span>;
-                                                                              if (diffP < 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f59e0b' }}><AlertCircle size={10} style={{ shrink: 0 }} />Under-price {fmtRp(Math.abs(diffP))}</span>;
+                                                                              if (diffP > 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={10} style={{ shrink: 0 }} />Lebih Harga +{fmtRp(diffP)}</span>;
+                                                                              if (diffP < 0) return <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f59e0b' }}><AlertCircle size={10} style={{ shrink: 0 }} />Kurang Harga {fmtRp(Math.abs(diffP))}</span>;
                                                                               return <span style={{ color: '#22c55e' }}>Sesuai RAP</span>;
                                                                             })()}
                                                                           </td>
@@ -772,7 +772,7 @@ const PurchaseOrderPage = () => {
                                                                                   <button
                                                                                     className={styles.printBtn}
                                                                                     onClick={(e) => { e.stopPropagation(); handleEditPo(fullPo); }}
-                                                                                    title="Edit PO"
+                                                                                    title="Ubah PO"
                                                                                   >
                                                                                     <Edit size={14} />
                                                                                   </button>

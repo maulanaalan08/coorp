@@ -22,9 +22,9 @@ const EditProjectModal = ({
       <div className="edit-project-modal">
         <div className="edit-modal-header">
           <div>
-            <div className="edit-modal-eyebrow">PROJECT MANAGEMENT</div>
-            <h2>Edit Project</h2>
-            <p>Perbarui informasi project yang dipilih.</p>
+            <div className="edit-modal-eyebrow">MANAJEMEN PROYEK</div>
+            <h2>Ubah Proyek</h2>
+            <p>Perbarui informasi proyek yang dipilih.</p>
           </div>
           <button
             type="button"
@@ -41,46 +41,46 @@ const EditProjectModal = ({
 
         <form className="edit-project-form" onSubmit={onSubmit}>
           <div className="edit-form-group">
-            <label htmlFor="edit-name">Project Name</label>
+            <label htmlFor="edit-name">Nama Proyek</label>
             <input
               id="edit-name"
               name="name"
               type="text"
               value={editForm.name}
               onChange={onChange}
-              placeholder="Nama project"
+              placeholder="Nama proyek"
               disabled={savingEdit}
             />
           </div>
 
           <div className="edit-form-group">
-            <label htmlFor="edit-clientName">Client Name</label>
+            <label htmlFor="edit-clientName">Nama Klien</label>
             <input
               id="edit-clientName"
               name="clientName"
               type="text"
               value={editForm.clientName}
               onChange={onChange}
-              placeholder="Nama client"
+              placeholder="Nama klien"
               disabled={savingEdit}
             />
           </div>
 
           <div className="edit-form-group">
-            <label htmlFor="edit-location">Location</label>
+            <label htmlFor="edit-location">Lokasi</label>
             <input
               id="edit-location"
               name="location"
               type="text"
               value={editForm.location}
               onChange={onChange}
-              placeholder="Lokasi project"
+              placeholder="Lokasi proyek"
               disabled={savingEdit}
             />
           </div>
 
           <div className="edit-form-group">
-            <label htmlFor="edit-hspkPeriod">HSPK Period</label>
+            <label htmlFor="edit-hspkPeriod">Periode HSPK</label>
             <input
               id="edit-hspkPeriod"
               name="hspkPeriod"
@@ -93,7 +93,7 @@ const EditProjectModal = ({
           </div>
 
           <div className="edit-form-group">
-            <label htmlFor="edit-discipline">Discipline</label>
+            <label htmlFor="edit-discipline">Disiplin Pekerjaan</label>
             <input
               id="edit-discipline"
               name="discipline"
@@ -125,17 +125,17 @@ const EditProjectModal = ({
               onClick={onClose}
               disabled={savingEdit}
             >
-              Cancel
+              Batal
             </button>
 
             <button type="submit" className="edit-save-btn" disabled={savingEdit}>
               {savingEdit ? (
                 <>
-                  <RefreshCw size={16} className="button-spinner" /> Saving...
+                  <RefreshCw size={16} className="button-spinner" /> Menyimpan...
                 </>
               ) : (
                 <>
-                  <Save size={16} /> Save Changes
+                  <Save size={16} /> Simpan Perubahan
                 </>
               )}
             </button>

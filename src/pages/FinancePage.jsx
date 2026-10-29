@@ -303,12 +303,12 @@ const [busyPoId, setBusyPoId] = useState(null);
         {!projectId ? (
           <div className={styles.emptyState}>
             <Wallet size={48} className={styles.emptyIcon} />
-            <h3>No Project Selected</h3>
-            <p>Select a project from the dropdown above to view financial details.</p>
+            <h3>Belum Ada Proyek Dipilih</h3>
+            <p>Pilih proyek dari menu di atas untuk melihat rincian keuangan.</p>
           </div>
         ) : loading ? (
           <div className={styles.emptyState}>
-            <p>Loading data...</p>
+            <p>Memuat data...</p>
           </div>
         ) : errorMsg ? (
           <div className={styles.emptyState}>
@@ -438,7 +438,7 @@ const [busyPoId, setBusyPoId] = useState(null);
                                       <tr>
                                         <th>DESKRIPSI</th>
                                         <th className={styles.cellRight}>QTY</th>
-                                        <th>UNIT</th>
+                                        <th>SATUAN</th>
                                         <th className={styles.cellRight}>HARGA SATUAN</th>
                                         <th className={styles.cellRight}>SUBTOTAL</th>
                                         <th className={styles.cellRight}>KET. VOLUME</th>

@@ -216,9 +216,7 @@ export default function LaporanLabaRugiPage() {
                     setFilterSampai('');
                   }}
                   className="text-xs text-[#888] hover:text-[#d4af37] underline ml-1"
-                >
-                  Reset
-                </button>
+                >Atur Ulang</button>
               )}
             </div>
           </div>

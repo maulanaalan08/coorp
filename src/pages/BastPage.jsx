@@ -170,21 +170,21 @@ const BastPage = () => {
                         target="_blank" 
                         rel="noreferrer"
                         className={`${styles.btnAction} ${styles.view}`}
-                        title="View PDF"
+                        title="Lihat PDF"
                       >
                         <Eye size={16} />
                       </a>
                       <a 
                         href={bastService.getPdfDownloadUrl(bast.id)} 
                         className={`${styles.btnAction} ${styles.download}`}
-                        title="Download PDF"
+                        title="Unduh PDF"
                       >
                         <Download size={16} />
                       </a>
                       <button 
                         className={`${styles.btnAction} ${styles.edit}`}
                         onClick={() => handleOpenEdit(bast)}
-                        title="Edit BAST"
+                        title="Ubah BAST"
                       >
                         <Pencil size={16} />
                       </button>

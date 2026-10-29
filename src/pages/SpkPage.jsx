@@ -419,7 +419,7 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
         <div>
           <div className="spk-eyebrow">Perencanaan / Kontrak</div>
           <h1>{type === 'SUBCON' ? 'SPK Subcon' : 'SPK Client'}</h1>
-          <p>Susun ruang lingkup, para pihak, jadwal, dan termin pembayaran dalam satu alur. Draft tidak mengambil nomor resmi.</p>
+          <p>Susun ruang lingkup, para pihak, jadwal, dan termin pembayaran dalam satu alur. Draf tidak mengambil nomor resmi.</p>
         </div>
         <button type="button" className="spk-btn" onClick={() => loadProjectData()} disabled={loading}>
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Muat ulang
@@ -430,7 +430,7 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
         <div className="spk-project-selector">
           <ProjectSelector projectList={projects} projectId={projectId} loading={projectsLoading} onChange={handleProjectChange} />
         </div>
-        {projectId && <button type="button" className="spk-btn" onClick={resetDraftForm}>Mulai draft baru</button>}
+        {projectId && <button type="button" className="spk-btn" onClick={resetDraftForm}>Mulai draf baru</button>}
       </div>
 
       {!projectId ? (
@@ -563,10 +563,10 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
                     <div className="spk-field"><span>Status nomor</span><div className="spk-input spk-readonly">{editingId ? 'Mengubah draft tanpa nomor' : 'Belum dialokasikan (Draft)'}</div></div>
                   </div>
                   <p className="spk-helper">Durasi dan tanggal wajib diisi; tanggal selesai otomatis dihitung dari tanggal mulai + durasi (hari kalender), dan tetap boleh diubah manual.</p>
-                  <label className="spk-field spk-notes"><span>Catatan kontrak</span><textarea className="spk-input" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan khusus draft SPK" /></label>
+                  <label className="spk-field spk-notes"><span>Catatan kontrak</span><textarea className="spk-input" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan khusus draf SPK" /></label>
                   <div className="spk-save-bar">
-                    <span><i className="spk-ready-dot" /> Draft masih dapat diubah sebelum diterbitkan.</span>
-                    <div>{editingId && <button type="button" className="spk-btn" onClick={resetDraftForm}>Batalkan edit</button>}<button type="button" className="spk-btn primary" onClick={saveDraft} disabled={saving}><Save size={15} /> {saving ? 'Menyimpan...' : editingId ? 'Perbarui Draft SPK' : 'Simpan Draft SPK'}</button></div>
+                    <span><i className="spk-ready-dot" /> Draf masih dapat diubah sebelum diterbitkan.</span>
+                    <div>{editingId && <button type="button" className="spk-btn" onClick={resetDraftForm}>Batalkan perubahan</button>}<button type="button" className="spk-btn primary" onClick={saveDraft} disabled={saving}><Save size={15} /> {saving ? 'Menyimpan...' : editingId ? 'Perbarui Draf SPK' : 'Simpan Draf SPK'}</button></div>
                   </div>
                 </div>
               </section>
@@ -581,7 +581,7 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
                 <div className="spk-grand-total"><span>Nilai kontrak</span><strong>{money(selectedValue)}</strong></div>
               </div>
               <div className="spk-summary-card">
-                <div className="spk-summary-label">Kesiapan draft</div>
+                <div className="spk-summary-label">Kesiapan draf</div>
                 <ul className="spk-readiness"><li className={selectedItemsCount ? 'ready' : ''}>Ruang lingkup dipilih</li><li className={partyReady ? 'ready' : ''}>Identitas pihak lengkap</li><li className={scheduleReady ? 'ready' : ''}>Jadwal pekerjaan lengkap</li><li className={paymentReady ? 'ready' : ''}>Termin seimbang 100%</li></ul>
                 <div className="spk-notice">Nomor resmi baru dibuat saat tombol <strong>Terbitkan</strong> digunakan pada daftar SPK.</div>
               </div>
@@ -589,27 +589,27 @@ export default function SpkPage({ initialProjectId = null, type: initialType = '
           </div>
 
           <section className="spk-records">
-            <div className="spk-records-header"><div><div className="spk-eyebrow">Riwayat project</div><h2>Draft &amp; SPK terbit</h2></div><span>{visibleContracts.length} dokumen</span></div>
+            <div className="spk-records-header"><div><div className="spk-eyebrow">Riwayat project</div><h2>Draf &amp; SPK terbit</h2></div><span>{visibleContracts.length} dokumen</span></div>
             <div className="spk-record-list">
               {visibleContracts.map((contract) => {
                 const partyName = contract.type === 'CLIENT'
                   ? contract.partyData?.secondParty?.name || contract.snapshot?.partyData?.secondParty?.name || project?.clientName || 'Client'
                   : contract.partyData?.secondParty?.name || contract.partyData?.contractorName || contract.partyData?.name || contract.snapshot?.party?.name || 'Kontraktor';
                 return <article key={contract.id} className="spk-record">
-                  <div><span className="spk-record-type">SPK {contract.type === 'CLIENT' ? 'Client' : 'Subcon'}</span><strong>{contract.spkNumber || 'DRAFT / belum bernomor'}</strong></div>
+                  <div><span className="spk-record-type">SPK {contract.type === 'CLIENT' ? 'Client' : 'Subcon'}</span><strong>{contract.spkNumber || 'DRAF / belum bernomor'}</strong></div>
                   <div><strong>{partyName}</strong><span>{money(contract.contractValue)} · {contract.snapshot?.workScope?.length || 0} item ruang lingkup</span></div>
                   <span className={`spk-status status-${String(contract.status).toLowerCase()}`}>{contract.status}</span>
                   <div className="spk-record-actions">
-                    <button type="button" className="spk-btn" onClick={() => viewPdf(contract)}><Eye size={14} /> {contract.status === 'DRAFT' ? 'Preview PDF' : 'Lihat PDF'}</button>
+                    <button type="button" className="spk-btn" onClick={() => viewPdf(contract)}><Eye size={14} /> {contract.status === 'DRAFT' ? 'Pratinjau PDF' : 'Lihat PDF'}</button>
                     <button type="button" className="spk-btn" onClick={() => downloadPdf(contract)}><Download size={14} /> Unduh PDF</button>
-                    {contract.status === 'DRAFT' && <button type="button" className="spk-btn" onClick={() => startEdit(contract)}><FileText size={14} /> Edit</button>}
+                    {contract.status === 'DRAFT' && <button type="button" className="spk-btn" onClick={() => startEdit(contract)}><FileText size={14} /> Ubah</button>}
                     {contract.status === 'DRAFT' && <button type="button" className="spk-btn primary" onClick={() => issue(contract.id)}><Send size={14} /> Terbitkan</button>}
                     {contract.status === 'TERBIT' && <button type="button" className="spk-btn" onClick={() => sign(contract.id)}><ShieldCheck size={14} /> Tandai ditandatangani</button>}
                     {(contract.status === 'DRAFT' || contract.status === 'TERBIT' || contract.status === 'DITANDATANGANI') && <button type="button" className="spk-btn danger" onClick={() => cancel(contract)}><XCircle size={14} /> Batalkan</button>}
                   </div>
                 </article>;
               })}
-              {!visibleContracts.length && <div className="spk-inline-empty records">Belum ada draft atau SPK terbit di project ini.</div>}
+              {!visibleContracts.length && <div className="spk-inline-empty records">Belum ada draf atau SPK terbit di proyek ini.</div>}
             </div>
           </section>
         </>

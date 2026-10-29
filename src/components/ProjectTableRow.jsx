@@ -40,7 +40,7 @@ const ProjectTableRow = ({
           onClick={() => onViewDetails?.(project.id)}
           type="button"
         >
-          VIEW DETAILS
+          LIHAT DETAIL
         </button>
 
         <button
@@ -48,7 +48,7 @@ const ProjectTableRow = ({
           onClick={() => onCreateSurvey?.(project.id, project.name)}
           type="button"
         >
-          CREATE SURVEY
+          BUAT SURVEY
         </button>
 
         <button
@@ -69,13 +69,13 @@ const ProjectTableRow = ({
         >
           {surveyChecking ? (
             <>
-              <RefreshCw size={14} className="button-spinner" /> CHECK...
+              <RefreshCw size={14} className="button-spinner" /> MEMERIKSA...
             </>
           ) : hasSurvey ? (
-            "CREATE BV"
+            "BUAT BV"
           ) : (
             <>
-              <Lock size={14} /> LOCKED
+              <Lock size={14} /> TERKUNCI
             </>
           )}
         </button>
@@ -84,7 +84,7 @@ const ProjectTableRow = ({
           <button
             className="project-tool-btn edit-btn"
             onClick={() => onOpenEdit(project)}
-            title="Edit Project"
+            title="Ubah Proyek"
             type="button"
           >
             <Pencil size={18} />
@@ -93,7 +93,7 @@ const ProjectTableRow = ({
           <button
             className="project-tool-btn delete-btn"
             onClick={() => onDelete(project.id, project.name)}
-            title="Hapus Project"
+            title="Hapus Proyek"
             type="button"
           >
             <Trash2 size={18} />

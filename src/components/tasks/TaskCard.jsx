@@ -139,7 +139,7 @@ const TaskCard = ({
                 e.stopPropagation();
                 onEdit(task);
               }}
-              title="Edit Tugas"
+              title="Ubah Tugas"
               className="p-1 rounded text-[#888] hover:text-[#d4af37] hover:bg-white/5 transition-colors"
             >
               <Edit2 size={13} />
