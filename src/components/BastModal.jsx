@@ -273,7 +273,7 @@ const BastModal = ({ isOpen, onClose, onSubmit, initialData, isSubmitting, clien
                 {existingPhotos.map((photo) => (
                   <div key={photo.id} className={styles.photoPreviewItem}>
                     <img 
-                      src={import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}${photo.url}` : `http://localhost:4000${photo.url}`} 
+                      src={`${(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}${photo.url}`} 
                       alt="Existing BAST" 
                     />
                     <button 

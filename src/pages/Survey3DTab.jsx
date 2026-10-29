@@ -6,7 +6,7 @@ import { surveyService } from '../services/surveyService';
 import { compressImage } from '../utils/imageCompression';
 import styles from '../styles/DataSurvey.module.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
 
 const STATUS_3D_OPTIONS = [
   { value: 'NOT_STARTED', label: 'Belum Dikerjakan' },

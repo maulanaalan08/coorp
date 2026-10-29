@@ -1,6 +1,6 @@
 import { fetchAPI } from './api';
 
-const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const API_ORIGIN = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
 
 export const designQuotationService = {
   getByProjectId: (projectId) =>

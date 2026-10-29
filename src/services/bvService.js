@@ -73,7 +73,7 @@ export const bvService = {
   exportExcel: (projectId) => {
     const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    return fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/projects/${projectId}/bv-items/export-excel`, {
+    return fetch(`${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '')}/api/projects/${projectId}/bv-items/export-excel`, {
       method: 'GET',
       headers,
     }).then(async (res) => {

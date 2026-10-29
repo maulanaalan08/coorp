@@ -21,7 +21,7 @@ export default function ComplaintEditItemModal({ category, item, onClose, onSave
   const [newAfterPreviews, setNewAfterPreviews] = useState([]);
 
   const [isSaving, setIsSaving] = useState(false);
-  const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}` : 'http://localhost:4000';
+  const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
   const handleAddBeforeFiles = (fileList) => {
     const newFiles = Array.from(fileList);

@@ -34,9 +34,11 @@ export function formatDate(value) {
 // ==========================================
 
 export function buildApiUrl(apiBaseUrl, path, params = {}) {
-  const base = (apiBaseUrl || (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "http://localhost:4000/api")).replace(/\/$/, "");
+  const envApi = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+  const base = (apiBaseUrl || (envApi ? `${envApi}/api` : '/api')).replace(/\/$/, "");
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  const url = new URL(`${base}${cleanPath}`);
+  const origin = typeof window !== 'undefined' && window.location ? window.location.origin : 'http://localhost';
+  const url = new URL(`${base}${cleanPath}`, origin);
   
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {

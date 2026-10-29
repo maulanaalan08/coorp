@@ -17,7 +17,7 @@ import { compressImage } from '../utils/imageCompression';
 // ================================================================
 // KONSTANTA
 // ================================================================
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
 
 const emptyArea = () => ({
   areaName: '',
@@ -75,7 +75,7 @@ function AreaFormCard({ area, index, onChange, onRemove }) {
     onChange(index, { ...area, existingPhotoUrls: urls });
   };
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+  const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
 
   return (
     <div className={styles.areaFormCard}>

@@ -32,9 +32,8 @@ import {
 } from "../utils/workSubCategorySelection";
 import { countGroupItemsBySubCategory, filterGroupTreeBySubCategory } from "../utils/workSubCategoryFilter";
 
-const API_BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api`
-  : "http://localhost:4000/api";
+const rawApi = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+const API_BASE = rawApi ? `${rawApi}/api` : '/api';
 
 const fmtRp = (n) =>
   "Rp " +

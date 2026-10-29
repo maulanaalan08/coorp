@@ -1,7 +1,6 @@
 // src/services/authService.js
-const API_BASE_URL = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api/auth`
-  : "http://localhost:4000/api/auth";
+const rawApi = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+const API_BASE_URL = rawApi ? `${rawApi}/api/auth` : '/api/auth';
 
 export const authService = {
   /**

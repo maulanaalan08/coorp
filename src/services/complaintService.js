@@ -1,9 +1,8 @@
 import { fetchAPI } from './api';
 
 // Fallback untuk open new tab (karena fetchAPI dipakai untuk async/await fetch)
-const API_URL = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api`
-  : 'http://localhost:4000/api';
+const rawApi = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+const API_URL = rawApi ? `${rawApi}/api` : '/api';
 
 export const complaintService = {
   getComplaintsByProject: async (projectId) => {

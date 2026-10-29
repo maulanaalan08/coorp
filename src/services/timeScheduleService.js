@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "http://localhost:4000/api";
+const rawApi = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+const API_BASE_URL = rawApi ? `${rawApi}/api` : '/api';
 
 async function handleResponse(res) {
   const json = await res.json().catch(() => null);
@@ -18,7 +19,8 @@ export const timeScheduleService = {
   },
 
   getSchedule: async (projectId, filterValue, workSubCategoryId) => {
-    const url = new URL(`${API_BASE_URL}/projects/${projectId}/rap-time-schedule`);
+    const origin = typeof window !== 'undefined' && window.location ? window.location.origin : 'http://localhost';
+    const url = new URL(`${API_BASE_URL}/projects/${projectId}/rap-time-schedule`, origin);
     if (filterValue && filterValue !== 'General') {
       if (filterValue.length > 20) {
         url.searchParams.append('workCategoryId', filterValue);

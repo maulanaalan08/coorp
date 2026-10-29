@@ -1504,7 +1504,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
 
     try {
       const token = localStorage.getItem('token');
-      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
       const query = new URLSearchParams();
       if (selectedFilterCategory?.workCategoryId) {
         query.set('workCategoryId', selectedFilterCategory.workCategoryId);
@@ -1537,7 +1537,7 @@ export default function BackUpVolume({ initialProjectId = null, onProjectChange,
 
     try {
       const token = localStorage.getItem('token');
-      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
       const query = new URLSearchParams();
       if (workCategoryId) query.set('workCategoryId', workCategoryId);
       else query.set('scope', scope || code || ALL_CATEGORY_FILTER);

@@ -118,7 +118,7 @@ export default function JoinOpnameTable({ groupedItems, progressInputs, busyItem
                               {inputData.existingPhotoUrls.map((url, i) => (
                                 <a 
                                   key={i}
-                                  href={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${url}`} 
+                                  href={`${(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}${url}`} 
                                   target="_blank" 
                                   rel="noopener noreferrer" 
                                   className="jo-btn jo-btn-secondary"

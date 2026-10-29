@@ -24,7 +24,7 @@ function UploadHspk() {
 
   // Ambil kategori master dari API
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:4000/api'}/work-categories`, {
+    fetch(`${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '')}/api/work-categories`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     })
       .then(res => res.ok ? res.json() : [])
