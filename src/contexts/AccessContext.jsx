@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { accessService } from '../services/accessService';
+import { ErrorStatusPage } from '../pages/ErrorStatusPage';
 
 const AccessContext = createContext(null);
 
@@ -95,16 +96,7 @@ export const PageGuard = ({ tab, children }) => {
     );
   }
   if (!canTab(tab)) {
-    const label = GUARD_MESSAGE[tab] || tab;
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, padding: 40, textAlign: 'center' }}>
-        <div style={{ fontSize: 40, opacity: 0.5 }}>🔒</div>
-        <strong style={{ fontSize: 18 }}>Akses Ditolak</strong>
-        <p style={{ color: '#968a75', fontSize: 13, maxWidth: 380, margin: 0 }}>
-          Role kamu tidak memiliki akses ke halaman {label}. Hubungi Owner jika merasa ini keliru.
-        </p>
-      </div>
-    );
+    return <ErrorStatusPage status={403} pageLabel={GUARD_MESSAGE[tab] || tab} />;
   }
   return children;
 };
