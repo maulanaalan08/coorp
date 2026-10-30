@@ -195,6 +195,13 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
                   })}
                 </aside>
                 <div className="setting-access-body">
+                  <div className="setting-access-toolbar">
+                    <div><strong>{permissionRole}</strong><small>Hak akses global untuk role ini</small></div>
+                    <div className="setting-inline">
+                      <button type="button" className="setting-btn" disabled={permissionRole === 'OWNER'} onClick={() => { const next = {}; for (const module of (permissionData?.modules || [])) next[module.key] = 'MANAGE'; setPermissionDraft(next); }}>Pilih semua Kelola</button>
+                      <button type="button" className="setting-btn" disabled={permissionRole === 'OWNER'} onClick={() => { const next = {}; for (const module of (permissionData?.modules || [])) next[module.key] = 'NONE'; setPermissionDraft(next); }}>Kosongkan</button>
+                    </div>
+                  </div>
                   <div className="setting-access-head"><span>Halaman</span><span>Akses</span></div>
                   {(permissionData?.modules || []).map((module) => (
                     <div className="setting-access-row" key={module.key}>
@@ -224,7 +231,11 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
                 <div className="setting-access-body">
                   <div className="setting-access-toolbar">
                     <div><strong>{memberProjects.find((project) => project.id === memberProjectId)?.name || 'Pilih project'}</strong><small>{memberDraft.size} user dipilih</small></div>
-                    <input className="setting-access-search" placeholder="Cari user..." value={memberUserQuery} onChange={(event) => setMemberUserQuery(event.target.value)} />
+                    <div className="setting-inline">
+                      <input className="setting-access-search" placeholder="Cari user..." value={memberUserQuery} onChange={(event) => setMemberUserQuery(event.target.value)} />
+                      <button type="button" className="setting-btn" disabled={!memberProjectId} onClick={() => setMemberDraft(new Set(users.map((entry) => entry.id)))}>Pilih semua</button>
+                      <button type="button" className="setting-btn" disabled={!memberProjectId} onClick={() => setMemberDraft(new Set())}>Kosongkan</button>
+                    </div>
                   </div>
                   <div className="setting-access-head"><span>User</span><span>Anggota</span></div>
                   <div className="setting-access-scroll">
