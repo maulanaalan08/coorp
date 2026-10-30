@@ -5,6 +5,7 @@ const AccessContext = createContext(null);
 
 // Map tab FE -> key modul RBAC.
 const TAB_MODULE = {
+  'project-board': 'project',
   'data-survey': 'survey',
   bv: 'bv',
   rab: 'rab',
@@ -74,4 +75,36 @@ export const AccessProvider = ({ children }) => {
 export const useAccess = () => useContext(AccessContext) || {
   ready: true, template: null, projectScope: null, role: null,
   level: () => 'MANAGE', can: () => true, canTab: () => true,
+};
+
+// Guard halaman untuk akses URL langsung: blok tab yang tidak punya akses.
+const GUARD_MESSAGE = {
+  project: 'Project', survey: 'Survey', design: 'Penawaran Desain', bv: 'Back Up Volume',
+  rab: 'RAB Budgeting', spk_client: 'SPK Client', spk_subcon: 'SPK Subcon',
+  finance: 'Finance', purchasing: 'Purchasing', setting: 'Setting', audit: 'Activity Log',
+};
+
+export const PageGuard = ({ tab, children }) => {
+  const { ready, canTab } = useAccess();
+  if (!ready) {
+    return (
+      <div className="auth-splash" style={{ height: '100%' }}>
+        <div className="splash-logo" style={{ fontSize: '1rem' }}>DIVES CORP.</div>
+        <div className="splash-spinner" />
+      </div>
+    );
+  }
+  if (!canTab(tab)) {
+    const label = GUARD_MESSAGE[tab] || tab;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, padding: 40, textAlign: 'center' }}>
+        <div style={{ fontSize: 40, opacity: 0.5 }}>🔒</div>
+        <strong style={{ fontSize: 18 }}>Akses Ditolak</strong>
+        <p style={{ color: '#968a75', fontSize: 13, maxWidth: 380, margin: 0 }}>
+          Role kamu tidak memiliki akses ke halaman {label}. Hubungi Owner jika merasa ini keliru.
+        </p>
+      </div>
+    );
+  }
+  return children;
 };

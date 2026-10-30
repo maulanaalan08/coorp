@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 
 // --- Komponen Autentikasi (dimuat langsung: gerbang utama) ---
 import { useAuth } from "./hooks/useAuth";
+import { AccessProvider, PageGuard } from "./contexts/AccessContext";
 import AuthPage from "./pages/AuthPage";
 import "./styles/Auth.css";
 
@@ -123,6 +124,7 @@ function App() {
 
   // JIKA SUDAH LOGIN: Tampilkan Layout Utama (Sidebar + Main Content)
   return (
+    <AccessProvider>
     <NavContext.Provider value={navigateDariNotifikasi}>
       <div className="flex w-full h-screen bg-[#0c0b09] overflow-hidden">
 
@@ -155,6 +157,7 @@ function App() {
 
         {/* Konten Utama berdasarkan tab yang aktif */}
         <main className="flex-1 h-screen overflow-y-auto relative w-full">
+          <PageGuard tab={activeTab}>
           <Suspense fallback={<RouteLoader />}>
             {activeTab === "dashboard" && (
               <Dashboard
@@ -241,9 +244,11 @@ function App() {
             {activeTab === "laporan-laba" && <LaporanLabaRugiPage />}
             {activeTab === "settings" && <SettingsPage currentUser={user} onUserUpdated={updateUser} />}
           </Suspense>
+          </PageGuard>
         </main>
       </div>
     </NavContext.Provider>
+    </AccessProvider>
   );
 }
 
