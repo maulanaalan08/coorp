@@ -33,6 +33,8 @@ export const securityService = {
   },
   deletePhoto: () => fetchAPI('/security/me/photo', { method: 'DELETE' }),
   getUsers: () => fetchAPI('/security/users'),
+  getPermissionTemplates: () => fetchAPI('/security/permissions/templates'),
+  updatePermissionTemplate: (role, permissions) => fetchAPI(`/security/permissions/templates/${role}`, { method: 'PUT', body: JSON.stringify({ permissions }) }),
   getLogs: (params = {}) => {
     const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== '' && value != null));
     return fetchAPI(`/security/activity-logs?${query}`);

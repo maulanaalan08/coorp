@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, Camera, Download, KeyRound, Lock, RefreshCw, Save, ShieldCheck, Trash2, UserRound, Users } from 'lucide-react';
+import { Archive, Camera, Download, KeyRound, Lock, RefreshCw, Save, ShieldCheck, SlidersHorizontal, Trash2, UserRound, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { securityService } from '../services/securityService';
 import '../styles/SettingsPage.css';
@@ -8,6 +8,7 @@ const tabs = [
   { id: 'profile', label: 'Profile', icon: UserRound },
   { id: 'security', label: 'Security', icon: Lock },
   { id: 'users', label: 'User', icon: Users },
+  { id: 'permissions', label: 'Akses', icon: SlidersHorizontal },
   { id: 'logs', label: 'Activity Log', icon: ShieldCheck },
   { id: 'archive', label: 'Archive', icon: Archive },
 ];
@@ -23,6 +24,9 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
   const [password, setPassword] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [permissionData, setPermissionData] = useState(null);
+  const [permissionRole, setPermissionRole] = useState('ADMIN');
+  const [permissionDraft, setPermissionDraft] = useState({});
   const [archives, setArchives] = useState([]);
   const [integration, setIntegration] = useState(null);
   const [filters, setFilters] = useState({ module: 'APPROVAL', role: '', userId: '', status: '', from: '', to: '', limit: 50 });
@@ -36,6 +40,7 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
     setForm({ name: response.data.name || '', username: response.data.username || '', email: response.data.email || '', currentPassword: '' });
   };
   const loadUsers = async () => { const response = await securityService.getUsers(); setUsers(response.data || []); };
+  const loadPermissions = async () => { if (profile.role !== 'OWNER' && currentUser?.role !== 'OWNER') return; const response = await securityService.getPermissionTemplates(); setPermissionData(response.data); setPermissionDraft(response.data?.template?.ADMIN || {}); };
   const loadLogs = async () => { const response = await securityService.getLogs(filters); setLogs(response.data || []); };
   const loadArchive = async () => {
     const [archiveResponse, integrationResponse] = await Promise.all([securityService.getArchives(), securityService.getIntegrationStatus()]);
@@ -52,6 +57,7 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
   }, []);
 
   useEffect(() => {
+    if (active === 'permissions' && (profile.role === 'OWNER' || currentUser?.role === 'OWNER')) loadPermissions().catch((error) => toast.error(error.message));
     if (active !== 'logs') return;
     loadLogs().catch((error) => toast.error(error.message));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,6 +134,32 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
     users: (
       <section className="setting-card"><div className="setting-section-title"><div><span>DIREKTORI READ-ONLY</span><h2>User berdasarkan Role</h2><p>User tidak bisa mengubah akun orang lain.</p></div><strong>{users.length} user</strong></div>
         <div className="setting-role-list">{roleOrder.filter((role) => groupedUsers[role]?.length).map((role) => <div className="setting-role" key={role}><div className="setting-role-head"><strong>{role}</strong><span>{groupedUsers[role].length} user</span></div><div className="setting-table-wrap"><table><thead><tr><th>User</th><th>Username</th><th>Email</th><th>Terakhir Login</th><th>Status</th></tr></thead><tbody>{groupedUsers[role].map((entry) => <tr key={entry.id}><td><div className="setting-user-cell">{entry.photoUrl ? <img src={securityService.photoUrl(entry.photoUrl)} alt="" /> : <i>{initials(entry.name)}</i>}<strong>{entry.name}</strong></div></td><td>{entry.username}</td><td>{entry.email || '-'}</td><td>{dateText(entry.lastLoginAt)}</td><td><span className="setting-status success">Aktif</span></td></tr>)}</tbody></table></div></div>)}</div>
+      </section>
+    ),
+    permissions: (
+      <section className="setting-card">
+        <div className="setting-section-title"><div><span>RBAC TEMPLATE</span><h2>Pengaturan Akses Role</h2><p>Atur template sekali. Project membership menentukan siapa yang bisa masuk ke project.</p></div></div>
+        {profile.role === 'OWNER' || currentUser?.role === 'OWNER' ? (
+          <>
+            <div className="setting-inline" style={{ marginBottom: 18 }}>
+              <select value={permissionRole} onChange={(event) => { const role = event.target.value; setPermissionRole(role); setPermissionDraft(permissionData?.template?.[role] || {}); }}>
+                {(permissionData?.roles || roleOrder).map((role) => <option key={role}>{role}</option>)}
+              </select>
+              <span className="setting-status success">Template role</span>
+            </div>
+            <div className="setting-permission-grid">
+              {(permissionData?.modules || []).map((module) => (
+                <div className="setting-permission-row" key={module.key}>
+                  <div><strong>{module.label}</strong><small>{module.hint}</small></div>
+                  <select value={permissionDraft[module.key] || 'NONE'} disabled={permissionRole === 'OWNER'} onChange={(event) => setPermissionDraft({ ...permissionDraft, [module.key]: event.target.value })}>
+                    <option value="NONE">Tidak ada</option><option value="READ">Lihat</option><option value="MANAGE">Kelola</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div className="setting-save"><span>Owner selalu memiliki akses penuh.</span><button className="setting-btn primary" disabled={permissionRole === 'OWNER'} onClick={async () => { try { await securityService.updatePermissionTemplate(permissionRole, permissionDraft); toast.success('Template permission disimpan.'); await loadPermissions(); } catch (error) { toast.error(error.message); } }}><Save size={15} /> Simpan Akses</button></div>
+          </>
+        ) : <div className="setting-empty">Hanya OWNER yang dapat mengatur permission role.</div>}
       </section>
     ),
     logs: (
