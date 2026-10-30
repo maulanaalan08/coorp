@@ -138,16 +138,18 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
     ),
     permissions: (
       <section className="setting-card">
-        <div className="setting-section-title"><div><span>RBAC TEMPLATE</span><h2>Pengaturan Akses Role</h2><p>Atur template sekali. Project membership menentukan siapa yang bisa masuk ke project.</p></div></div>
+        <div className="setting-section-title"><div><span>AKSES PER HALAMAN</span><h2>Pengaturan Akses Role</h2><p>Atur akses halaman utama sekali per role. Membership project menjadi pembatas data tambahan.</p></div></div>
         {profile.role === 'OWNER' || currentUser?.role === 'OWNER' ? (
           <>
             <div className="setting-inline" style={{ marginBottom: 18 }}>
+              <span className="setting-status success">Akses halaman</span>
               <select value={permissionRole} onChange={(event) => { const role = event.target.value; setPermissionRole(role); setPermissionDraft(permissionData?.template?.[role] || {}); }}>
                 {(permissionData?.roles || roleOrder).map((role) => <option key={role}>{role}</option>)}
               </select>
-              <span className="setting-status success">Template role</span>
+              <span className="setting-status success">Berlaku global</span>
             </div>
             <div className="setting-permission-grid">
+              <div className="setting-permission-head"><span>Halaman</span><span>Akses</span></div>
               {(permissionData?.modules || []).map((module) => (
                 <div className="setting-permission-row" key={module.key}>
                   <div><strong>{module.label}</strong><small>{module.hint}</small></div>
