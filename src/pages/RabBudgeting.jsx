@@ -79,12 +79,12 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const [approvalLocked, setApprovalLocked] = useState(false);
   const [search, setSearch] = useState("");
   const [budgetMode, setBudgetMode] = useState("rap");
-  const canEditRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
-  // Overhead (%) adalah lever margin yang juga dipegang SUPER_ADMIN di view RAB Selling.
-  const canEditOverhead = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role) && !approvalLocked;
+  const canEditRap = ["OWNER", "ADMIN", "PERENCANA"].includes(user?.role) && !approvalLocked;
+  // Overhead (%) adalah lever margin yang juga dipegang OWNER di view RAB Selling.
+  const canEditOverhead = ["OWNER", "ADMIN", "PERENCANA"].includes(user?.role) && !approvalLocked;
   const canManageOhComponents = Boolean(user?.role) && !approvalLocked;
-  const canExportRap = ["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"].includes(user?.role);
-  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const canExportRap = ["OWNER", "ADMIN", "PERENCANA"].includes(user?.role);
+  const isSuperAdmin = user?.role === "OWNER";
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef(null);
   
@@ -945,10 +945,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   // ==========================================================
   const exportRabExcel = async (mode = "COMBINED") => {
     if (mode === "RAP" && !canExportRap) {
-      return toast.error("Export RAP hanya untuk SUPER_ADMIN, PROJECT_MANAGER, atau PERENCANA.");
+      return toast.error("Export RAP hanya untuk OWNER, ADMIN, atau PERENCANA.");
     }
     if (mode !== "RAP" && !isSuperAdmin) {
-      return toast.error("Export RAB dan RAP + RAB hanya untuk SUPER_ADMIN.");
+      return toast.error("Export RAB dan RAP + RAB hanya untuk OWNER.");
     }
     if (!projectId) return;
     try {
@@ -990,7 +990,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
     }
   };
   const exportFullExcel = async () => {
-    if (!isSuperAdmin) return toast.error("Hanya SUPER_ADMIN yang dapat export lengkap.");
+    if (!isSuperAdmin) return toast.error("Hanya OWNER yang dapat export lengkap.");
     if (!projectId) return;
     const response = await fetch(`${API_BASE}/projects/${projectId}/export-all-tabs`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
     if (!response.ok) return toast.error("Gagal export lengkap.");
@@ -1007,7 +1007,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
   const openRabDocument = async ({ mode = "RAP" } = {}) => {
     if (!projectId) return;
     if (mode === "RAB" && !isSuperAdmin) {
-      return toast.error("Hanya SUPER_ADMIN yang dapat membuka RAB Selling.");
+      return toast.error("Hanya OWNER yang dapat membuka RAB Selling.");
     }
 
     const previewWindow = window.open("", "_blank");
@@ -1110,7 +1110,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
             <h2 className={styles["rab-title"]}>RAB &amp; Budgeting</h2>
             <span className={styles["rab-status-badge"]}>{project?.rabStatus === "LOCKED" ? "LOCKED" : "DRAFT"}</span>
           </div>
-          <p className={styles["rab-subtitle"]}>{selectedMode} · RAB Selling terbatas untuk SUPER_ADMIN</p>
+          <p className={styles["rab-subtitle"]}>{selectedMode} · RAB Selling terbatas untuk OWNER</p>
         </div>
         <div style={{ minWidth: '300px' }}>
           <ProjectSelector 
@@ -1197,7 +1197,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                   <button type="button" className={budgetMode === "rap" ? styles["on"] : ""} onClick={() => setBudgetMode("rap")}>
                     RAP Costing
                   </button>
-                  <button type="button" className={budgetMode === "rab" ? styles["on"] : ""} onClick={() => setBudgetMode("rab")} disabled={!isSuperAdmin} title={!isSuperAdmin ? "Hanya SUPER_ADMIN" : ""}>
+                  <button type="button" className={budgetMode === "rab" ? styles["on"] : ""} onClick={() => setBudgetMode("rab")} disabled={!isSuperAdmin} title={!isSuperAdmin ? "Hanya OWNER" : ""}>
                     RAB Selling {!isSuperAdmin && <span className={styles["rab-lock"]}>Terkunci</span>}
                   </button>
                 </div>
@@ -2096,7 +2096,7 @@ function RabItemsTable({ items, parentNum, onEdit, onDelete, onUpdateOverhead, o
         !item.isByOwner && !item.isStip && Number(item.rapUnitPrice || 0) <= 0 && !hasChildren ? styles["rab-unfilled"] : "",
       ].filter(Boolean).join(" ");
 
-      // Mode RAB Selling untuk SUPER_ADMIN: kolom RAP & RAB tampil berdampingan;
+      // Mode RAB Selling untuk OWNER: kolom RAP & RAB tampil berdampingan;
       // lever edit utama adalah Overhead (%) yang sudah memperbarui RAB otomatis.
       const isSellingMode = budgetMode === "rab" && isSuperAdmin;
       const rapUnit = item.rapUnitPrice;

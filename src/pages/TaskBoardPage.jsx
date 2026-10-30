@@ -130,7 +130,7 @@ const TaskBoardPage = () => {
 
     // Validasi izin jika memindahkan ke kolom status berbeda
     if (sourceColId !== destColId) {
-      const isSuperAdmin = userRole === 'SUPER_ADMIN';
+      const isSuperAdmin = userRole === 'OWNER';
       const isCreator = movedTask.creatorId === currentUserId;
       const isDirectAssignee = movedTask.assigneeId && movedTask.assigneeId === currentUserId;
       const isRoleAssignee = movedTask.targetRole && movedTask.targetRole === userRole;
@@ -197,7 +197,7 @@ const TaskBoardPage = () => {
 
   // Quick Toggle Complete Checkbox
   const handleToggleStatus = async (task) => {
-    const isSuperAdmin = userRole === 'SUPER_ADMIN';
+    const isSuperAdmin = userRole === 'OWNER';
     const isCreator = task.creatorId === currentUserId;
     const isDirectAssignee = task.assigneeId && task.assigneeId === currentUserId;
     const isRoleAssignee = task.targetRole && task.targetRole === userRole;
@@ -421,7 +421,7 @@ const TaskBoardPage = () => {
                         }`}
                       >
                         {colTasks.map((task, index) => {
-                          const isSuperAdmin = userRole === 'SUPER_ADMIN';
+                          const isSuperAdmin = userRole === 'OWNER';
                           const isCreator = task.creatorId === currentUserId;
                           const isDirectAssignee = task.assigneeId && task.assigneeId === currentUserId;
                           const isRoleAssignee = task.targetRole && task.targetRole === userRole;

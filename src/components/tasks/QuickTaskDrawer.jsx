@@ -71,7 +71,7 @@ const QuickTaskDrawer = ({ isOpen, onClose, onNavigateToBoard }) => {
 
   const handleToggleStatus = async (task) => {
     const userRole = user?.role || '';
-    const isSuperAdmin = userRole === 'SUPER_ADMIN';
+    const isSuperAdmin = userRole === 'OWNER';
     const isCreator = task.creatorId === currentUserId;
     const isDirectAssignee = task.assigneeId && task.assigneeId === currentUserId;
     const isRoleAssignee = task.targetRole && task.targetRole === userRole;

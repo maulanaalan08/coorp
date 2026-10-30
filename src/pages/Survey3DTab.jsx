@@ -55,7 +55,7 @@ const normalizeLoadedResources = (data) => {
 
 const Survey3DTab = ({ projectId }) => {
   const { user } = useAuth();
-  const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'PERENCANA';
+  const canEdit = user?.role === 'OWNER' || user?.role === 'PERENCANA';
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

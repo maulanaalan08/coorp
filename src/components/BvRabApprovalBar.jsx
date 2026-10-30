@@ -107,7 +107,7 @@ export default function BvRabApprovalBar({ projectId, onStateChange, onLockedCha
   };
 
   const decide = (decision) => {
-    if (!actionProjectId || current?.status !== 'PENDING_REVIEW' || !['SUPER_ADMIN', 'PROJECT_MANAGER'].includes(role)) return;
+    if (!actionProjectId || current?.status !== 'PENDING_REVIEW' || !['OWNER', 'ADMIN'].includes(role)) return;
     let comment;
     if (decision === 'CHANGES_REQUESTED') {
       comment = window.prompt('Tuliskan catatan revisi:');
@@ -153,7 +153,7 @@ export default function BvRabApprovalBar({ projectId, onStateChange, onLockedCha
   const status = current?.status || 'DRAFT';
   const version = current?.version || 1;
   const canSubmit = actionReady && ['DRAFT', 'CHANGES_REQUESTED'].includes(status);
-  const canReview = actionReady && ['SUPER_ADMIN', 'PROJECT_MANAGER'].includes(role) && status === 'PENDING_REVIEW';
+  const canReview = actionReady && ['OWNER', 'ADMIN'].includes(role) && status === 'PENDING_REVIEW';
   const canRevise = actionReady && status === 'APPROVED';
   const latestApproved = actionReady
     ? history.find((entry) => entry.status === 'APPROVED' && entry.baselineAvailable)

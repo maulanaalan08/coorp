@@ -168,7 +168,7 @@ export const poService = {
     });
   },
 
-  // Inbox persetujuan atasan / PROJECT_MANAGER (tingkat 2)
+  // Inbox persetujuan atasan / ADMIN (tingkat 2)
   getInboxAtasan: (projectId) => {
     const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
     return fetchAPI(`/finance/po/inbox-atasan${qs}`, {

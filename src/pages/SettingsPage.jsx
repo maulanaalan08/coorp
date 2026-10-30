@@ -11,7 +11,7 @@ const tabs = [
   { id: 'logs', label: 'Activity Log', icon: ShieldCheck },
   { id: 'archive', label: 'Archive', icon: Archive },
 ];
-const roleOrder = ['SUPER_ADMIN', 'PROJECT_MANAGER', 'PERENCANA', 'PELAKSANA', 'FINANCE', 'PURCHASING'];
+const roleOrder = ['OWNER', 'ADMIN', 'PERENCANA', 'PELAKSANA', 'FINANCE', 'PURCHASING'];
 const modules = ['APPROVAL', 'PROJECT', 'SURVEY', 'SURVEY_3D', 'DESIGN_QUOTATION', 'BV', 'RAB', 'SPK', 'PROFILE', 'AUTH'];
 const dateText = (value) => value ? new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
 const initials = (name = '') => name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?';
