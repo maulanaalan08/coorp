@@ -336,8 +336,8 @@ export default function AuthPage({ onLoginSuccess }) {
                   <option value="PELAKSANA">Pelaksana</option>
                   <option value="FINANCE">Finance</option>
                   <option value="PURCHASING">Purchasing</option>
-                  <option value="PROJECT_MANAGER">Project Manager</option>
-                  <option value="SUPER_ADMIN">Super Admin</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="OWNER">Owner</option>
                 </select>
               </div>
             </div>

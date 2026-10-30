@@ -159,7 +159,7 @@ function InvoicePenjualanPage() {
       const raw = localStorage.getItem('user');
       if (!raw) return false;
       const parsed = JSON.parse(raw);
-      return ['SUPER_ADMIN', 'FINANCE'].includes(parsed?.role);
+      return ['OWNER', 'FINANCE'].includes(parsed?.role);
     } catch {
       return false;
     }

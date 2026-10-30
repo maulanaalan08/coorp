@@ -7,8 +7,8 @@ const ROLE_OPTIONS = [
   { value: 'PELAKSANA', label: 'Seluruh Pelaksana' },
   { value: 'FINANCE', label: 'Seluruh Finance' },
   { value: 'PURCHASING', label: 'Seluruh Purchasing' },
-  { value: 'PROJECT_MANAGER', label: 'Seluruh Project Manager' },
-  { value: 'SUPER_ADMIN', label: 'Seluruh Super Admin' },
+  { value: 'ADMIN', label: 'Seluruh Project Manager' },
+  { value: 'OWNER', label: 'Seluruh Super Admin' },
 ];
 
 const TaskModal = ({

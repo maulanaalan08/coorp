@@ -16,7 +16,7 @@ const fmtRp = (n) =>
  *               muncul cuma antrian approve atasan (PO MENUNGGU_ATASAN +
  *               pengajuan APPROVED_FINANCE).
  *
- * SUPER_ADMIN boleh melihat keduanya, tapi tetap dipisah dalam dua grup
+ * OWNER boleh melihat keduanya, tapi tetap dipisah dalam dua grup
  * dengan tujuan halaman berbeda — finance tidak bisa "mengetuk" approval
  * atasan lewat notifikasi ini.
  */
@@ -27,9 +27,9 @@ const NotificationBell = ({ onNavigate }) => {
   const wrapRef = useRef(null);
 
   const role = user?.role || '';
-  const isAdmin = role === 'SUPER_ADMIN';
+  const isAdmin = role === 'OWNER';
   const isFinance = role === 'FINANCE' || isAdmin;
-  const isAtasan = role === 'PROJECT_MANAGER' || isAdmin;
+  const isAtasan = role === 'ADMIN' || isAdmin;
 
   const muat = useCallback(async () => {
     // Jangan fetch sampai auth selesai loading & token pasti ada.
@@ -134,7 +134,7 @@ const NotificationBell = ({ onNavigate }) => {
               Perlu Tindakan Anda
             </p>
             <p className="text-[11px] text-[#888] mt-0.5">
-              {role === 'SUPER_ADMIN'
+              {role === 'OWNER'
                 ? 'Antrian finance & atasan (dipisah per peran)'
                 : isFinance
                   ? 'Antrian verifikasi finance'

@@ -28,8 +28,8 @@ const ROLE_LABEL = {
   PELAKSANA: 'Tim Pelaksana',
   FINANCE: 'Tim Finance',
   PURCHASING: 'Tim Purchasing',
-  PROJECT_MANAGER: 'Project Manager',
-  SUPER_ADMIN: 'Super Admin',
+  ADMIN: 'Admin',
+  OWNER: 'Owner',
 };
 
 const getInitials = (name = '') => {
@@ -49,7 +49,7 @@ const TaskCard = ({
   onDelete,
   onToggleStatus,
 }) => {
-  const isSuperAdmin = userRole === 'SUPER_ADMIN';
+  const isSuperAdmin = userRole === 'OWNER';
   const isCreator = task.creatorId === currentUserId;
   const isDirectAssignee = task.assigneeId && task.assigneeId === currentUserId;
   const isRoleAssignee = task.targetRole && task.targetRole === userRole;

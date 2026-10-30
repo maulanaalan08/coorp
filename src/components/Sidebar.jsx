@@ -37,6 +37,7 @@ import {
   PanelLeftOpen
 } from "lucide-react";
 import CreateProjectModal from "./CreateProjectModal";
+import { useAccess } from "../contexts/AccessContext";
 
 const getInitials = (name = "") => {
   const parts = name.trim().split(" ");
@@ -45,6 +46,7 @@ const getInitials = (name = "") => {
 };
 
 const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
+  const { canTab, can } = useAccess();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -94,7 +96,11 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
     setIsMobileOpen(false); // Close on mobile after navigation
   };
 
-  const NavItem = ({ icon: Icon, label, tab }) => (
+  const canAny = (...tabs) => tabs.some((tab) => canTab(tab));
+
+  const NavItem = ({ icon: Icon, label, tab }) => {
+    if (!canTab(tab)) return null;
+    return (
     <li>
       <a
         href={`#${tab}`}
@@ -109,9 +115,11 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
         {!isCollapsed && <span className="truncate">{label}</span>}
       </a>
     </li>
-  );
+    );
+  };
 
   const SubNavItem = ({ icon: Icon, label, tab }) => {
+    if (!canTab(tab)) return null;
     const isActive =
       activeTab === tab ||
       (tab === "kelola-jasa" && activeTab === "po-jasa") ||
@@ -193,6 +201,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
             <NavItem icon={CheckSquare} label="Papan Tugas" tab="task-board" />
 
             {/* DROPDOWN: HSPK */}
+            {canAny("upload-hspk", "work-categories") && (
             <li>
               <button
                 type="button"
@@ -214,8 +223,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                 </ul>
               )}
             </li>
+            )}
 
             {/* DROPDOWN: PERENCANAAN */}
+            {canAny("data-survey", "bv", "rab") && (
             <li>
               <button
                 type="button"
@@ -238,8 +249,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                 </ul>
               )}
             </li>
+            )}
 
             {/* DROPDOWN: DOCUMENT */}
+            {canAny("spk-client", "spk-subcon", "bast") && (
             <li>
               <button
                 type="button"
@@ -262,6 +275,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                   </ul>
                   )}
             </li>
+            )}
 
             {/* DROPDOWN: PELAKSANAAN */}
             <li>
@@ -291,6 +305,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
             </li>
 
             {/* DROPDOWN: PURCHASING */}
+            {canAny("po-material", "habis-pakai") && (
             <li>
               <button
                 type="button"
@@ -312,8 +327,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                 </ul>
               )}
             </li>
+            )}
 
             {/* DROPDOWN: FINANCE */}
+            {canAny("finance", "pengajuan-bayar", "invoice-supplier", "invoice-jasa", "pembayaran-finance", "invoice-penjualan", "invoice-operasional", "permintaan-bayar", "buku-besar", "transfer-bank", "laporan-laba") && (
             <li>
               <button
                 type="button"
@@ -344,9 +361,11 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
                 </ul>
               )}
             </li>
+            )}
           </ul>
 
           {/* CREATE PROJECT BUTTON */}
+          {can("project", "MANAGE") && (
           <button
             type="button"
             title={isCollapsed ? "Create Project" : undefined}
@@ -356,6 +375,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
             <Plus size={18} className="shrink-0" />
             {!isCollapsed && <span>Create Project</span>}
           </button>
+          )}
         </nav>
 
         {/* CREATE PROJECT MODAL */}

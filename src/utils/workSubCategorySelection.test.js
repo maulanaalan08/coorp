@@ -218,10 +218,10 @@ test('project, BV, and RAB pages do not invent legacy SIPIL/INTERIOR choices', (
   assert.match(projectBoard, /project\.workCategories/);
 });
 
-test('RAB grants full edit access to SUPER_ADMIN and uses horizontal table scrolling', () => {
+test('RAB grants full edit access to OWNER and uses horizontal table scrolling', () => {
   const rabPage = fs.readFileSync(new URL('../pages/RabBudgeting.jsx', import.meta.url), 'utf8');
   const rabCss = fs.readFileSync(new URL('../styles/RabBudgeting.module.css', import.meta.url), 'utf8');
-  assert.match(rabPage, /\["SUPER_ADMIN", "PROJECT_MANAGER", "PERENCANA"\]\.includes\(user\?\.role\)/);
+  assert.match(rabPage, /\["OWNER", "ADMIN", "PERENCANA"\]\.includes\(user\?\.role\)/);
   assert.match(rabCss, /\.rab-tree-plate\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(rabCss, /\.rab-items-table\s*\{[^}]*width:\s*max-content/s);
   assert.doesNotMatch(rabCss, /\.rab-items-table td\s*\{[^}]*text-overflow:\s*ellipsis/s);

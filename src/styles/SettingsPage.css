@@ -21,4 +21,43 @@
 .setting-empty{padding:25px;border:1px dashed var(--st-line2);border-radius:9px;color:var(--st-muted);font-size:12px;text-align:center}
 .setting-archive-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.setting-archive{padding:14px;border:1px solid var(--st-line);border-radius:10px;background:var(--st-soft)}.setting-archive h3{margin:8px 0 5px;font-size:14px}.setting-archive p{color:var(--st-muted);font-size:11px}.setting-archive code{display:block;margin:9px 0;color:var(--st-dim);font-size:9px;word-break:break-all}.setting-gmail{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;padding:14px;border:1px solid var(--st-line);border-radius:10px;background:var(--st-soft)}.setting-gmail strong{display:block;font-size:13px}.setting-gmail span{display:block;margin-top:4px;color:var(--st-muted);font-size:11px}
 .setting-spin{color:var(--st-gold);animation:setting-spin 1s linear infinite}@keyframes setting-spin{to{transform:rotate(360deg)}}
-@media(max-width:900px){.settings-page{padding:22px 16px 55px}.setting-grid,.setting-filters,.setting-security-facts,.setting-archive-grid{grid-template-columns:1fr}.setting-save,.setting-section-title{align-items:flex-start;flex-direction:column}.setting-log{grid-template-columns:8px 80px 1fr}.setting-log>div:nth-of-type(2){grid-column:3}.setting-log>.setting-status{grid-column:3;justify-self:start}}
+.setting-subnav{display:inline-flex;gap:4px;padding:4px;margin-bottom:20px;border:1px solid var(--st-line);border-radius:8px;background:var(--st-input)}
+.setting-subnav button{padding:8px 16px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--st-muted);font:700 11.5px inherit;cursor:pointer;white-space:nowrap}
+.setting-subnav button:hover{color:var(--st-text)}
+.setting-subnav button.active{border-color:var(--st-line2);background:var(--st-soft);color:var(--st-gold2)}
+.setting-access-panel{display:grid;grid-template-columns:216px minmax(0,1fr);gap:0;overflow:hidden;border:1px solid var(--st-line);border-radius:10px;background:var(--st-input)}
+.setting-access-side{display:flex;flex-direction:column;gap:3px;padding:14px 10px;border-right:1px solid var(--st-line);background:rgba(0,0,0,.2);min-width:0}
+.setting-access-label{display:block;padding:0 8px 9px;color:var(--st-dim);font:700 9px "JetBrains Mono",monospace;letter-spacing:.16em;text-transform:uppercase}
+.setting-access-item{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;padding:9px 10px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--st-muted);font-family:inherit;text-align:left;cursor:pointer}
+.setting-access-item strong{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
+.setting-access-item small{color:var(--st-dim);font-size:10px}
+.setting-access-item:hover{background:rgba(255,255,255,.04);color:var(--st-text)}
+.setting-access-item.active{border-color:rgba(201,162,75,.4);background:rgba(201,162,75,.1);color:var(--st-gold2)}
+.setting-access-item.active small{color:rgba(239,210,134,.7)}
+.setting-access-scroll{flex:1;min-height:0;max-height:390px;overflow-y:auto;scrollbar-width:thin}
+.setting-access-body{display:flex;flex-direction:column;min-width:0}
+.setting-access-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 16px;border-bottom:1px solid var(--st-line);flex-wrap:wrap}
+.setting-access-toolbar strong{display:block;font-size:13px}
+.setting-access-toolbar small{display:block;margin-top:3px;color:var(--st-muted);font-size:10.5px}
+.setting-access-search{width:100%;margin:0 0 6px;padding:7px 9px;border:1px solid var(--st-line);border-radius:6px;background:var(--st-bg);color:var(--st-text);font:11.5px inherit}
+.setting-access-toolbar .setting-access-search{width:180px;margin:0}
+.setting-access-search:focus{outline:none;border-color:rgba(201,162,75,.55)}
+.setting-access-head{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:16px;padding:9px 16px;border-bottom:1px solid var(--st-line);color:var(--st-dim);font:700 9px "JetBrains Mono",monospace;letter-spacing:.14em;text-transform:uppercase}
+.setting-access-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 16px;border-bottom:1px solid rgba(49,43,32,.6)}
+.setting-access-row:last-child{border-bottom:0}
+.setting-access-row.selectable{cursor:pointer}
+.setting-access-row.selectable:hover{background:rgba(255,255,255,.03)}
+.setting-access-row.checked{background:rgba(201,162,75,.06)}
+.setting-access-meta{min-width:0}
+.setting-access-meta strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--st-text)}
+.setting-access-meta small{display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--st-dim);font-size:10px}
+.setting-access-user{display:flex;align-items:center;gap:11px;min-width:0}
+.setting-access-avatar{display:grid;place-items:center;width:30px;height:30px;flex:none;border-radius:50%;background:rgba(201,162,75,.15);color:var(--st-gold2);font:700 10px inherit;font-style:normal}
+.setting-access-row select{min-width:108px;padding:6px 8px;border:1px solid var(--st-line);border-radius:6px;background:var(--st-bg);color:var(--st-text);font:11.5px inherit}
+.setting-access-row select:focus{outline:none;border-color:var(--st-gold)}
+.setting-access-row select:disabled{opacity:.55}
+.setting-access-check{appearance:none;position:relative;width:18px;height:18px;flex:none;border:1.5px solid var(--st-line2);border-radius:4px;background:transparent;cursor:pointer}
+.setting-access-check:checked{border-color:var(--st-gold);background:var(--st-gold)}
+.setting-access-check:checked::after{content:'';position:absolute;left:5px;top:1.5px;width:5px;height:10px;border:solid #171204;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.setting-access-empty{padding:22px 16px;color:var(--st-dim);font-size:11.5px;text-align:center}
+@media(max-width:900px){.settings-page{padding:22px 16px 55px}.setting-grid,.setting-filters,.setting-security-facts,.setting-archive-grid{grid-template-columns:1fr}.setting-save,.setting-section-title{align-items:flex-start;flex-direction:column}.setting-log{grid-template-columns:8px 80px 1fr}.setting-log>div:nth-of-type(2){grid-column:3}.setting-log>.setting-status{grid-column:3;justify-self:start}.setting-access-panel{grid-template-columns:1fr}.setting-access-side{border-right:0;border-bottom:1px solid var(--st-line)}.setting-access-scroll{max-height:260px}.setting-access-toolbar .setting-access-search{width:100%}.setting-subnav{width:100%}.setting-subnav button{flex:1}}

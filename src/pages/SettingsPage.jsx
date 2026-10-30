@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, Camera, Download, KeyRound, Lock, RefreshCw, Save, ShieldCheck, Trash2, UserRound, Users } from 'lucide-react';
+import { Archive, Camera, Download, KeyRound, Lock, RefreshCw, Save, ShieldCheck, SlidersHorizontal, Trash2, UserRound, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { securityService } from '../services/securityService';
+import { projectService } from '../services/projectService';
 import '../styles/SettingsPage.css';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: UserRound },
   { id: 'security', label: 'Security', icon: Lock },
   { id: 'users', label: 'User', icon: Users },
+  { id: 'permissions', label: 'Akses', icon: SlidersHorizontal },
   { id: 'logs', label: 'Activity Log', icon: ShieldCheck },
   { id: 'archive', label: 'Archive', icon: Archive },
 ];
-const roleOrder = ['SUPER_ADMIN', 'PROJECT_MANAGER', 'PERENCANA', 'PELAKSANA', 'FINANCE', 'PURCHASING'];
+const roleOrder = ['OWNER', 'ADMIN', 'PERENCANA', 'PELAKSANA', 'FINANCE', 'PURCHASING'];
 const modules = ['APPROVAL', 'PROJECT', 'SURVEY', 'SURVEY_3D', 'DESIGN_QUOTATION', 'BV', 'RAB', 'SPK', 'PROFILE', 'AUTH'];
 const dateText = (value) => value ? new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
 const initials = (name = '') => name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?';
@@ -23,12 +25,23 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
   const [password, setPassword] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [permissionData, setPermissionData] = useState(null);
+  const [permissionRole, setPermissionRole] = useState('ADMIN');
+  const [permissionDraft, setPermissionDraft] = useState({});
+  const [memberProjects, setMemberProjects] = useState([]);
+  const [memberProjectId, setMemberProjectId] = useState('');
+  const [memberDraft, setMemberDraft] = useState(new Set());
+  const [memberCounts, setMemberCounts] = useState(new Map());
+  const [memberProjectQuery, setMemberProjectQuery] = useState('');
+  const [memberUserQuery, setMemberUserQuery] = useState('');
+  const [accessTab, setAccessTab] = useState('pages');
   const [archives, setArchives] = useState([]);
   const [integration, setIntegration] = useState(null);
   const [filters, setFilters] = useState({ module: 'APPROVAL', role: '', userId: '', status: '', from: '', to: '', limit: 50 });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const photoInput = useRef(null);
+  const membershipMapRef = useRef(new Map());
 
   const loadProfile = async () => {
     const response = await securityService.getMe();
@@ -36,6 +49,32 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
     setForm({ name: response.data.name || '', username: response.data.username || '', email: response.data.email || '', currentPassword: '' });
   };
   const loadUsers = async () => { const response = await securityService.getUsers(); setUsers(response.data || []); };
+  const loadPermissions = async () => { if (profile.role !== 'OWNER' && currentUser?.role !== 'OWNER') return; const response = await securityService.getPermissionTemplates(); setPermissionData(response.data); setPermissionDraft(response.data?.template?.ADMIN || {}); };
+  const loadMemberships = async () => {
+    if (profile.role !== 'OWNER' && currentUser?.role !== 'OWNER') return;
+    const [projectsResponse, membershipResponse] = await Promise.all([projectService.getAll(), securityService.getProjectMemberships()]);
+    const projects = (projectsResponse || []).map((project) => ({ id: project.id, name: project.name }));
+    setMemberProjects(projects);
+    const grouped = new Map();
+    for (const entry of membershipResponse.data || []) {
+      const projectId = entry.project?.id;
+      const userId = entry.user?.id;
+      if (!projectId || !userId) continue;
+      const list = grouped.get(projectId) || new Set();
+      list.add(userId);
+      grouped.set(projectId, list);
+    }
+    setMemberCounts(new Map([...grouped].map(([id, set]) => [id, set.size])));
+    membershipMapRef.current = grouped;
+    const first = projects[0]?.id || '';
+    const selected = memberProjectId && projects.some((project) => project.id === memberProjectId) ? memberProjectId : first;
+    setMemberProjectId(selected);
+    setMemberDraft(selected ? new Set(grouped.get(selected) || []) : new Set());
+  };
+  const selectMemberProject = (projectId) => {
+    setMemberProjectId(projectId);
+    setMemberDraft(new Set(membershipMapRef.current?.get(projectId) || []));
+  };
   const loadLogs = async () => { const response = await securityService.getLogs(filters); setLogs(response.data || []); };
   const loadArchive = async () => {
     const [archiveResponse, integrationResponse] = await Promise.all([securityService.getArchives(), securityService.getIntegrationStatus()]);
@@ -52,6 +91,7 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
   }, []);
 
   useEffect(() => {
+    if (active === 'permissions' && (profile.role === 'OWNER' || currentUser?.role === 'OWNER')) { loadPermissions().catch((error) => toast.error(error.message)); loadMemberships().catch((error) => toast.error(error.message)); }
     if (active !== 'logs') return;
     loadLogs().catch((error) => toast.error(error.message));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,6 +168,117 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
     users: (
       <section className="setting-card"><div className="setting-section-title"><div><span>DIREKTORI READ-ONLY</span><h2>User berdasarkan Role</h2><p>User tidak bisa mengubah akun orang lain.</p></div><strong>{users.length} user</strong></div>
         <div className="setting-role-list">{roleOrder.filter((role) => groupedUsers[role]?.length).map((role) => <div className="setting-role" key={role}><div className="setting-role-head"><strong>{role}</strong><span>{groupedUsers[role].length} user</span></div><div className="setting-table-wrap"><table><thead><tr><th>User</th><th>Username</th><th>Email</th><th>Terakhir Login</th><th>Status</th></tr></thead><tbody>{groupedUsers[role].map((entry) => <tr key={entry.id}><td><div className="setting-user-cell">{entry.photoUrl ? <img src={securityService.photoUrl(entry.photoUrl)} alt="" /> : <i>{initials(entry.name)}</i>}<strong>{entry.name}</strong></div></td><td>{entry.username}</td><td>{entry.email || '-'}</td><td>{dateText(entry.lastLoginAt)}</td><td><span className="setting-status success">Aktif</span></td></tr>)}</tbody></table></div></div>)}</div>
+      </section>
+    ),
+    permissions: (
+      <section className="setting-card">
+        <div className="setting-section-title"><div><span>KONTROL AKSES</span><h2>Pengaturan Akses</h2><p>Atur hak akses per halaman dan tentukan siapa yang boleh membuka project mana.</p></div></div>
+        {profile.role === 'OWNER' || currentUser?.role === 'OWNER' ? (
+          <>
+            <div className="setting-subnav">
+              <button type="button" className={accessTab === 'pages' ? 'active' : ''} onClick={() => setAccessTab('pages')}>Akses Halaman</button>
+              <button type="button" className={accessTab === 'members' ? 'active' : ''} onClick={() => setAccessTab('members')}>Anggota Project</button>
+            </div>
+
+            {accessTab === 'pages' ? (
+              <div className="setting-access-panel">
+                <aside className="setting-access-side">
+                  <span className="setting-access-label">Role yang diatur</span>
+                  {(permissionData?.roles || roleOrder).map((role) => {
+                    const count = Object.values(permissionData?.template?.[role] || {}).filter((value) => value !== 'NONE').length;
+                    return (
+                      <button key={role} type="button" className={`setting-access-item ${permissionRole === role ? 'active' : ''}`} onClick={() => { setPermissionRole(role); setPermissionDraft(permissionData?.template?.[role] || {}); }}>
+                        <strong>{role}</strong>
+                        <small>{role === 'OWNER' ? 'Akses penuh' : `${count} halaman`}</small>
+                      </button>
+                    );
+                  })}
+                </aside>
+                <div className="setting-access-body">
+                  <div className="setting-access-toolbar">
+                    <div><strong>{permissionRole}</strong><small>Hak akses global untuk role ini</small></div>
+                    <div className="setting-inline">
+                      <button type="button" className="setting-btn" disabled={permissionRole === 'OWNER'} onClick={() => { const next = {}; for (const module of (permissionData?.modules || [])) next[module.key] = 'MANAGE'; setPermissionDraft(next); }}>Pilih semua Kelola</button>
+                      <button type="button" className="setting-btn" disabled={permissionRole === 'OWNER'} onClick={() => { const next = {}; for (const module of (permissionData?.modules || [])) next[module.key] = 'NONE'; setPermissionDraft(next); }}>Kosongkan</button>
+                    </div>
+                  </div>
+                  <div className="setting-access-head"><span>Halaman</span><span>Akses</span></div>
+                  {(permissionData?.modules || []).map((module) => (
+                    <div className="setting-access-row" key={module.key}>
+                      <div className="setting-access-meta"><strong>{module.label}</strong><small>{module.hint}</small></div>
+                      <select value={permissionDraft[module.key] || 'NONE'} disabled={permissionRole === 'OWNER'} onChange={(event) => setPermissionDraft({ ...permissionDraft, [module.key]: event.target.value })}>
+                        <option value="NONE">Tidak ada</option><option value="READ">Lihat</option><option value="MANAGE">Kelola</option>
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="setting-access-panel">
+                <aside className="setting-access-side">
+                  <span className="setting-access-label">Project</span>
+                  <input className="setting-access-search" placeholder="Cari project..." value={memberProjectQuery} onChange={(event) => setMemberProjectQuery(event.target.value)} />
+                  <div className="setting-access-scroll">
+                    {memberProjects.filter((project) => project.name.toLowerCase().includes(memberProjectQuery.toLowerCase())).map((project) => (
+                      <button key={project.id} type="button" className={`setting-access-item ${memberProjectId === project.id ? 'active' : ''}`} onClick={() => selectMemberProject(project.id)}>
+                        <strong>{project.name}</strong>
+                        <small>{memberCounts.get(project.id) || 0} anggota</small>
+                      </button>
+                    ))}
+                    {!memberProjects.length && <div className="setting-access-empty">Belum ada project.</div>}
+                  </div>
+                </aside>
+                <div className="setting-access-body">
+                  <div className="setting-access-toolbar">
+                    <div><strong>{memberProjects.find((project) => project.id === memberProjectId)?.name || 'Pilih project'}</strong><small>{memberDraft.size} user dipilih</small></div>
+                    <div className="setting-inline">
+                      <input className="setting-access-search" placeholder="Cari user..." value={memberUserQuery} onChange={(event) => setMemberUserQuery(event.target.value)} />
+                      <button type="button" className="setting-btn" disabled={!memberProjectId} onClick={() => setMemberDraft(new Set(users.map((entry) => entry.id)))}>Pilih semua</button>
+                      <button type="button" className="setting-btn" disabled={!memberProjectId} onClick={() => setMemberDraft(new Set())}>Kosongkan</button>
+                    </div>
+                  </div>
+                  <div className="setting-access-head"><span>User</span><span>Anggota</span></div>
+                  <div className="setting-access-scroll">
+                    {users.filter((entry) => `${entry.name} ${entry.username} ${entry.role}`.toLowerCase().includes(memberUserQuery.toLowerCase())).map((entry) => (
+                      <label key={entry.id} className={`setting-access-row selectable ${memberDraft.has(entry.id) ? 'checked' : ''}`}>
+                        <div className="setting-access-user">
+                          <i className="setting-access-avatar">{initials(entry.name)}</i>
+                          <div className="setting-access-meta"><strong>{entry.name}</strong><small>{entry.role} · {entry.username}</small></div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          className="setting-access-check"
+                          checked={memberDraft.has(entry.id)}
+                          onChange={() => {
+                            const next = new Set(memberDraft);
+                            if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id);
+                            setMemberDraft(next);
+                          }}
+                        />
+                      </label>
+                    ))}
+                    {!users.length && <div className="setting-access-empty">Belum ada user.</div>}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="setting-save">
+              <span>{accessTab === 'pages' ? 'Owner selalu memiliki akses penuh.' : 'Owner dan Admin selalu melihat semua project.'}</span>
+              {accessTab === 'pages' ? (
+                <button className="setting-btn primary" disabled={permissionRole === 'OWNER'} onClick={async () => { try { await securityService.updatePermissionTemplate(permissionRole, permissionDraft); toast.success('Template permission disimpan.'); await loadPermissions(); } catch (error) { toast.error(error.message); } }}><Save size={15} /> Simpan Akses</button>
+              ) : (
+                <button className="setting-btn primary" disabled={!memberProjectId} onClick={async () => {
+                  try {
+                    await securityService.updateProjectMembership(memberProjectId, [...memberDraft]);
+                    toast.success('Anggota project disimpan.');
+                    await loadMemberships();
+                  } catch (error) { toast.error(error.message); }
+                }}><Save size={15} /> Simpan Anggota</button>
+              )}
+            </div>
+          </>
+        ) : <div className="setting-empty">Hanya OWNER yang dapat mengatur akses.</div>}
       </section>
     ),
     logs: (
