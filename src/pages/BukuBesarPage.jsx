@@ -502,7 +502,7 @@ export default function BukuBesarPage() {
       const exportRows = mapRowsForExport(sourceRows);
 
       if (!exportRows.length) {
-        toast.error("Data transaksi kosong, tidak ada yang bisa diexport");
+        toast.error("Data transaksi kosong, tidak ada yang bisa diekspor");
         return;
       }
 
@@ -512,10 +512,10 @@ export default function BukuBesarPage() {
 
       const fileName = `${buildExportFilePrefix()}.xlsx`;
       XLSX.writeFile(workbook, fileName);
-      toast.success("Export Excel berhasil");
+      toast.success("Ekspor Excel berhasil");
     } catch (err) {
       console.error(err);
-      toast.error("Gagal export Excel");
+      toast.error("Gagal ekspor Excel");
     }
   };
 
@@ -1041,7 +1041,7 @@ export default function BukuBesarPage() {
                                 type="button"
                                 onClick={() => openEdit(r)}
                                 className="p-2 rounded-lg bg-white/5 hover:bg-[#d4af37]/20 text-[#d4af37] transition-colors"
-                                title="Edit"
+                                title="Ubah"
                               >
                                 <Pencil size={16} />
                               </button>
@@ -1416,7 +1416,7 @@ export default function BukuBesarPage() {
                     onClick={resetTipeRekeningForm}
                     className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-[#ccc] text-sm"
                   >
-                    Batal Edit
+                    Batalkan Ubah
                   </button>
                 )}
                 <button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 bg-[#d4af37] hover:bg-[#b8972e] text-[#0c0b09] font-bold rounded-lg text-sm">

@@ -32,9 +32,8 @@ import {
 } from "../utils/workSubCategorySelection";
 import { countGroupItemsBySubCategory, filterGroupTreeBySubCategory } from "../utils/workSubCategoryFilter";
 
-const API_BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api`
-  : "http://localhost:4000/api";
+const rawApi = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+const API_BASE = rawApi ? `${rawApi}/api` : '/api';
 
 const fmtRp = (n) =>
   "Rp " +
@@ -1153,7 +1152,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                     disabled={selectedItemIds.length === 0}
                     type="button"
                   >
-                    <Pencil size={14} /> Edit Harga
+                    <Pencil size={14} /> Ubah Harga
                   </button>
                   <button
                     className={[styles["rab-btn"], styles["rab-btn-small"], styles["rab-btn-success"]].join(" ")}
@@ -1210,7 +1209,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                   style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                   type="button"
                 >
-                  ⬇ Export <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: showExportMenu ? 'rotate(180deg)' : 'none' }} />
+                  ⬇ Ekspor <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: showExportMenu ? 'rotate(180deg)' : 'none' }} />
                 </button>
                 {showExportMenu && (
                   <div style={{
@@ -1231,11 +1230,11 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                   }}>
                     {[
                       ...((isSuperAdmin || canEditRap) ? [
-                        { label: `Export RAP (Semua Kategori)`, action: () => exportRabExcel("RAP") },
+                        { label: `Ekspor RAP (Semua Kategori)`, action: () => exportRabExcel("RAP") },
                       ] : []),
                       ...(isSuperAdmin ? [
-                        { label: `Export RAB (Semua Kategori)`, action: () => exportRabExcel("RAB") },
-                        { label: `Export RAP + RAB (Semua Kategori)`, action: () => exportRabExcel("COMBINED") },
+                        { label: `Ekspor RAB (Semua Kategori)`, action: () => exportRabExcel("RAB") },
+                        { label: `Ekspor RAP + RAB (Semua Kategori)`, action: () => exportRabExcel("COMBINED") },
                       ] : []),
                       { label: `BackUp Volume (${activeCategoryLabel})`, action: exportBvExcel },
                       { divider: true },
@@ -1268,10 +1267,10 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
               </div>
 
               {(isSuperAdmin || canEditRap) && (
-                <button className={styles["rab-btn"]} onClick={viewRap} type="button">View RAP</button>
+                <button className={styles["rab-btn"]} onClick={viewRap} type="button">Lihat RAP</button>
               )}
               {isSuperAdmin && (
-                <button className={styles["rab-btn"]} onClick={viewRab} type="button">View RAB</button>
+                <button className={styles["rab-btn"]} onClick={viewRab} type="button">Lihat RAB</button>
               )}
 
               {isSuperAdmin && (project?.rabStatus === "LOCKED" ? (
@@ -1577,9 +1576,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
                     className={[styles["rab-btn"], styles["rab-btn-primary"]].join(" ")}
                     type="button"
                     onClick={() => { setOhDetailItem(null); openEdit(it, ohDetailItem.itemNumber); }}
-                  >
-                    Edit OVH
-                  </button>
+                  >Ubah OVH</button>
                 )}
               </div>
             </div>
@@ -1591,7 +1588,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       {editModal && (
         <div className={styles["rab-modal-overlay"]}>
           <div className={styles["rab-modal"]}>
-            <h3>Edit Baris Pekerjaan</h3>
+            <h3>Ubah Baris Pekerjaan</h3>
             <p className={styles["rab-edit-meta"]}>{editModal.item.name} · {editModal.item.paymentUnit} · Vol: {Number(editModal.item.volume).toFixed(2)}</p>
 
             <div className={styles["rab-toggle-row"]}>
@@ -1827,7 +1824,7 @@ const RabBudgeting = ({ initialProjectId = null, onBack, onProjectChange, onBack
       {bulkPriceModal && (
         <div className={styles["rab-modal-overlay"]}>
           <div className={styles["rab-modal"]}>
-            <h3>Edit Harga Massal (Terpilih)</h3>
+            <h3>Ubah Harga Massal (Terpilih)</h3>
             <label className={styles["rab-form-label"]} style={{ marginTop: '16px' }}>Harga Baru (RAP Satuan)
               <input type="text" className={styles["rab-form-input"]} placeholder="Kosongkan jika tidak ingin ubah" value={formatInputNumber(bulkPriceModal.rapUnitPrice)} onChange={(e) => setBulkPriceModal({ ...bulkPriceModal, rapUnitPrice: parseInputNumber(e.target.value) })} />
             </label>

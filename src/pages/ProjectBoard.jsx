@@ -48,7 +48,7 @@ const ProjectBoard = ({ onProjectClick }) => {
             {categoryLabel}
           </span>
           <h4>{project.name}</h4>
-          <p className={styles.clientText}>Client: {project.client?.name || '-'}</p>
+          <p className={styles.clientText}>Klien: {project.client?.name || '-'}</p>
           <p className={styles.clientText} style={{ marginBottom: '4px' }}>
             📍 {project.location || '-'}
           </p>
@@ -59,7 +59,7 @@ const ProjectBoard = ({ onProjectClick }) => {
           )}
           <div className={styles.progressBarContainer}>
             <div className={styles.progressInfo}>
-              <span>PROGRESS</span>
+              <span>PROGRES</span>
               <span>{project.progress ?? 0}%</span>
             </div>
             <div className={styles.progressTrack}>
@@ -69,7 +69,7 @@ const ProjectBoard = ({ onProjectClick }) => {
         </div>
         <div className={styles.cardFooter}>
           <span className={styles.date}><Calendar size={12} /> {project.hspkPeriod}</span>
-          <img src={`https://i.pravatar.cc/150?u=${project.id}`} alt="Assignee" className={styles.assigneeAvatar} />
+          <img src={`https://i.pravatar.cc/150?u=${project.id}`} alt="Penanggung Jawab" className={styles.assigneeAvatar} />
         </div>
       </div>
     );
@@ -79,13 +79,13 @@ const ProjectBoard = ({ onProjectClick }) => {
     <div className={styles.boardWrapper}>
       {/* TOP NAVBAR */}
       <header className={styles.boardNavbar}>
-        <h2>PROJECT WORKSPACE BOARD</h2>
+        <h2>PAPAN KERJA PROYEK</h2>
         <div className={styles.boardActions}>
           <div className={styles.searchBox}>
             <Search size={16} className={styles.textGray} />
             <input
               type="text"
-              placeholder="Search projects..."
+              placeholder="Cari proyek..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -94,7 +94,7 @@ const ProjectBoard = ({ onProjectClick }) => {
             <Bell size={20} />
           </button>
           <button className={styles.iconBtn} type="button"><Grid size={20} /></button>
-          <img src="https://i.pravatar.cc/150?img=11" alt="User" className={styles.avatar} />
+          <img src="https://i.pravatar.cc/150?img=11" alt="Pengguna" className={styles.avatar} />
         </div>
       </header>
 
@@ -102,10 +102,10 @@ const ProjectBoard = ({ onProjectClick }) => {
       <div className={styles.boardToolbar}>
         <div className={styles.filterGroup}>
           <button className={styles.toolbarBtn} type="button">
-            <Filter size={14} /> Filter By: All
+            <Filter size={14} /> Filter: Semua
           </button>
           <button className={styles.toolbarBtn} type="button">
-            Sort: Latest <ChevronDown size={14} />
+            Urutkan: Terbaru <ChevronDown size={14} />
           </button>
         </div>
         <button
@@ -113,7 +113,7 @@ const ProjectBoard = ({ onProjectClick }) => {
           onClick={() => setIsModalOpen(true)}
           type="button"
         >
-          <Plus size={16} /> CREATE NEW PROJECT
+          <Plus size={16} /> BUAT PROYEK BARU
         </button>
       </div>
 
@@ -122,7 +122,7 @@ const ProjectBoard = ({ onProjectClick }) => {
         {loading ? (
           <div className={styles.emptyState}>
             <MoreHorizontal size={32} className={styles.textGray} />
-            <p className={styles.textGray}>Memuat projects...</p>
+            <p className={styles.textGray}>Memuat proyek...</p>
           </div>
         ) : error ? (
           <div className={styles.emptyState}>
@@ -132,7 +132,7 @@ const ProjectBoard = ({ onProjectClick }) => {
           <div className={styles.emptyState}>
             <Plus size={32} className={styles.textGray} />
             <p className={styles.textGray}>
-              {searchQuery ? 'Tidak ada project yang cocok.' : 'Belum ada project. Klik "Create New Project" untuk mulai.'}
+              {searchQuery ? 'Tidak ada project yang cocok.' : 'Belum ada proyek. Klik "Buat Proyek Baru" untuk mulai.'}
             </p>
           </div>
         ) : (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Banknote, Plus, Search, Save, X, Edit2, Wrench, RotateCcw, AlertCircle } from 'lucide-react';
+import { Banknote, Plus, Search, Save, X, Edit2, Wrench, RotateCcw, AlertCircle, Printer } from 'lucide-react';
 import Header from '../components/Header';
 import { purchasingService } from '../services/purchasingService';
 import { poService } from '../services/poService';
@@ -131,6 +131,18 @@ const PembayaranSupplierPage = () => {
   const [filterProject, setFilterProject] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [joProgressData, setJoProgressData] = useState(null);
+  const [printingId, setPrintingId] = useState(null);
+
+  const handlePrintInvoice = async (id) => {
+    try {
+      setPrintingId(id);
+      await purchasingService.printInvoiceSupplier(id);
+    } catch (err) {
+      toast.error(err.message || 'Gagal mencetak invoice jasa');
+    } finally {
+      setPrintingId(null);
+    }
+  };
 
   const [jasaList, setJasaList] = useState([]);
   const [pos, setPOs] = useState([]);
@@ -539,24 +551,49 @@ const PembayaranSupplierPage = () => {
                           {statusLabel(p.status)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        {p.approvalStatus === 'REJECTED' ? (
-                          <button
-                            onClick={() => openModal(p)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-300 bg-red-500/15 border border-red-500/30 hover:bg-red-500/25 rounded transition-colors"
-                            title="Revisi Pembayaran Jasa"
-                          >
-                            <RotateCcw size={12} /> Revisi
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => openModal(p)}
-                            className="p-1.5 text-[#888] hover:text-[#d4af37] bg-white/5 hover:bg-white/10 rounded transition-colors"
-                            title="Update Pembayaran Jasa"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                        )}
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {p.approvalStatus === 'REJECTED' ? (
+                            <button
+                              onClick={() => openModal(p)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-300 bg-red-500/15 border border-red-500/30 hover:bg-red-500/25 rounded transition-colors"
+                              title="Revisi Pembayaran Jasa"
+                            >
+                              <RotateCcw size={12} /> Revisi
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openModal(p)}
+                              className="p-1.5 text-[#888] hover:text-[#d4af37] bg-white/5 hover:bg-white/10 rounded transition-colors"
+                              title="Update Pembayaran Jasa"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                          )}
+
+                          {(() => {
+                            const canPrint = p.approvalStatus === 'APPROVED' || p.approvalStatus === 'APPROVED_ATASAN' || p.isPostedKasBank;
+                            return (
+                              <button
+                                onClick={() => canPrint && handlePrintInvoice(p.id)}
+                                disabled={!canPrint || printingId === p.id}
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+                                  canPrint
+                                    ? 'bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 border-emerald-500/40 cursor-pointer'
+                                    : 'bg-white/5 text-[#555] border-white/5 cursor-not-allowed opacity-50'
+                                }`}
+                                title={
+                                  canPrint
+                                    ? 'Cetak Invoice PDF Resmi'
+                                    : 'Cetak invoice aktif setelah disetujui Atasan'
+                                }
+                              >
+                                <Printer size={13} />
+                                {printingId === p.id ? '...' : 'Cetak'}
+                              </button>
+                            );
+                          })()}
+                        </div>
                       </td>
                     </tr>
                   ))

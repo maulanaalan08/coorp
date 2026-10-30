@@ -24,7 +24,7 @@ function UploadHspk() {
 
   // Ambil kategori master dari API
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:4000/api'}/work-categories`, {
+    fetch(`${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '')}/api/work-categories`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     })
       .then(res => res.ok ? res.json() : [])
@@ -162,9 +162,9 @@ function UploadHspk() {
       <div className={styles.cardContainer}>
         {/* Header Judul & Note Inline */}
         <div className={styles.headerTitleGroup}>
-          <h2 className={styles.hspkTitle}>UPLOAD HSPK / AHSP</h2>
+          <h2 className={styles.hspkTitle}>UNGGAH HSPK / AHSP</h2>
           <span className={styles.hspkNote}>
-            Upload HSPK hanya sekali jika tidak ada perubahan data master.
+            Unggah HSPK hanya sekali jika tidak ada perubahan data master.
           </span>
         </div>
 
@@ -180,10 +180,10 @@ function UploadHspk() {
             <div className={styles.uploadIconBox}>
               <UploadCloud size={24} />
             </div>
-            <p className={styles.dragText}>Drag and drop your Excel file here</p>
-            <span className={styles.orText}>or</span>
+            <p className={styles.dragText}>Tarik dan letakkan file Excel Anda di sini</p>
+            <span className={styles.orText}>atau</span>
             <label className={styles.chooseBtn}>
-              <FileText size={15} /> Choose File
+              <FileText size={15} /> Pilih File
               <input
                 type="file"
                 accept=".xlsx,.xls"
@@ -191,7 +191,7 @@ function UploadHspk() {
                 hidden
               />
             </label>
-            <span className={styles.supportedFormat}>SUPPORTED FORMAT: .XLSX ONLY</span>
+            <span className={styles.supportedFormat}>FORMAT DIDUKUNG: HANYA .XLSX</span>
             {file && (
               <span className={styles.fileNameDisplay}>File Terpilih: {file.name}</span>
             )}
@@ -282,9 +282,9 @@ function UploadHspk() {
       {/* ===================== RIWAYAT UPLOAD ===================== */}
       <div className={styles.cardContainer}>
         <div className={styles.headerTitleGroup}>
-          <h2 className={styles.hspkTitle}><History size={18} style={{ verticalAlign: '-3px' }} /> RIWAYAT UPLOAD AHSP</h2>
+          <h2 className={styles.hspkTitle}><History size={18} style={{ verticalAlign: '-3px' }} /> RIWAYAT UNGGAHAN AHSP</h2>
           <span className={styles.hspkNote}>
-            Edit berarti upload ulang dengan periode/kategori/grade yang sama — data lama otomatis diganti, tidak double.
+            Ubah berarti unggah ulang dengan periode/kategori/grade yang sama — data lama otomatis diganti, tidak ganda.
           </span>
         </div>
 
@@ -295,7 +295,7 @@ function UploadHspk() {
           </div>
         ) : batches.length === 0 ? (
           <div className={styles.historyEmpty}>
-            <span>Belum ada AHSP yang di-upload.</span>
+            <span>Belum ada AHSP yang diunggah.</span>
           </div>
         ) : (
           <div className={styles.historyTableWrap}>
@@ -309,7 +309,7 @@ function UploadHspk() {
                   <th>JOB AHSP</th>
                   <th>HARGA DASAR</th>
                   <th>STATUS</th>
-                  <th>DI-UPLOAD</th>
+                  <th>DIUNGGAH</th>
                   <th>AKSI</th>
                 </tr>
               </thead>
@@ -339,7 +339,7 @@ function UploadHspk() {
                         <button
                           className={styles.iconBtn}
                           onClick={() => handleEditBatch(b)}
-                          title="Edit (upload ulang)"
+                          title="Ubah (unggah ulang)"
                         >
                           <RotateCcw size={15} />
                         </button>

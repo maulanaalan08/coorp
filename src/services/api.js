@@ -1,10 +1,9 @@
 // src/services/api.js
-export const API_BASE_URL = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api`
-  : 'http://localhost:4000/api';
+const rawApi = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+export const API_BASE_URL = rawApi ? `${rawApi}/api` : '/api';
 
 // Origin server backend (tanpa /api) — dipakai buat buka file upload
-export const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
+export const FILE_BASE_URL = rawApi || '';
 
 // Foto Surat Jalan disimpan sebagai path relatif ("/uploads/surat-jalan/xxx.jpg")
 export const fileUrl = (path) => {

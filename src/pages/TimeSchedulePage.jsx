@@ -156,7 +156,7 @@ function TimeSchedulePage({ projectId: initialProjectId = null }) {
           <div className="tsp-badge">{loading ? "Memuat..." : `${periods.length} Minggu Proyek`}</div>
           {projectId && (
             <button className="tsp-btn tsp-btn-primary" onClick={() => timeScheduleService.exportExcel(projectId, discipline)} disabled={loading}>
-              ⬇ Export Excel
+              ⬇ Ekspor Excel
             </button>
           )}
         </div>

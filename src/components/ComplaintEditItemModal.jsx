@@ -21,7 +21,7 @@ export default function ComplaintEditItemModal({ category, item, onClose, onSave
   const [newAfterPreviews, setNewAfterPreviews] = useState([]);
 
   const [isSaving, setIsSaving] = useState(false);
-  const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}` : 'http://localhost:4000';
+  const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
   const handleAddBeforeFiles = (fileList) => {
     const newFiles = Array.from(fileList);
@@ -77,14 +77,14 @@ export default function ComplaintEditItemModal({ category, item, onClose, onSave
 
   const handleSave = async () => {
     if (!areaName.trim()) return toast.error("Nama Area wajib diisi.");
-    if (!defectList.trim()) return toast.error("Defect List wajib diisi.");
+    if (!defectList.trim()) return toast.error("Daftar kerusakan wajib diisi.");
     
     if (status) {
       if (!repairDate) {
         return toast.error("Jika status Selesai, Tanggal Perbaikan wajib diisi.");
       }
       if (existingAfter.length === 0 && newAfter.length === 0) {
-        return toast.error("Jika status Selesai, wajib memiliki minimal 1 Foto After.");
+        return toast.error("Jika status Selesai, wajib memiliki minimal 1 Foto Perbaikan (After).");
       }
     }
     
@@ -118,7 +118,7 @@ export default function ComplaintEditItemModal({ category, item, onClose, onSave
     <div className={styles.modalOverlay}>
       <div className={styles.modalBox} style={{ maxWidth: '600px' }}>
         <div className={styles.modalHeader}>
-          <h3>Edit Data Defect</h3>
+          <h3>Ubah Data Kerusakan</h3>
           <button type="button" className={styles.closeBtn} onClick={onClose}>✕</button>
         </div>
         

@@ -225,9 +225,9 @@ const TaskModal = ({
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 className="w-full bg-[#0d0c0a] border border-[#333] rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all text-sm"
               >
-                <option value="TODO">To Do (Belum Dikerjakan)</option>
-                <option value="IN_PROGRESS">In Progress (Sedang Dikerjakan)</option>
-                <option value="DONE">Done (Selesai)</option>
+                <option value="TODO">Belum Dikerjakan</option>
+                <option value="IN_PROGRESS">Sedang Dikerjakan</option>
+                <option value="DONE">Selesai</option>
               </select>
             </div>
 
@@ -241,10 +241,10 @@ const TaskModal = ({
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
                 className="w-full bg-[#0d0c0a] border border-[#333] rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all text-sm"
               >
-                <option value="LOW">Rendah (Biasa)</option>
-                <option value="MEDIUM">Normal (Sedang)</option>
-                <option value="HIGH">Tinggi (Penting)</option>
-                <option value="URGENT">Mendesak (Urgent)</option>
+                <option value="LOW">Rendah</option>
+                <option value="MEDIUM">Normal</option>
+                <option value="HIGH">Tinggi</option>
+                <option value="URGENT">Mendesak</option>
               </select>
             </div>
           </div>

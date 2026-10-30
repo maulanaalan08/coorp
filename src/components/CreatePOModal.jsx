@@ -173,7 +173,7 @@ const CreatePOModal = ({ isOpen, onClose, selectedItem, mrItem, projectId }) => 
             </div>
 
             <div className={styles.subtotalPreview}>
-              <span>Preview Subtotal:</span>
+              <span>Pratinjau Subtotal:</span>
               <strong>
                 Rp {subTotal.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
               </strong>

@@ -31,7 +31,7 @@ export default function ComplaintAddHeaderModal({ existingCategory, onClose, onS
     const newFiles = Array.from(fileList);
     
     if (newItems[index].files.length + newFiles.length > 20) {
-      toast.error("Maksimal 20 foto per defect list.");
+      toast.error("Maksimal 20 foto per daftar kerusakan.");
       return;
     }
     
@@ -54,7 +54,7 @@ export default function ComplaintAddHeaderModal({ existingCategory, onClose, onS
       return toast.error("Nama Header tidak boleh kosong.");
     }
     if (items.length === 0) {
-      return toast.error("Minimal harus ada 1 defect list.");
+      return toast.error("Minimal harus ada 1 daftar kerusakan.");
     }
 
     for (let i = 0; i < items.length; i++) {

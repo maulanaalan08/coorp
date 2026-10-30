@@ -389,7 +389,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, user }) => {
               title={isCollapsed ? `${user.name} — ${user.role}` : undefined}
             >
               {user.photoUrl ? (
-                <img src={`${import.meta.env.VITE_API_URL || "http://localhost:4000"}${user.photoUrl}`} alt="Foto profil" className="w-10 h-10 shrink-0 rounded-full object-cover border border-[#d4af37] shadow-md" />
+                <img src={`${(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}${user.photoUrl}`} alt="Foto profil" className="w-10 h-10 shrink-0 rounded-full object-cover border border-[#d4af37] shadow-md" />
               ) : (
                 <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-[#d4af37] to-[#a8862a] flex items-center justify-center text-[#0c0b09] font-bold text-sm shadow-md">
                   {getInitials(user.name)}

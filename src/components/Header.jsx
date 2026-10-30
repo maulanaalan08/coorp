@@ -14,10 +14,10 @@ const Header = () => {
     <header className="flex flex-col md:flex-row md:items-center justify-between w-full px-5 py-6 md:px-10 bg-[#0c0b09] gap-4 pl-16 md:pl-10 relative">
       <div className="flex flex-col">
         <h2 className="font-serif text-2xl md:text-3xl text-[#f2ead9] mb-1 leading-tight">
-          Welcome back, {user?.name || "User"}.
+          Selamat datang kembali, {user?.name || "Pengguna"}.
         </h2>
         <p className="text-[#a89c85] text-xs md:text-sm">
-          Here is the summary of PT. Dives Jaya Perkasa projects today.
+          Berikut adalah ringkasan proyek PT. Dives Jaya Perkasa hari ini.
         </p>
       </div>
 
@@ -38,7 +38,7 @@ const Header = () => {
         <div className="w-9 h-9 md:w-10 md:h-10 rounded-full border-2 border-[#7d6733] overflow-hidden shrink-0">
           <img 
             src={`https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=d4af37&color=fff`} 
-            alt="User Avatar" 
+            alt="Avatar Pengguna" 
             title={user?.name}
             className="w-full h-full object-cover"
           />
@@ -48,7 +48,7 @@ const Header = () => {
           className="p-2 rounded-full text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors" 
           type="button" 
           onClick={logoutAuth} 
-          title="Logout"
+          title="Keluar"
         >
           <LogOut size={20} />
         </button>

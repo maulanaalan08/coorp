@@ -317,10 +317,10 @@ const CreateProjectModal = ({
 
         <form className="project-form" onSubmit={handleSubmit}>
           <div className="card">
-            <h2>Basic Information</h2>
+            <h2>Informasi Dasar</h2>
             <div className="grid">
               <div className="form-group">
-                <label>Project Name</label>
+                <label>Nama Proyek</label>
                 <input
                   type="text"
                   value={projectName}
@@ -330,7 +330,7 @@ const CreateProjectModal = ({
               </div>
 
               <div className="form-group">
-                <label>Client Name</label>
+                <label>Nama Klien</label>
                 <input
                   type="text"
                   value={client}
@@ -340,7 +340,7 @@ const CreateProjectModal = ({
               </div>
 
               <div className="form-group full">
-                <label>Location</label>
+                <label>Lokasi</label>
                 <input
                   type="text"
                   value={location}
@@ -367,7 +367,7 @@ const CreateProjectModal = ({
                 </select>
                 {periods.length === 0 && !hspkLoading && (
                   <small className="cat-period-note">
-                    Belum ada data HSPK. Upload HSPK dulu.
+                    Belum ada data HSPK. Unggah HSPK dulu.
                   </small>
                 )}
               </div>
@@ -440,7 +440,7 @@ const CreateProjectModal = ({
                             </select>
                             {grades.length === 0 && selectedPeriod && (
                               <small className="cat-hint">
-                                Belum ada upload HSPK {isLegacy ? cat.code : cat.name}{" "}
+                                Belum ada unggahan HSPK {isLegacy ? cat.code : cat.name}{" "}
                                 untuk periode {selectedPeriod}.
                               </small>
                             )}
@@ -456,12 +456,12 @@ const CreateProjectModal = ({
 
           <div className="actions">
             <button type="button" className="cancel" onClick={onClose} disabled={saving}>
-              Cancel
+              Batal
             </button>
             <button type="submit" className="create" disabled={saving}>
               {saving
-                ? isEditMode ? "Saving..." : "Creating..."
-                : isEditMode ? "Save Changes" : "Create Project"}
+                ? isEditMode ? "Menyimpan..." : "Membuat..."
+                : isEditMode ? "Simpan Perubahan" : "Buat Proyek"}
             </button>
           </div>
         </form>
