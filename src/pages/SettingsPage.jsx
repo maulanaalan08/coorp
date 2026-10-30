@@ -141,23 +141,32 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
         <div className="setting-section-title"><div><span>AKSES PER HALAMAN</span><h2>Pengaturan Akses Role</h2><p>Atur akses halaman utama sekali per role. Membership project menjadi pembatas data tambahan.</p></div></div>
         {profile.role === 'OWNER' || currentUser?.role === 'OWNER' ? (
           <>
-            <div className="setting-inline" style={{ marginBottom: 18 }}>
-              <span className="setting-status success">Akses halaman</span>
-              <select value={permissionRole} onChange={(event) => { const role = event.target.value; setPermissionRole(role); setPermissionDraft(permissionData?.template?.[role] || {}); }}>
-                {(permissionData?.roles || roleOrder).map((role) => <option key={role}>{role}</option>)}
-              </select>
-              <span className="setting-status success">Berlaku global</span>
-            </div>
-            <div className="setting-permission-grid">
-              <div className="setting-permission-head"><span>Halaman</span><span>Akses</span></div>
-              {(permissionData?.modules || []).map((module) => (
-                <div className="setting-permission-row" key={module.key}>
-                  <div><strong>{module.label}</strong><small>{module.hint}</small></div>
-                  <select value={permissionDraft[module.key] || 'NONE'} disabled={permissionRole === 'OWNER'} onChange={(event) => setPermissionDraft({ ...permissionDraft, [module.key]: event.target.value })}>
-                    <option value="NONE">Tidak ada</option><option value="READ">Lihat</option><option value="MANAGE">Kelola</option>
-                  </select>
-                </div>
-              ))}
+            <div className="setting-permission-layout">
+              <aside className="setting-permission-roles" aria-label="Role yang diatur">
+                <span>Role yang diatur</span>
+                {(permissionData?.roles || roleOrder).map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    className={`setting-permission-role ${permissionRole === role ? 'active' : ''}`}
+                    onClick={() => { setPermissionRole(role); setPermissionDraft(permissionData?.template?.[role] || {}); }}
+                  >
+                    <strong>{role}</strong>
+                    <small>{role === 'OWNER' ? 'Full access' : `${Object.values(permissionData?.template?.[role] || {}).filter((value) => value !== 'NONE').length} halaman`}</small>
+                  </button>
+                ))}
+              </aside>
+              <div className="setting-permission-grid">
+                <div className="setting-permission-head"><span>Halaman</span><span>Akses</span></div>
+                {(permissionData?.modules || []).map((module) => (
+                  <div className="setting-permission-row" key={module.key}>
+                    <div><strong>{module.label}</strong><small>{module.hint}</small></div>
+                    <select value={permissionDraft[module.key] || 'NONE'} disabled={permissionRole === 'OWNER'} onChange={(event) => setPermissionDraft({ ...permissionDraft, [module.key]: event.target.value })}>
+                      <option value="NONE">Tidak ada</option><option value="READ">Lihat</option><option value="MANAGE">Kelola</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="setting-save"><span>Owner selalu memiliki akses penuh.</span><button className="setting-btn primary" disabled={permissionRole === 'OWNER'} onClick={async () => { try { await securityService.updatePermissionTemplate(permissionRole, permissionDraft); toast.success('Template permission disimpan.'); await loadPermissions(); } catch (error) { toast.error(error.message); } }}><Save size={15} /> Simpan Akses</button></div>
           </>
