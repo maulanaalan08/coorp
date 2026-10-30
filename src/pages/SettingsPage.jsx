@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Archive, Camera, Download, KeyRound, Lock, RefreshCw, Save, ShieldCheck, SlidersHorizontal, Trash2, UserRound, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { securityService } from '../services/securityService';
+import { projectService } from '../services/projectService';
 import '../styles/SettingsPage.css';
 
 const tabs = [
@@ -27,6 +28,9 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
   const [permissionData, setPermissionData] = useState(null);
   const [permissionRole, setPermissionRole] = useState('ADMIN');
   const [permissionDraft, setPermissionDraft] = useState({});
+  const [memberProjects, setMemberProjects] = useState([]);
+  const [memberProjectId, setMemberProjectId] = useState('');
+  const [memberDraft, setMemberDraft] = useState(new Set());
   const [archives, setArchives] = useState([]);
   const [integration, setIntegration] = useState(null);
   const [filters, setFilters] = useState({ module: 'APPROVAL', role: '', userId: '', status: '', from: '', to: '', limit: 50 });
@@ -41,6 +45,26 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
   };
   const loadUsers = async () => { const response = await securityService.getUsers(); setUsers(response.data || []); };
   const loadPermissions = async () => { if (profile.role !== 'OWNER' && currentUser?.role !== 'OWNER') return; const response = await securityService.getPermissionTemplates(); setPermissionData(response.data); setPermissionDraft(response.data?.template?.ADMIN || {}); };
+  const loadMemberships = async () => {
+    if (profile.role !== 'OWNER' && currentUser?.role !== 'OWNER') return;
+    const [projectsResponse, membershipResponse] = await Promise.all([projectService.getAll(), securityService.getProjectMemberships()]);
+    const projects = (projectsResponse || []).map((project) => ({ id: project.id, name: project.name }));
+    setMemberProjects(projects);
+    const grouped = new Map();
+    for (const entry of membershipResponse.data || []) {
+      const list = grouped.get(entry.project?.id) || new Set();
+      list.add(entry.user?.id);
+      grouped.set(entry.project?.id, list);
+    }
+    const first = projects[0]?.id || '';
+    setMemberProjectId((current) => current || first);
+    setMemberDraft(grouped.get(first) || new Set());
+    window.__membershipMap = grouped;
+  };
+  const selectMemberProject = (projectId) => {
+    setMemberProjectId(projectId);
+    setMemberDraft(new Set(window.__membershipMap?.get(projectId) || []));
+  };
   const loadLogs = async () => { const response = await securityService.getLogs(filters); setLogs(response.data || []); };
   const loadArchive = async () => {
     const [archiveResponse, integrationResponse] = await Promise.all([securityService.getArchives(), securityService.getIntegrationStatus()]);
@@ -57,7 +81,7 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
   }, []);
 
   useEffect(() => {
-    if (active === 'permissions' && (profile.role === 'OWNER' || currentUser?.role === 'OWNER')) loadPermissions().catch((error) => toast.error(error.message));
+    if (active === 'permissions' && (profile.role === 'OWNER' || currentUser?.role === 'OWNER')) { loadPermissions().catch((error) => toast.error(error.message)); loadMemberships().catch((error) => toast.error(error.message)); }
     if (active !== 'logs') return;
     loadLogs().catch((error) => toast.error(error.message));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -169,6 +193,46 @@ export default function SettingsPage({ currentUser, onUserUpdated }) {
               </div>
             </div>
             <div className="setting-save"><span>Owner selalu memiliki akses penuh.</span><button className="setting-btn primary" disabled={permissionRole === 'OWNER'} onClick={async () => { try { await securityService.updatePermissionTemplate(permissionRole, permissionDraft); toast.success('Template permission disimpan.'); await loadPermissions(); } catch (error) { toast.error(error.message); } }}><Save size={15} /> Simpan Akses</button></div>
+
+            <div className="setting-section-title" style={{ marginTop: 36, paddingTop: 28, borderTop: '1px solid rgba(201,162,75,.14)' }}><div><span>AKSES PER PROJECT</span><h2>Anggota Project</h2><p>Centang siapa yang boleh membuka project ini. Yang tidak dicentang tidak melihat datanya.</p></div></div>
+            <div className="setting-permission-layout">
+              <aside className="setting-permission-roles" aria-label="Daftar project">
+                <span>Project</span>
+                {memberProjects.map((project) => (
+                  <button key={project.id} type="button" className={`setting-permission-role ${memberProjectId === project.id ? 'active' : ''}`} onClick={() => selectMemberProject(project.id)}>
+                    <strong>{project.name}</strong>
+                  </button>
+                ))}
+                {!memberProjects.length && <small style={{ padding: '0 10px' }}>Belum ada project.</small>}
+              </aside>
+              <div>
+                <div className="setting-permission-head" style={{ gridTemplateColumns: '1fr 90px', borderBottom: '1px solid rgba(201,162,75,.12)', paddingBottom: 10 }}><span>User</span><span>Anggota</span></div>
+                <div style={{ maxHeight: 330, overflowY: 'auto' }}>
+                  {users.map((entry) => (
+                    <label key={entry.id} className="setting-permission-row" style={{ cursor: 'pointer' }}>
+                      <div><strong>{entry.name}</strong><small>{entry.role} · {entry.username}</small></div>
+                      <input
+                        type="checkbox"
+                        checked={memberDraft.has(entry.id)}
+                        onChange={() => {
+                          const next = new Set(memberDraft);
+                          if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id);
+                          setMemberDraft(next);
+                        }}
+                      />
+                    </label>
+                  ))}
+                  {!users.length && <div className="setting-empty">Belum ada user.</div>}
+                </div>
+                <div className="setting-save"><span>Owner selalu melihat semua project.</span><button className="setting-btn primary" disabled={!memberProjectId} onClick={async () => {
+                  try {
+                    await securityService.updateProjectMembership(memberProjectId, [...memberDraft]);
+                    toast.success('Anggota project disimpan.');
+                    await loadMemberships();
+                  } catch (error) { toast.error(error.message); }
+                }}><Save size={15} /> Simpan Anggota</button></div>
+              </div>
+            </div>
           </>
         ) : <div className="setting-empty">Hanya OWNER yang dapat mengatur permission role.</div>}
       </section>
